@@ -26,6 +26,9 @@ class UiCard extends StatelessWidget {
   final Color? background;
   final EdgeInsetsGeometry? padding;
 
+  /// Tighter paddings for dense grids (menu cards, small tiles).
+  final bool compact;
+
   const UiCard({
     super.key,
     required this.title,
@@ -36,6 +39,7 @@ class UiCard extends StatelessWidget {
     this.onTap,
     this.background,
     this.padding,
+    this.compact = false,
   });
 
   @override
@@ -65,12 +69,14 @@ class UiCard extends StatelessWidget {
             Padding(
               padding: padding ??
                   EdgeInsets.all(
-                    responsiveValue(
-                      context,
-                      mobile: Space.lg,
-                      tablet: Space.xl,
-                      desktop: Space.xl,
-                    ),
+                    compact
+                        ? Space.md
+                        : responsiveValue(
+                            context,
+                            mobile: Space.lg,
+                            tablet: Space.xl,
+                            desktop: Space.xl,
+                          ),
                   ),
               child: Row(
                 children: [
@@ -105,7 +111,12 @@ class UiCard extends StatelessWidget {
             ),
             if (actions.isNotEmpty)
               Padding(
-                padding: EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.lg),
+                padding: EdgeInsets.fromLTRB(
+                  compact ? Space.md : Space.lg,
+                  0,
+                  compact ? Space.md : Space.lg,
+                  compact ? Space.sm : Space.lg,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [

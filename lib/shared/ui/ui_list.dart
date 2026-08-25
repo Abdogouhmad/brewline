@@ -191,7 +191,7 @@ class UiListTile extends StatelessWidget {
                 color: colorScheme.primary,
               ),
             ),
-          ?trailing,          if (actionIcon != null && onActionPressed != null)
+          if (actionIcon != null && onActionPressed != null)
             IconButton(
               tooltip: actionTooltip,
               onPressed: onActionPressed,

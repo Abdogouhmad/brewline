@@ -67,16 +67,35 @@ class ResponsiveLayout extends StatelessWidget {
 }
 
 /// Reusable responsive grid for card/tile lists — fewer/more columns by width.
+///
+/// Column counts and spacing are overridable per breakpoint; defaults keep
+/// the original layout.
 class ResponsiveGrid extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsetsGeometry padding;
   final double childAspectRatio;
+
+  /// Column counts per breakpoint. Null falls back to [defaultColumns].
+  final int? mobileColumns;
+  final int? tabletColumns;
+  final int? desktopColumns;
+  final double crossAxisSpacing;
+  final double mainAxisSpacing;
+
+  static const int defaultMobileColumns = 1;
+  static const int defaultTabletColumns = 2;
+  static const int defaultDesktopColumns = 4;
 
   const ResponsiveGrid({
     super.key,
     required this.children,
     this.padding = const EdgeInsets.all(16),
     this.childAspectRatio = 1.3,
+    this.mobileColumns,
+    this.tabletColumns,
+    this.desktopColumns,
+    this.crossAxisSpacing = 16,
+    this.mainAxisSpacing = 16,
   });
 
   @override
@@ -85,11 +104,11 @@ class ResponsiveGrid extends StatelessWidget {
       builder: (context, constraints) {
         int columns;
         if (constraints.maxWidth >= 1024) {
-          columns = 4;
+          columns = desktopColumns ?? defaultDesktopColumns;
         } else if (constraints.maxWidth >= 600) {
-          columns = 2;
+          columns = tabletColumns ?? defaultTabletColumns;
         } else {
-          columns = 1;
+          columns = mobileColumns ?? defaultMobileColumns;
         }
 
         return GridView.count(
@@ -97,8 +116,8 @@ class ResponsiveGrid extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: padding,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
+          crossAxisSpacing: crossAxisSpacing,
+          mainAxisSpacing: mainAxisSpacing,
           childAspectRatio: childAspectRatio,
           children: children,
         );
