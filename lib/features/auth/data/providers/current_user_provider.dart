@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Minimal user model. Swap the hard-coded [currentUserProvider] value for
-/// a database/stream-backed source when auth is wired up.
+/// The signed-in user's profile. Auth-domain state shared across features
+/// (waiter, admin) that need to know who's on shift.
 class UserProfile {
   final String id;
   final String name;
