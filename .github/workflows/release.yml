@@ -72,6 +72,9 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      # Builds each requested target. On Windows, verbose output is captured to
+      # a log file so the underlying error (GitHub truncates collapsed output)
+      # is preserved and echoed if the build fails.
       - name: Build release bundles
         shell: bash
         env:
@@ -79,11 +82,21 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
         run: |
           chmod +x ./build.sh
-          # Iterate over the space-separated target list, one per call, so a
-          # failure on one target is isolated from the others.
           for target in ${{ matrix.targets }}; do
             echo "::group::Build $target"
-            ./build.sh --only "$target" --no-version-checksum
+            if [[ "${{ runner.os }}" == "Windows" ]]; then
+              set +e
+              ./build.sh -v --only "$target" --no-version-checksum 2>&1 | tee /tmp/${target}-build.log
+              rc=${PIPESTATUS[0]}
+              set -e
+              if (( rc != 0 )); then
+                echo "::error::Build of '$target' failed (exit $rc). Last 120 log lines:"
+                tail -n 120 /tmp/${target}-build.log
+                exit $rc
+              fi
+            else
+              ./build.sh --only "$target" --no-version-checksum
+            fi
             echo "::endgroup::"
           done
 
