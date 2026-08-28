@@ -1,0 +1,165 @@
+name: release
+
+# Builds installable release bundles on every push/merge to `main` and
+# publishes them as a GitHub **prerelease** (the app is still pre-1.0/alpha).
+#
+#   Linux   (x64)   built on ubuntu
+#   Android (APK)   built on ubuntu (universal fat APK + per-arch AAB)
+#   Windows (x64)   built on windows-latest
+#
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            targets: linux android
+          - os: windows-latest
+            targets: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Cache pub dependencies so `flutter pub get` (and the Flutter build)
+      # don't re-resolve packages on every run.
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            .dart_tool
+            .flutter-plugins-dependencies
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      # Cache Gradle (Android) build state for the ubuntu runner — the
+      # heaviest part of the Android build after the first run.
+      - name: Cache Gradle
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ${{ github.workspace }}/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/**/*.gradle*') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Build release bundles
+        shell: bash
+        env:
+          CI: "true"
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          chmod +x ./build.sh
+          # Iterate over the space-separated target list, one per call, so a
+          # failure on one target is isolated from the others.
+          for target in ${{ matrix.targets }}; do
+            echo "::group::Build $target"
+            ./build.sh --only "$target" --no-version-checksum
+            echo "::endgroup::"
+          done
+
+      # Linux bundle: the whole build/linux/x64/release/bundle/ directory.
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cd build/linux/x64/release/bundle
+          tar -czf ../../../../../brewline-linux-x64.tar.gz .
+
+      # Windows: package the runner Release output with PowerShell (7z is not
+      # guaranteed to be on PATH).
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/windows/x64/runner/brewline-windows-x64.zip -Force
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: brewline-${{ matrix.os }}-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/bundle/release/*.aab
+            build/linux/x64/release/*.tar.gz
+            build/windows/x64/runner/*.zip
+
+  # Aggregates every artifact from the build matrix into a single GitHub
+  # prerelease draft, tagged as the app version.
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(sed -nE 's/^version: *([^ ]+).*/\1/p' pubspec.yaml | head -n1)"
+          # Replace the +N build number so it can be used as a git tag.
+          TAG="${VERSION%%+*}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Collision-safe: delete any existing tag/ref from a prior run of the
+          # same version so re-merges into main can re-release that version.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes --cleanup-tag
+          else
+            git tag -d "$TAG" >/dev/null 2>&1 || true
+          fi
+
+          # Build the notes file and strip the YAML-indentation whitespace.
+          # Unquoted heredoc keeps ${GITHUB_SHA} (and friends) expanded.
+          sed 's/^[[:space:]]*//' > /tmp/release_notes.md <<EOF
+          Automated **prerelease** build from commit \`${GITHUB_SHA::7}\`.
+
+          > ⚠️ Alpha — not for production use.
+
+          **Artifacts**
+          - \`brewline-linux-x64.tar.gz\` — Linux desktop
+          - \`brewline-windows-x64.zip\` — Windows desktop
+          - \`app-release.apk\` — Android universal (arm32 + arm64 + x64)
+          - \`app-arm64-v8a-release.apk\` / \`app-armeabi-v7a-release.apk\` / \`app-x86_64-release.apk\` — Android per-architecture split APKs
+          - \`app-release.aab\` — Android split bundle (Play Store)
+          EOF
+
+          gh release create "$TAG" \
+            --title "brewline $VERSION (pre-release)" \
+            --prerelease \
+            --notes-file /tmp/release_notes.md \
+            artifacts/*.tar.gz artifacts/*.zip artifacts/*.apk artifacts/*.aab
