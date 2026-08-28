@@ -48,7 +48,7 @@ class BrandTitle extends StatelessWidget {
         if (showTagline) ...[
           SizedBox(width: 10),
           UiText(
-            'for waiters',
+            'for management',
             type: UiTextType.labelLarge,
             color: colorScheme.onSurfaceVariant,
           ),

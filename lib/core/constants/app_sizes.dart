@@ -1,6 +1,10 @@
 /// Tailwind-inspired design tokens for brewline.
 ///
 /// Use these instead of magic numbers so spacing/radius stay consistent.
+library;
+
+/// Number of digits in the admin PIN keypad.
+const int kAdminPinLength = 6;
 class Space {
   Space._();
 
