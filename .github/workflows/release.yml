@@ -116,16 +116,26 @@ jobs:
         run: |
           Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/windows/x64/runner/brewline-windows-x64.zip -Force
 
+      # Stage every build output into a flat dist/ directory. upload-artifact v4
+      # stores files relative to the common ancestor of the matched paths, which
+      # would preserve the nested build/... structure and break the release
+      # job's flat globs. Flattening here keeps all files at the top level.
+      - name: Stage release artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/*.apk dist/ 2>/dev/null || true
+          cp build/app/outputs/bundle/release/*.aab dist/ 2>/dev/null || true
+          cp build/linux/x64/release/*.tar.gz dist/ 2>/dev/null || true
+          cp build/windows/x64/runner/*.zip dist/ 2>/dev/null || true
+          echo "Staged files:"; ls -1 dist/
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: brewline-${{ matrix.os }}-${{ github.sha }}
           if-no-files-found: error
-          path: |
-            build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/bundle/release/*.aab
-            build/linux/x64/release/*.tar.gz
-            build/windows/x64/runner/*.zip
+          path: dist/*
 
   # Aggregates every artifact from the build matrix into a single GitHub
   # prerelease draft, tagged as the app version.
