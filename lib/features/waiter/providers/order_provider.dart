@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:brewline/features/waiter/data/providers/price_format.dart';
-import 'package:brewline/features/waiter/data/providers/product_provider.dart'
+import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/features/waiter/providers/product_provider.dart'
     show Product;
 
 /// A single line on the current order: which [Product] and how many.

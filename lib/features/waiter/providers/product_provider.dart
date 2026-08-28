@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:brewline/features/waiter/data/providers/price_format.dart';
+import 'package:brewline/features/waiter/providers/price_format.dart';
 
 /// A menu product.
 ///

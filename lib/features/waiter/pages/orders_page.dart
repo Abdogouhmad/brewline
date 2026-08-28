@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
-import 'package:brewline/features/waiter/data/providers/order_provider.dart';
-import 'package:brewline/features/waiter/data/providers/price_format.dart';
+import 'package:brewline/features/waiter/providers/order_provider.dart';
+import 'package:brewline/features/waiter/providers/price_format.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_list.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';

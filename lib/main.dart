@@ -1,3 +1,4 @@
+import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brewline/core/theme/app_theme.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
-import 'package:brewline/features/waiter/presentation/pages/waiter_home_page.dart';
+
+// import 'package:brewline/features/waiter/pages/waiter_home_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +42,7 @@ class BrewlineApp extends StatelessWidget {
               darkTheme: buildDarkTheme(darkDynamic),
               // TODO: route based on onboarding-completed flag (auth feature).
               // Admin profile entry point: features/admin/.../admin_home_page.dart
-              home: const WaiterHomePage(),
+              home: const OnboardingPage(),
             );
           },
         );
