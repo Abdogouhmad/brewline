@@ -100,13 +100,13 @@ jobs:
             echo "::endgroup::"
           done
 
-      # Linux bundle: the whole build/linux/x64/release/bundle/ directory.
+      # Linux bundle: the whole build/linux/x64/release/bundle/ directory,
+      # archived next to the upload glob (build/linux/x64/release/*.tar.gz).
       - name: Package Linux
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          cd build/linux/x64/release/bundle
-          tar -czf ../../../../../brewline-linux-x64.tar.gz .
+          tar -czf build/linux/x64/release/brewline-linux-x64.tar.gz -C build/linux/x64/release/bundle .
 
       # Windows: package the runner Release output with PowerShell (7z is not
       # guaranteed to be on PATH).
@@ -181,8 +181,17 @@ jobs:
           - \`app-release.aab\` — Android split bundle (Play Store)
           EOF
 
+          # Collect the downloaded artifacts into an array with nullglob so an
+          # unmatched pattern expands to nothing (instead of being passed to gh
+          # as a literal glob, which otherwise fails the run).
+          shopt -s nullglob
+          artifacts=(artifacts/*.tar.gz artifacts/*.zip artifacts/*.apk artifacts/*.aab)
+          if (( ${#artifacts[@]} == 0 )); then
+            echo "::error::No build artifacts found under artifacts/"; exit 1
+          fi
+
           gh release create "$TAG" \
             --title "brewline $VERSION (pre-release)" \
             --prerelease \
             --notes-file /tmp/release_notes.md \
-            artifacts/*.tar.gz artifacts/*.zip artifacts/*.apk artifacts/*.aab
+            "${artifacts[@]}"
