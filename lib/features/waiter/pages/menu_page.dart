@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
-import 'package:brewline/shared/providers/product_provider.dart';
+import 'package:brewline/features/waiter/providers/order_provider.dart';
+import 'package:brewline/features/waiter/providers/product_provider.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 

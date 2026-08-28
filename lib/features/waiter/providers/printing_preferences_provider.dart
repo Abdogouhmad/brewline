@@ -4,6 +4,9 @@ import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
 
 /// Per-receipt printing switches shown in Settings → Printing.
+///
+/// Waiter-domain state: recipes are printed when an order is charged, so
+/// it belongs with the waiter feature rather than shared utilities.
 class PrintingPreferences {
   final bool kitchenReceipt;
   final bool clientReceipt;

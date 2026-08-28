@@ -4,12 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
-import 'package:brewline/features/waiter/presentation/widgets/settings/change_password_dialog.dart';
-import 'package:brewline/features/waiter/presentation/widgets/settings/settings_footer.dart';
-import 'package:brewline/features/waiter/presentation/widgets/settings/settings_section_card.dart';
-import 'package:brewline/features/waiter/presentation/widgets/settings/settings_tile.dart';
-import 'package:brewline/shared/providers/printing_preferences_provider.dart';
-import 'package:brewline/shared/providers/user_provider.dart';
+import 'package:brewline/features/auth/providers/current_user_provider.dart';
+import 'package:brewline/features/waiter/providers/printing_preferences_provider.dart';
+import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
+import 'package:brewline/features/waiter/widgets/settings/settings_footer.dart';
+import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
+import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 

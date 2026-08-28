@@ -1,6 +1,6 @@
 import 'package:brewline/shared/widgets/profile_chip.dart';
 import 'package:flutter/material.dart';
-import 'package:brewline/features/waiter/presentation/pages/settings_page.dart';
+import 'package:brewline/features/waiter/pages/settings_page.dart';
 
 /// AppBar actions for the waiter profile: profile badge, settings, logout.
 class WaiterAppBarActions extends StatelessWidget {
