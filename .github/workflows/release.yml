@@ -36,6 +36,16 @@ jobs:
           channel: stable
           cache: true
 
+      # The ubuntu runner needs GTK3 + friends to build the Linux desktop
+      # target (these aren't preinstalled on the GitHub-hosted ubuntu image).
+      - name: Install Linux desktop build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev
+
       # Cache pub dependencies so `flutter pub get` (and the Flutter build)
       # don't re-resolve packages on every run.
       - name: Cache pub dependencies
