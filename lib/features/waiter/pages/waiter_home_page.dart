@@ -6,6 +6,7 @@ import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/shared/widgets/app_shell.dart';
 import 'package:brewline/shared/widgets/brand_title.dart';
 import 'package:brewline/features/waiter/widgets/waiter_app_bar_actions.dart';
+import 'package:brewline/widgets/shared/logout_button.dart';
 
 import 'menu_page.dart';
 import 'orders_page.dart';
@@ -27,6 +28,7 @@ class WaiterHomePage extends StatelessWidget {
 
   Widget _buildNavShell() {
     return AppShell(
+      actions: const [LogoutButton()],
       destinations: const [
         AppDestination(
           'Orders',

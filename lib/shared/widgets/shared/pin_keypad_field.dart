@@ -13,6 +13,13 @@ class PinKeypadField extends StatefulWidget {
   final bool hasError;
   final String? label;
 
+  /// Changing this value clears the currently-entered PIN.
+  ///
+  /// Used by the login form to wipe the digits after a failed attempt while
+  /// the parent keeps the same widget instance (so the shake animation —
+  /// driven by a [hasError] transition — still plays).
+  final int resetSignal;
+
   const PinKeypadField({
     super.key,
     this.length = kAdminPinLength,
@@ -20,6 +27,7 @@ class PinKeypadField extends StatefulWidget {
     this.onCompleted,
     this.hasError = false,
     this.label,
+    this.resetSignal = 0,
   });
 
   @override
@@ -52,6 +60,13 @@ class _PinKeypadFieldState extends State<PinKeypadField>
     }
     if (!widget.hasError && oldWidget.hasError) {
       _shakeController.reset();
+    }
+    if (widget.resetSignal != oldWidget.resetSignal) {
+      // Clear the internally-tracked digits (the dots) so the field is ready
+      // for a fresh PIN. The parent owns the provider value already — the
+      // failed-attempt notifier clears it in the same update — so we do NOT
+      // push onChanged here (that would mutate a provider during build).
+      _currentPin = '';
     }
   }
 

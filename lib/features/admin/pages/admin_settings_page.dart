@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
+import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -95,7 +96,13 @@ class AdminSettingsPage extends ConsumerWidget {
 
     if (confirmed == true && context.mounted) {
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.remove('onboarding_complete');
+      // Clear the onboarding flag AND the stored credentials the login screen
+      // validates against, so a fresh setup starts from a clean slate.
+      await prefs.remove(kOnboardingCompleteKey);
+      await prefs.remove(kAdminUsernameKey);
+      await prefs.remove(kAdminPinHashKey);
+      await prefs.remove(kWaiterAccountsKey);
+      await ref.read(authProvider.notifier).logout();
       ref.invalidate(onboardingCompleteProvider);
 
       if (context.mounted) {

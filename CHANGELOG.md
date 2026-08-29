@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Login page** (`LoginPage`) — entry point after onboarding, shared by the
+  admin and waiter roles:
+  - One screen with an Admin/Waiter `SegmentedButton` role switch that swaps the
+    contextual field labels in place (no navigation, entered username kept).
+  - Admin login validates against the real onboarding-created credential; waiter
+    login validates against stored waiter accounts.
+  - `PinKeypadField` reused for PIN entry with shake-on-error and an inline
+    generic "Incorrect username or PIN" message on failure (clears PIN, keeps
+    username).
+  - Successful login routes to the matching dashboard via `pushReplacement`;
+    logout returns to `LoginPage` on a fully cleared stack.
+- **Auth state** — `authProvider` (`AsyncNotifier<AuthState?>`) holds the
+  session (role, userId, username) with `login()`/`logout()`; the session never
+  survives a restart (no "stay logged in").
+- **Debug dummy accounts seeder** (`core/dev/dummy_data_seeder.dart`) — seeds
+  `admin` / `123456` and `waiter1` / `111111` in debug builds only, never in
+  release (`kDebugMode` guarded at the call site and inside).
+- **Shared `AuthScreenLayout`** — generic responsive auth shell (compact /
+  medium / expanded) extracted and reused by both onboarding and login so the
+  two screens share the same visual treatment.
+- **Shared `LogoutButton`** — app-bar logout action with a confirm dialog,
+  wired into both the admin and waiter dashboards.
+- `Role` enum in `core/models/user_role.dart`; SHA-256 PIN hashing in
+  `core/security/password_hash.dart`.
+- Last-selected role toggle persisted via SharedPreferences as a UX convenience.
+
+### Changed
+
+- Onboarding now persists the admin's username + hashed PIN alongside the
+  completion flag, so login can validate against the real account.
+- Admin "Reset onboarding" now also clears the stored credentials and session,
+  matching its "delete the admin account" wording.
+- Startup routing: onboarding not yet done → `OnboardingPage`, done → `LoginPage`.
+- `PinKeypadField` gained a `resetSignal` so an external caller can clear the
+  entered PIN (used on failed login) while preserving the shake animation.
+
+### Added (onboarding)
+
 - **Onboarding screen** — one-time admin setup flow shown on first launch.
   - Username field with inline validation (3–24 chars, alphanumeric + underscore).
   - Custom 6-digit PIN keypad with animated dot indicators and shake-on-error.

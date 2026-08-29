@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
+import 'package:brewline/features/auth/login_page.dart';
+import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/features/waiter/providers/printing_preferences_provider.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
@@ -52,7 +54,6 @@ class _Copy {
 
   // Feedback
   static const cashoutDone = 'Shift closed — report sent to the printer';
-  static const loggedOut = 'Logged out (demo)';
 }
 
 /// Static icon set for the settings screen.
@@ -185,7 +186,7 @@ class SettingsPage extends ConsumerWidget {
           title: _Copy.logoutTile,
           subtitle: _Copy.logoutHint,
           destructive: true,
-          onTap: () => _confirmLogout(context),
+          onTap: () => _confirmLogout(context, ref),
         ),
       ],
     );
@@ -227,7 +228,7 @@ class SettingsPage extends ConsumerWidget {
   // Actions
   // ---------------------------------------------------------------------------
 
-  Future<void> _confirmLogout(BuildContext context) async {
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -257,9 +258,12 @@ class SettingsPage extends ConsumerWidget {
     );
 
     if (confirmed ?? false) {
-      // TODO: route to the login page once auth flow exists.
+      await ref.read(authProvider.notifier).logout();
       if (context.mounted) {
-        showUiSnackBar(context, _Copy.loggedOut, type: UiSnackBarType.info);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       }
     }
   }
