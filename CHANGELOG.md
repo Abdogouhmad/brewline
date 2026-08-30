@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-30
+
+### Added (cashout & report printing)
+
+- **Printer support** (`core/printing/`) — the app's first printing layer:
+  - `ReceiptPrinterService` resolves the transport per print call: a raw TCP
+    socket to the printer's port 9100 (all platforms) or USB via
+    `flutter_pos_printer_platform_image_3` (Android/Windows; throws a clear
+    offline error elsewhere). Typed `PrinterOfflineException` /
+    `PrinterTimeoutException` with a 5s socket timeout and a best-effort
+    teardown that never masks the real error.
+  - Admin Settings gains a **Printer** card (`printer_settings_section.dart`):
+    USB/Network toggle + IP/port, persisted through SharedPreferences and
+    applied on the next print without a restart.
+  - Receipt templates on the `esc_pos_utils_plus` byte builder: **55mm kitchen
+    ticket**, **88mm client receipt** and the **shift report**, with a shared
+    `posText` helper that strips characters the Latin-1 ESC/POS code page can't
+    encode so a non-ASCII string can never crash a receipt. Line widths are
+    measured against the SHK-165 preset and flagged in doc comments to
+    double-check against other printer hardware.
+- **Cashout ledger** — database v3 (`kDatabaseVersion = 3`): new `cashout_logs`
+  table (waiter snapshot, gross/tax/discounts/counted-cash, totals stored as
+  integer cents, integer-ms epochs, FK to `staff`). `CashoutRepository` exposes
+  the single write path — `logCashout` writes exactly one ledger row plus one
+  `cashout` audit event in one transaction (atomic; a failed insert leaves no
+  partial close) — and `currentShiftSummary` derives the shift window from the
+  latest login (falling back to start-of-day) and tallies its orders.
+- **Waiter Settings → Cash out & print** (`cashout_button.dart`): confirm →
+  cash-counted prompt (pre-filled with the expected float) → ledger row +
+  audit event → final report print → logout to the login screen. A printer
+  failure never blocks the cashout — it shows an inline retry instead.
+- **Waiter Settings → Print report** (`print_report_button.dart`): interim,
+  non-destructive print prefixed with a loud `PREVIEW - SHIFT NOT CLOSED`
+  banner, recorded as a `report_print` audit event; the shift stays open.
+- **Admin → Cashout Logs** (`cashout_logs_page.dart`): date-range + waiter
+  filters over a `DataTable` (Date & Time / Orders Made / Waiter Name /
+  Total Made), newest first with 100-per-page "Load more" pagination.
+- **Charge-flow printing** (`order_provider.dart`): a successful charge now
+  prints the kitchen + client receipts automatically (fire-and-forget, never
+  blocks the sale), honouring the per-receipt toggles.
+
+### Changed
+
+- `audit_events` CHECK constraint (v3 and `_createSchema`) and
+  `AuditRepository.kEventTypes` now also accept `report_print` and
+  `password_changed` events.
+
+### Fixed
+
+- Cashouts no longer crash on write: `CashoutRecord.toRow()` now persists the
+  `waiter_username` column (previously missing against the NOT NULL
+  constraint).
+- Pre-existing: changing a waiter PIN crashed on the rejected
+  `password_changed` audit event; the events CHECK now permits it.
+
+### Tests
+
+- `cashout_repository_test.dart`, `network_printer_transport_test.dart` (against
+  a real loopback TCP server: exact bytes, offline + 16 MB unread-timeout
+  cases), `receipt_templates_test.dart`, plus migration v3 and audit
+  `report_print`/`password_changed` coverage — 67 tests passing
+  (`flutter analyze` clean).
+
+## [1.1.1] - 2026-08-30
+
 ### Added (admin dashboard v2 — schema, sales log, images, responsive)
 
 - **Database v2** (`core/db/app_database.dart`) — `kDatabaseVersion = 2` with a
@@ -310,4 +375,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   icon, with proper spacing and a divider separating header from form.
 - PinKeypadField buttons tightened (68×48, 6px gaps) for better mobile fit.
 
-[Unreleased]: https://github.com/example/brewline/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/example/brewline/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/example/brewline/compare/1.1.1...1.2.0
+[1.1.1]: https://github.com/example/brewline/compare/1.0.0...1.1.1

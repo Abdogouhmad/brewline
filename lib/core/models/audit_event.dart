@@ -1,13 +1,15 @@
 /// One row of the `audit_events` session/money log.
 ///
-/// Every login, logout and completed cashout writes a row with the event type,
-/// the account that triggered it [(actor], the account's username or
-/// `'admin'`) and an optional small JSON blob in [metadata] (e.g. cashout
-/// totals). Written by [AuditRepository]; nothing else touches the table.
+/// Every login, logout, completed cashout and interim shift-report print
+/// writes a row with the event type, the account that triggered it [(actor],
+/// the account's username or `'admin'`) and an optional small JSON blob in
+/// [metadata] (e.g. cashout totals). Written by [AuditRepository]; nothing
+/// else touches the table.
 class AuditEvent {
   final int id;
 
-  /// One of `login`, `logout`, `cashout` (see the table CHECK constraint).
+  /// One of `login`, `logout`, `cashout`, `report_print` (see the table
+  /// CHECK constraint).
   final String eventType;
 
   /// Username of the account that caused the event (`'admin'` for the admin

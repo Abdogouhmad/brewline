@@ -6,6 +6,7 @@ import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
+import 'package:brewline/features/admin/settings/widgets/printer_settings_section.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
@@ -75,6 +76,8 @@ class AdminSettingsPage extends ConsumerWidget {
                     ),
                   ],
                 ),
+                SizedBox(height: Space.lg),
+                const PrinterSettingsSection(),
                 SizedBox(height: Space.lg),
                 _AccountCard(onReset: () => _confirmReset(context, ref)),
                 SizedBox(height: Space.lg),

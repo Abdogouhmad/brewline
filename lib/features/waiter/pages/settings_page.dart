@@ -3,18 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
-import 'package:brewline/core/repositories/audit_repository.dart';
-import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/features/waiter/providers/printing_preferences_provider.dart';
+import 'package:brewline/features/waiter/widgets/settings/cashout_button.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
+import 'package:brewline/features/waiter/widgets/settings/print_report_button.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_footer.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
-import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/settings/language_dropdown.dart';
 import 'package:brewline/shared/widgets/settings/theme_segmented_control.dart';
@@ -36,8 +35,6 @@ class _Copy {
   static const accountSubtitle = 'Manage your session and shift reports';
   static const changePasswordTile = 'Change password';
   static const changePasswordHint = 'Update your login credentials';
-  static const cashoutTile = 'Cashout & print report';
-  static const cashoutHint = 'Close the shift and print a sales summary';
   static const logoutTile = 'Log out';
   static const logoutHint = 'End this session on the device';
   static const logoutConfirmTitle = 'Log out?';
@@ -53,9 +50,6 @@ class _Copy {
   static const kitchenReceiptHint = 'Send a copy to the kitchen printer';
   static const clientReceiptTile = 'Client receipt';
   static const clientReceiptHint = 'Hand the guest their printed copy';
-
-  // Feedback
-  static const cashoutDone = 'Shift closed — report sent to the printer';
 }
 
 /// Static icon set for the settings screen.
@@ -66,7 +60,6 @@ class _SettingsIcons {
 
   static const language = Icons.language_rounded;
   static const password = Icons.lock_reset_rounded;
-  static const cashout = Icons.point_of_sale_rounded;
   static const logout = Icons.logout_rounded;
   static const kitchenReceipt = Icons.soup_kitchen_rounded;
   static const clientReceipt = Icons.receipt_rounded;
@@ -170,12 +163,8 @@ class SettingsPage extends ConsumerWidget {
           subtitle: _Copy.changePasswordHint,
           onTap: () => showChangePasswordDialog(context),
         ),
-        SettingsTile(
-          icon: _SettingsIcons.cashout,
-          title: _Copy.cashoutTile,
-          subtitle: _Copy.cashoutHint,
-          onTap: () => _cashout(context, ref),
-        ),
+        const CashoutButton(),
+        const PrintReportButton(),
         SettingsTile(
           icon: _SettingsIcons.logout,
           title: _Copy.logoutTile,
@@ -185,32 +174,6 @@ class SettingsPage extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  /// Closes the shift and logs it on the audit stream.
-  ///
-  /// There is no shift table yet — the "shift" is today so far — so the
-  /// ledger row carries today's gross + order count as JSON metadata and the
-  /// (still virtual) printer report keeps its snackbar behaviour.
-  Future<void> _cashout(BuildContext context, WidgetRef ref) async {
-    final actor = ref.read(authProvider).value?.username;
-    if (actor != null) {
-      final journal = await ref.read(orderJournalRepositoryProvider.future);
-      final now = DateTime.now();
-      final dayStart = DateTime(now.year, now.month, now.day);
-      final stats = await journal.statsBetween(dayStart, now);
-      final audit = await ref.read(auditRepositoryProvider.future);
-      await audit.logEvent(
-        eventType: 'cashout',
-        actor: actor,
-        metadata:
-            '{"totalSales":${stats.revenue},'
-            '"orderCount":${stats.orderCount}}',
-      );
-    }
-    if (context.mounted) {
-      showUiSnackBar(context, _Copy.cashoutDone, type: UiSnackBarType.success);
-    }
   }
 
   Widget _buildPrintingCard(WidgetRef ref) {
