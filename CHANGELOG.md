@@ -93,6 +93,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Dashboard chart overflowed on phones/tablets** (`admin_dashboard_page.dart`)
+  — the revenue overview and the shift-status/quick-actions rail were always
+  placed side by side in a `Row` even when there wasn't enough width, each
+  taking full width and overflowing horizontally by the rail's width. They now
+  stack vertically below the 1100dp breakpoint, matching the documented
+  mobile/tablet layout.
+
+### Fixed
+
 - **Dynamic-color flash at launch** (`main.dart`) — `DynamicColorBuilder`
   now sits behind a `_PaletteGate` that holds a flat, theme-independent
   background until the platform accent (Material You / wallpaper on Android,

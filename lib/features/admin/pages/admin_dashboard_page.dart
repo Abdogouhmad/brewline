@@ -94,11 +94,24 @@ class _RevenueAndRail extends StatelessWidget {
           ),
         );
 
+        // Stack the revenue chart above the rail on phones/tablets; place
+        // them side by side only when there is enough width.
+        if (!wide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              revenue,
+              SizedBox(height: Space.lg),
+              rail(),
+            ],
+          );
+        }
+
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(width: revenueWidth, child: revenue),
-            SizedBox(width: wide ? Space.lg : 0),
+            SizedBox(width: Space.lg),
             rail(),
           ],
         );
