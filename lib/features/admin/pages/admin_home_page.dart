@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:brewline/core/navigation/admin_destinations.dart';
 import 'package:brewline/features/admin/pages/admin_dashboard_page.dart';
 import 'package:brewline/features/admin/pages/admin_settings_page.dart';
+import 'package:brewline/features/admin/pages/cashout_logs_page.dart';
 import 'package:brewline/features/admin/pages/menu_products_page.dart';
 import 'package:brewline/features/admin/pages/reports_page.dart';
 import 'package:brewline/features/admin/pages/sales_log_page.dart';
@@ -42,6 +43,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       'menu': const MenuProductsPage(),
       'staff': const StaffManagementPage(),
       'sales': const SalesLogPage(),
+      'cashout': const CashoutLogsPage(),
       'settings': const AdminSettingsPage(),
     };
 

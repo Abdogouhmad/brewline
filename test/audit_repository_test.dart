@@ -73,5 +73,32 @@ void main() {
       await expectLater(db.insert('audit_events', bad), throwsA(anything));
       expect(await audit.recent(), isEmpty);
     });
+
+    test('accepts report_print and password_changed (widened CHECK)', () async {
+      await audit.logEvent(eventType: 'report_print', actor: 'john');
+      await audit.logEvent(eventType: 'password_changed', actor: 'john');
+      expect(await audit.recent(), hasLength(2));
+    });
+
+    test('latestLogin returns the most recent login for an actor', () async {
+      await audit.logEvent(
+        eventType: 'login',
+        actor: 'john',
+        at: DateTime(2026, 8, 29, 8),
+      );
+      await audit.logEvent(
+        eventType: 'logout',
+        actor: 'john',
+        at: DateTime(2026, 8, 29, 12),
+      );
+      await audit.logEvent(
+        eventType: 'login',
+        actor: 'john',
+        at: DateTime(2026, 8, 29, 14),
+      );
+
+      expect(await audit.latestLogin('john'), DateTime(2026, 8, 29, 14));
+      expect(await audit.latestLogin('nobody'), isNull);
+    });
   });
 }

@@ -13,7 +13,10 @@
 /// * `order_counters` — one row per calendar day holding the latest
 ///   `order_number`, so the next number is one atomic `UPDATE` away instead
 ///   of a `MAX()` scan. The "small" way to keep numbers sequential.
-/// * `audit_events` — the session/cashout event log (login, logout, cashout).
+/// * `audit_events` — the session/cashout event log (login, logout, cashout,
+///   report_print).
+/// * `cashout_logs` — one row per *finalized* shift close, snapshotting the
+///   counted cash + variance that can't be derived from `orders` alone.
 ///
 /// Small app preferences (auth, theme, onboarding) stay in SharedPreferences;
 /// business data lives here.
@@ -63,7 +66,7 @@ Future<Database> openAppDatabase({
     options: OpenDatabaseOptions(
       // Bump this when a schema change lands and add the matching
       // step to [kMigrations]. See the migration history below.
-      version: 2,
+      version: 3,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -79,6 +82,11 @@ Future<Database> openAppDatabase({
 ///            new `order_counters` (daily sequence) and `audit_events`
 ///            (login/logout/cashout) tables; lookup indexes for the
 ///            Sales Log + heatmap queries. |
+/// | 3       | `cashout_logs` — one row per finalized shift close (counted
+///            cash + variance, already derived order count/total at close
+///            time); `audit_events.event_type` CHECK extended with
+///            `report_print` (interim prints) and `password_changed`
+///            (account updates) by table rebuild, data preserved. |
 ///
 /// Keep this table up to date — it is the traceable record of every schema
 /// change for `openAppDatabase()` callers (migration tests, feature dev).
@@ -102,6 +110,42 @@ const Map<int, List<String>> kMigrations = {
         'created_at INTEGER NOT NULL'
         ')',
   ],
+  // 3 adds the finalized-shift ledger and widens the audit CHECK to admit
+  // `report_print` (interim/preview prints are audit-only, not cashouts).
+  // SQLite can't ALTER a CHECK constraint, so `audit_events` is rebuilt via
+  // the standard create→copy→drop→rename dance.
+  3: [
+    'CREATE TABLE IF NOT EXISTS cashout_logs ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        'waiter_id TEXT NOT NULL REFERENCES staff(id),'
+        'waiter_username TEXT NOT NULL,'
+        'waiter_name TEXT NOT NULL,'
+        'shift_start INTEGER NOT NULL,'
+        'shift_end INTEGER NOT NULL,'
+        'order_count INTEGER NOT NULL,'
+        'total_sales_cents INTEGER NOT NULL,'
+        'cash_counted_cents INTEGER NOT NULL,'
+        'cash_variance_cents INTEGER NOT NULL,'
+        'created_at INTEGER NOT NULL'
+        ')',
+    'CREATE INDEX IF NOT EXISTS idx_cashout_logs_waiter_id '
+        'ON cashout_logs(waiter_id)',
+    'CREATE INDEX IF NOT EXISTS idx_cashout_logs_created_at '
+        'ON cashout_logs(created_at)',
+    'CREATE TABLE audit_events_new ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        "event_type TEXT NOT NULL CHECK (event_type IN "
+        "('login', 'logout', 'cashout', 'report_print', 'password_changed')),"
+        'actor TEXT NOT NULL,'
+        'metadata TEXT,'
+        'created_at INTEGER NOT NULL'
+        ')',
+    'INSERT INTO audit_events_new (id, event_type, actor, metadata, '
+        'created_at) SELECT id, event_type, actor, metadata, created_at '
+        'FROM audit_events',
+    'DROP TABLE audit_events',
+    'ALTER TABLE audit_events_new RENAME TO audit_events',
+  ],
 };
 
 /// Every lookup the dashboards actually run, indexed so the fast paths in
@@ -116,9 +160,13 @@ const List<String> _kIndexes = [
   'CREATE INDEX IF NOT EXISTS idx_order_items_order_id '
       'ON order_items(order_id)',
   'CREATE INDEX IF NOT EXISTS idx_audit_events_actor ON audit_events(actor)',
+  'CREATE INDEX IF NOT EXISTS idx_cashout_logs_waiter_id '
+      'ON cashout_logs(waiter_id)',
+  'CREATE INDEX IF NOT EXISTS idx_cashout_logs_created_at '
+      'ON cashout_logs(created_at)',
 ];
 
-/// A *brand-new* database is created straight at the current schema (v2) via
+/// A *brand-new* database is created straight at the current schema (v3) via
 /// [_createSchema] — migrations in [kMigrations] are **only** for [onUpgrade],
 /// i.e. tables that already exist at an older version. Running both here
 /// would double-apply ALTERs (`duplicate column name is_archived`).
@@ -139,7 +187,7 @@ Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
   await _createIndexes(db);
 }
 
-/// Creates every table at the *current* schema (v2). Do not add columns here
+/// Creates every table at the *current* schema (v3). Do not add columns here
 /// for future versions — use [kMigrations] + [onUpgrade] instead.
 Future<void> _createSchema(Database db) async {
   await db.execute('''
@@ -195,9 +243,24 @@ Future<void> _createSchema(Database db) async {
   await db.execute('''
     CREATE TABLE audit_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event_type TEXT NOT NULL CHECK (event_type IN ('login', 'logout', 'cashout')),
+      event_type TEXT NOT NULL CHECK (event_type IN ('login', 'logout', 'cashout', 'report_print', 'password_changed')),
       actor TEXT NOT NULL,
       metadata TEXT,
+      created_at INTEGER NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE cashout_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      waiter_id TEXT NOT NULL REFERENCES staff(id),
+      waiter_username TEXT NOT NULL,
+      waiter_name TEXT NOT NULL,
+      shift_start INTEGER NOT NULL,
+      shift_end INTEGER NOT NULL,
+      order_count INTEGER NOT NULL,
+      total_sales_cents INTEGER NOT NULL,
+      cash_counted_cents INTEGER NOT NULL,
+      cash_variance_cents INTEGER NOT NULL,
       created_at INTEGER NOT NULL
     )
   ''');
@@ -276,6 +339,7 @@ Future<void> deleteAllData(Database db) async {
   await db.delete('orders');
   await db.delete('order_counters');
   await db.delete('audit_events');
+  await db.delete('cashout_logs');
   await db.delete('staff');
   await db.delete('products');
   await seedDefaultProducts(db);

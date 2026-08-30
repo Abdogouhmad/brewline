@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/models/order_line_item.dart';
 import 'package:brewline/core/models/order_record.dart';
 import 'package:brewline/core/models/product.dart';
+import 'package:brewline/core/printing/printer_transport.dart';
+import 'package:brewline/core/printing/receipt_printer_service.dart';
 import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/features/waiter/providers/printing_preferences_provider.dart';
 
 /// A single line on the current order: which [Product] and how many.
 class OrderItem {
@@ -118,6 +123,40 @@ class OrderController extends Notifier<List<OrderItem>> {
       '-> #$ticket (day #${saved.orderNumber})',
     );
     state = const [];
+
+    // Receipts print *after* the charge succeeded, fire-and-forget: a dead
+    // printer must never block (or fail) the sale. Settings decide which of
+    // the two print; both ride the same ReceiptPrinterService.
+    unawaited(_printReceipts(saved));
+  }
+
+  /// Prints the kitchen ticket and/or client receipt for a freshly charged
+  /// order, honouring the per-receipt toggles.
+  ///
+  /// Never throws: every failure (transport unreachable, template/setup error)
+  /// is swallowed into a debug log line so an async print glitch can't leak
+  /// into the charge flow or crash tests running without a printer bundle.
+  Future<void> _printReceipts(OrderRecord order) async {
+    final preferences = ref.read(printingPreferencesProvider);
+    final service = ref.read(receiptPrinterServiceProvider);
+    try {
+      if (preferences.kitchenReceipt) {
+        await service.printKitchenTicket(order);
+      }
+    } on PrinterException catch (e) {
+      _log('Kitchen ticket failed: ${e.message}');
+    } catch (e) {
+      _log('Kitchen ticket failed: $e');
+    }
+    try {
+      if (preferences.clientReceipt) {
+        await service.printClientReceipt(order);
+      }
+    } on PrinterException catch (e) {
+      _log('Client receipt failed: ${e.message}');
+    } catch (e) {
+      _log('Client receipt failed: $e');
+    }
   }
 
   static void _log(String message) => debugPrint('$_kOrderLogTag $message');
