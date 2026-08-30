@@ -39,9 +39,7 @@ class LanguageController extends Notifier<AppLanguage> {
 }
 
 final languageControllerProvider =
-    NotifierProvider<LanguageController, AppLanguage>(
-  LanguageController.new,
-);
+    NotifierProvider<LanguageController, AppLanguage>(LanguageController.new);
 
 /// Maps the persisted preference to a [Locale] (`null` = follow system).
 final localeProvider = Provider<Locale?>(

@@ -31,8 +31,7 @@ class PrintingPreferences {
 
 /// Persists each receipt toggle under its own key so order-flow code can
 /// read a single flag without touching the other.
-class PrintingPreferencesController
-    extends Notifier<PrintingPreferences> {
+class PrintingPreferencesController extends Notifier<PrintingPreferences> {
   static const _kitchenKey = 'print_kitchen_receipt';
   static const _clientKey = 'print_client_receipt';
 
@@ -41,9 +40,11 @@ class PrintingPreferencesController
     final prefs = ref.read(sharedPreferencesProvider);
     return PrintingPreferences(
       kitchenReceipt:
-          prefs.getBool(_kitchenKey) ?? PrintingPreferences.defaults.kitchenReceipt,
+          prefs.getBool(_kitchenKey) ??
+          PrintingPreferences.defaults.kitchenReceipt,
       clientReceipt:
-          prefs.getBool(_clientKey) ?? PrintingPreferences.defaults.clientReceipt,
+          prefs.getBool(_clientKey) ??
+          PrintingPreferences.defaults.clientReceipt,
     );
   }
 
@@ -60,5 +61,5 @@ class PrintingPreferencesController
 
 final printingPreferencesProvider =
     NotifierProvider<PrintingPreferencesController, PrintingPreferences>(
-  PrintingPreferencesController.new,
-);
+      PrintingPreferencesController.new,
+    );

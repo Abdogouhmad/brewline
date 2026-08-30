@@ -23,18 +23,27 @@ class SettingsFooter extends ConsumerWidget {
 
     return Column(
       children: [
-        Divider(height: 1, color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        Divider(
+          height: 1,
+          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
         SizedBox(height: Space.lg),
         InkWell(
           onTap: () => showAppInfoSheet(context),
           borderRadius: BorderRadius.circular(Rounded.md),
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
+            padding: EdgeInsets.symmetric(
+              horizontal: Space.md,
+              vertical: Space.sm,
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.local_cafe_rounded,
-                    size: AppSizes.iconSm + 4, color: colorScheme.primary),
+                Icon(
+                  Icons.local_cafe_rounded,
+                  size: AppSizes.iconSm + 4,
+                  color: colorScheme.primary,
+                ),
                 SizedBox(width: Space.sm),
                 Flexible(
                   child: UiText(
@@ -115,8 +124,10 @@ class _AppInfoSheet extends ConsumerWidget {
             ),
             SizedBox(height: Space.xl),
             OutlinedButton.icon(
-              onPressed: () =>
-                  showLicensePage(context: context, applicationName: 'BrewLine'),
+              onPressed: () => showLicensePage(
+                context: context,
+                applicationName: 'BrewLine',
+              ),
               icon: const Icon(Icons.description_outlined),
               label: const Text('Open source licenses'),
             ),
@@ -137,7 +148,11 @@ class _AppInfoSheet extends ConsumerWidget {
             type: UiTextType.bodyMedium,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          UiText(value, type: UiTextType.titleSmall, fontWeight: FontWeight.w600),
+          UiText(
+            value,
+            type: UiTextType.titleSmall,
+            fontWeight: FontWeight.w600,
+          ),
         ],
       ),
     );

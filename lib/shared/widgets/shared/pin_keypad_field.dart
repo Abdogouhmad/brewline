@@ -13,6 +13,13 @@ class PinKeypadField extends StatefulWidget {
   final bool hasError;
   final String? label;
 
+  /// Changing this value clears the currently-entered PIN.
+  ///
+  /// Used by the login form to wipe the digits after a failed attempt while
+  /// the parent keeps the same widget instance (so the shake animation —
+  /// driven by a [hasError] transition — still plays).
+  final int resetSignal;
+
   const PinKeypadField({
     super.key,
     this.length = kAdminPinLength,
@@ -20,6 +27,7 @@ class PinKeypadField extends StatefulWidget {
     this.onCompleted,
     this.hasError = false,
     this.label,
+    this.resetSignal = 0,
   });
 
   @override
@@ -53,6 +61,13 @@ class _PinKeypadFieldState extends State<PinKeypadField>
     if (!widget.hasError && oldWidget.hasError) {
       _shakeController.reset();
     }
+    if (widget.resetSignal != oldWidget.resetSignal) {
+      // Clear the internally-tracked digits (the dots) so the field is ready
+      // for a fresh PIN. The parent owns the provider value already — the
+      // failed-attempt notifier clears it in the same update — so we do NOT
+      // push onChanged here (that would mutate a provider during build).
+      _currentPin = '';
+    }
   }
 
   @override
@@ -73,7 +88,8 @@ class _PinKeypadFieldState extends State<PinKeypadField>
   void _onBackspace() {
     if (_currentPin.isEmpty) return;
     setState(
-        () => _currentPin = _currentPin.substring(0, _currentPin.length - 1));
+      () => _currentPin = _currentPin.substring(0, _currentPin.length - 1),
+    );
     widget.onChanged?.call(_currentPin);
   }
 
@@ -87,9 +103,8 @@ class _PinKeypadFieldState extends State<PinKeypadField>
         if (widget.label != null) ...[
           Text(
             widget.label!,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: Space.md),
@@ -101,10 +116,7 @@ class _PinKeypadFieldState extends State<PinKeypadField>
             final offset = widget.hasError
                 ? (1 - _shakeAnimation.value) * 8
                 : 0.0;
-            return Transform.translate(
-              offset: Offset(offset, 0),
-              child: child,
-            );
+            return Transform.translate(offset: Offset(offset, 0), child: child);
           },
           child: _DotRow(
             length: widget.length,
@@ -157,8 +169,8 @@ class _DotRow extends StatelessWidget {
               color: hasError
                   ? colorScheme.error
                   : isFilled
-                      ? colorScheme.primary
-                      : colorScheme.outlineVariant,
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
             ),
           ),
         );
@@ -271,9 +283,9 @@ class _KeypadButtonState extends State<_KeypadButton> {
               : Text(
                   widget.label,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: widget.colorScheme.onSurface,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: widget.colorScheme.onSurface,
+                  ),
                 ),
         ),
       ),
