@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-08-30
+
+### Fixed
+
+- **Android release builds can now print over the network.** The `INTERNET`
+  permission was only declared in the debug/profile manifests, so release APKs
+  installed on a phone had no network access and TCP printing to a networked
+  ESC/POS printer (e.g. the escpresso emulator on port 9100) silently failed.
+  Moved the permission into the main manifest so it ships in release builds.
+
 ## [1.2.0] - 2026-08-30
 
 ### Added (cashout & report printing)
