@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/security/password_hash.dart';
 import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
+
 import 'onboarding_state.dart';
 
 /// SharedPreferences key marking that one-time onboarding has been completed.
@@ -77,4 +78,6 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 }
 
 final onboardingProvider =
-    NotifierProvider<OnboardingNotifier, OnboardingState>(OnboardingNotifier.new);
+    NotifierProvider<OnboardingNotifier, OnboardingState>(
+      OnboardingNotifier.new,
+    );

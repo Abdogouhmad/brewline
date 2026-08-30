@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
-/// Profile pill bound to [currentUserProvider] (later: database-backed).
-/// Shows initials avatar + username + role.
+/// Profile pill bound to [currentUserProvider] (auth session + `staff` row).
+/// Shows initials avatar + display name + role. Hidden while logged out or
+/// the profile is still resolving (e.g. right after sign-in).
+///
+/// Role badge is dropped and the name ellipsised on phone widths so the
+/// top bar never overflows.
 class ProfileChip extends ConsumerWidget {
   final VoidCallback? onTap;
 
@@ -14,8 +19,10 @@ class ProfileChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
+    final user = ref.watch(currentUserProvider).value;
+    if (user == null) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
+    final narrow = Breakpoints.of(context) == ScreenSize.compact;
 
     return Material(
       color: colorScheme.surfaceContainerHighest,
@@ -47,25 +54,28 @@ class ProfileChip extends ConsumerWidget {
                   user.name,
                   type: UiTextType.labelLarge,
                   fontWeight: FontWeight.w600,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              SizedBox(width: Space.xs),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Space.sm,
-                  vertical: 2,
+              if (!narrow) ...[
+                SizedBox(width: Space.xs),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Space.sm,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(Rounded.full),
+                  ),
+                  child: UiText(
+                    user.role,
+                    type: UiTextType.labelSmall,
+                    color: colorScheme.onSecondaryContainer,
+                  ),
                 ),
-                decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(Rounded.full),
-                ),
-                child: UiText(
-                  user.role,
-                  type: UiTextType.labelSmall,
-                  color: colorScheme.onSecondaryContainer,
-                ),
-              ),
+              ],
             ],
           ),
         ),

@@ -88,7 +88,8 @@ class _PinKeypadFieldState extends State<PinKeypadField>
   void _onBackspace() {
     if (_currentPin.isEmpty) return;
     setState(
-        () => _currentPin = _currentPin.substring(0, _currentPin.length - 1));
+      () => _currentPin = _currentPin.substring(0, _currentPin.length - 1),
+    );
     widget.onChanged?.call(_currentPin);
   }
 
@@ -102,9 +103,8 @@ class _PinKeypadFieldState extends State<PinKeypadField>
         if (widget.label != null) ...[
           Text(
             widget.label!,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: Space.md),
@@ -116,10 +116,7 @@ class _PinKeypadFieldState extends State<PinKeypadField>
             final offset = widget.hasError
                 ? (1 - _shakeAnimation.value) * 8
                 : 0.0;
-            return Transform.translate(
-              offset: Offset(offset, 0),
-              child: child,
-            );
+            return Transform.translate(offset: Offset(offset, 0), child: child);
           },
           child: _DotRow(
             length: widget.length,
@@ -172,8 +169,8 @@ class _DotRow extends StatelessWidget {
               color: hasError
                   ? colorScheme.error
                   : isFilled
-                      ? colorScheme.primary
-                      : colorScheme.outlineVariant,
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
             ),
           ),
         );
@@ -286,9 +283,9 @@ class _KeypadButtonState extends State<_KeypadButton> {
               : Text(
                   widget.label,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: widget.colorScheme.onSurface,
-                      ),
+                    fontWeight: FontWeight.w600,
+                    color: widget.colorScheme.onSurface,
+                  ),
                 ),
         ),
       ),

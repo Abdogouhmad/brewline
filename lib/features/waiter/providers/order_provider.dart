@@ -1,9 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:brewline/core/models/order_line_item.dart';
+import 'package:brewline/core/models/order_record.dart';
+import 'package:brewline/core/models/product.dart';
+import 'package:brewline/core/repositories/order_journal_repository.dart';
+import 'package:brewline/core/repositories/product_repository.dart';
+import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/waiter/providers/price_format.dart';
-import 'package:brewline/features/waiter/providers/product_provider.dart'
-    show Product;
 
 /// A single line on the current order: which [Product] and how many.
 class OrderItem {
@@ -48,7 +52,7 @@ class OrderController extends Notifier<List<OrderItem>> {
         if (i == index) item.withQuantity(item.quantity + 1) else item,
       if (index == -1) OrderItem(product: product),
     ];
-    _log('Added ${product.name} (${product.formattedPrice})');
+    _log('Added ${product.name} (${formatPrice(product.price)})');
   }
 
   /// Removes every unit of the line matching [productId].
@@ -67,16 +71,51 @@ class OrderController extends Notifier<List<OrderItem>> {
     state = const [];
   }
 
-  /// Logs the charge summary to the terminal and resets the cart.
+  /// Persists the order to the order journal, decrements product stock, then
+  /// resets the cart and advances the ticket number.
   ///
-  /// TODO: replace logging with the real payment/receipt flow.
-  void charge() {
-    // Compute from [state] directly — reading orderTotalProvider here
-    // would create a self-dependency cycle (it watches this notifier).
-    final total = totalPriceOf(state);
+  /// The ticket number comes from the journal (`MAX(id) + 1`) so it never
+  /// collides with orders from a previous session; the in-memory counter is
+  /// then synced to match.
+  Future<void> charge() async {
+    if (state.isEmpty) return;
+
+    final journal = await ref.read(orderJournalRepositoryProvider.future);
+    final products = await ref.read(productRepositoryProvider.future);
+    final auth = ref.read(authProvider).value;
+
+    final ticket = await journal.nextOrderId();
+    final record = OrderRecord(
+      id: ticket,
+      createdAt: DateTime.now(),
+      waiterUsername: auth?.username,
+      total: totalPriceOf(state),
+      items: [
+        for (final item in state)
+          OrderLineItem(
+            productId: item.product.id,
+            name: item.product.name,
+            quantity: item.quantity,
+            unitPrice: item.product.price,
+          ),
+      ],
+    );
+
+    // addOrder claims the per-day order_number inside the same transaction as
+    // the insert, so the displayed number always matches what got stored.
+    final saved = await journal.addOrder(record);
+    await products.decrementStock({
+      for (final item in state) item.product.id: item.quantity,
+    });
+
+    ref.read(journalMutationProvider.notifier).bump();
+    ref.read(productMutationProvider.notifier).bump();
+    ref.read(orderNumberProvider.notifier).set(saved.orderNumber + 1);
+
     _log(
-      'Charged ${formatPrice(total)} '
-      '(${state.length} line(s), ${totalUnitsOf(state)} item(s))',
+      'Charged ${formatPrice(record.total)} '
+      '(${state.length} line(s), ${totalUnitsOf(state)} item(s)) '
+      '-> #$ticket (day #${saved.orderNumber})',
     );
     state = const [];
   }
@@ -101,8 +140,8 @@ final orderTitleProvider = Provider<String>((ref) {
 
 /// Ticket number of the current order, shown as "Order #N".
 ///
-/// Increments every time an order is charged so the next customer gets a
-/// fresh number. TODO: derive from the database counter instead of memory.
+/// Synced to `MAX(orders.id) + 1` after each charge so the on-screen number
+/// matches the journal and never collides across app sessions.
 class OrderNumberController extends Notifier<int> {
   /// Starting ticket number for this session.
   static const int initialOrderNumber = 1;
@@ -112,6 +151,9 @@ class OrderNumberController extends Notifier<int> {
 
   /// Moves to the next ticket number after a charge.
   void advance() => state++;
+
+  /// Replaces the counter, e.g. with a freshly computed journal ticket.
+  void set(int value) => state = value;
 }
 
 final orderNumberProvider = NotifierProvider<OrderNumberController, int>(

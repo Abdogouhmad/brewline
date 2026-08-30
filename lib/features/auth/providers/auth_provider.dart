@@ -1,8 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/models/user_role.dart';
+import 'package:brewline/core/repositories/audit_repository.dart';
+import 'package:brewline/core/repositories/staff_repository.dart';
 import 'package:brewline/core/security/password_hash.dart';
 import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
@@ -10,9 +10,6 @@ import 'package:brewline/core/theme/theme_controller.dart'
 import 'auth_state.dart';
 import '../../onboarding/providers/onboarding_provider.dart'
     show kAdminUsernameKey, kAdminPinHashKey;
-
-/// SharedPreferences key holding the JSON map of waiter username -> hashed PIN.
-const String kWaiterAccountsKey = 'waiter_accounts';
 
 /// Thrown by [AuthNotifier.login] when credentials are invalid.
 ///
@@ -29,11 +26,16 @@ class AuthException implements Exception {
 
 /// Holds the current session (`null` = logged out) and owns login/logout.
 ///
-/// **Admin vs waiter lookup:** the app stores a single admin account (created
-/// during onboarding) under `admin_username` / `admin_pin_hash`, and a JSON map
-/// of waiter accounts (seeded in debug, later created by the admin) under
-/// `waiter_accounts`. Login reads the record for the requested [Role], hashes
-/// the entered PIN with [hashPin] and compares it to the stored digest.
+/// **Unified login (role auto-detected):** there is exactly one login — a
+/// username + 4-digit PIN. The role is derived from *who the username belongs
+/// to*, never chosen by the user:
+///  1. The single admin account (created during onboarding, or the debug
+///     seeder) is stored under `admin_username` / `admin_pin_hash` in
+///     SharedPreferences. A username matching it and verifying its hash signs
+///     in as admin.
+///  2. Everyone else is looked up in the waiters' `staff` SQLite table (seeded
+///     in debug, created by the admin via the Staff tab), keyed by a unique
+///     username holding the hashed PIN.
 ///
 /// The *generic error message* is enforced here in one place — both failure
 /// paths (unknown username, wrong PIN) throw the same [AuthException] so the
@@ -42,14 +44,13 @@ class AuthNotifier extends AsyncNotifier<AuthState?> {
   @override
   Future<AuthState?> build() async => null;
 
-  Future<void> login({
-    required Role role,
-    required String username,
-    required String pin,
-  }) async {
+  Future<void> login({required String username, required String pin}) async {
     state = const AsyncValue.loading();
     try {
-      final session = await _authenticate(role: role, username: username, pin: pin);
+      final session = await _authenticate(username: username, pin: pin);
+      // Session/money ledger: record who got in, so the audit stream can
+      // answer "who was signed in when" without a session table.
+      await _log('login', session.username);
       state = AsyncData(session);
     } on AuthException catch (e) {
       state = AsyncError(e, e.stackTrace);
@@ -58,57 +59,53 @@ class AuthNotifier extends AsyncNotifier<AuthState?> {
   }
 
   Future<void> logout() async {
+    final actor = state.value?.username;
+    // Ledger write happens before the session clears so we still know who
+    // this logout belonged to.
+    await _log('logout', actor);
     state = const AsyncData(null);
   }
 
+  Future<void> _log(String eventType, String? actor) async {
+    if (actor == null) return; // Nothing to record for a never-logged-in state.
+    final audit = await ref.read(auditRepositoryProvider.future);
+    await audit.logEvent(eventType: eventType, actor: actor);
+  }
+
   Future<AuthState> _authenticate({
-    required Role role,
     required String username,
     required String pin,
   }) async {
     final prefs = ref.read(sharedPreferencesProvider);
     final enteredHash = hashPin(pin);
+    final trimmed = username.trim();
 
-    final bool ok;
-    switch (role) {
-      case Role.admin:
-        final storedUsername = prefs.getString(kAdminUsernameKey);
-        final storedHash = prefs.getString(kAdminPinHashKey);
-        ok = storedUsername != null &&
-            storedUsername == username.trim() &&
-            storedHash != null &&
-            storedHash == enteredHash;
-        if (ok) {
-          return AuthState(
-            role: role,
-            userId: 'admin',
-            username: storedUsername,
-          );
-        }
-      case Role.waiter:
-        final waiters = _readWaiters(prefs.getString(kWaiterAccountsKey));
-        final storedHash = waiters[username.trim()];
-        ok = storedHash != null && storedHash == enteredHash;
-        if (ok) {
-          return AuthState(
-            role: role,
-            userId: 'waiter-$username',
-            username: username.trim(),
-          );
-        }
+    // 1. Admin — the single stored account, matched first.
+    final storedUsername = prefs.getString(kAdminUsernameKey);
+    final storedHash = prefs.getString(kAdminPinHashKey);
+    if (storedUsername != null &&
+        storedUsername == trimmed &&
+        storedHash != null &&
+        storedHash == enteredHash) {
+      return AuthState(
+        role: Role.admin,
+        userId: 'admin',
+        username: storedUsername,
+      );
     }
 
-    throw AuthException(
-      'Incorrect username or PIN',
-      StackTrace.current,
-    );
-  }
+    // 2. Waiter — looked up against the staff table.
+    final staff = await ref.read(staffRepositoryProvider.future);
+    final member = await staff.byUsername(trimmed);
+    if (member != null && member.active && member.pinHash == enteredHash) {
+      return AuthState(
+        role: Role.waiter,
+        userId: member.id,
+        username: member.username,
+      );
+    }
 
-  static Map<String, String> _readWaiters(String? raw) {
-    if (raw == null || raw.isEmpty) return {};
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map) return {};
-    return decoded.map((key, value) => MapEntry('$key', '$value'));
+    throw AuthException('Incorrect username or PIN', StackTrace.current);
   }
 }
 
@@ -116,5 +113,6 @@ class AuthNotifier extends AsyncNotifier<AuthState?> {
 ///
 /// Read by the startup router to skip login when already signed in and by both
 /// dashboards to know who's on shift.
-final authProvider =
-    AsyncNotifierProvider<AuthNotifier, AuthState?>(AuthNotifier.new);
+final authProvider = AsyncNotifierProvider<AuthNotifier, AuthState?>(
+  AuthNotifier.new,
+);

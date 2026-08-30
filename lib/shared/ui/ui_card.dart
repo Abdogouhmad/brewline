@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
+
 import 'ui_text.dart';
 
-/// M3 expressive card with an optional image, title, subtitle and an
-/// action row. Scales its paddings and image height per device type.
+/// M3 expressive card with an optional image, title, subtitle, an arbitrary
+/// [content] body and an action row. Scales its paddings and image height per
+/// device type.
 ///
 /// ```dart
 /// UiCard(
-///   image: Image.asset('assets/latte.png', fit: BoxFit.cover),
 ///   title: 'Flat White',
+///   leading: const UiListAvatar(icon: Icons.people_outline),
 ///   subtitle: 'Double shot · whole milk',
+///   content: Row(children: [ /* ... */ ]),
 ///   actions: [UiText('\$4.50', fontWeight: FontWeight.w700)],
 ///   onTap: () {},
 /// )
@@ -21,9 +24,17 @@ class UiCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? leading;
+
+  /// Arbitrary body shown between the title block and the [actions] row.
+  /// Lets [UiCard] host dense layouts (filter rows, tables, forms) while
+  /// keeping the shared card shell and paddings.
+  final Widget? content;
   final List<Widget> actions;
   final VoidCallback? onTap;
   final Color? background;
+
+  /// Overrides the title colour (e.g. faded text for inactive rows).
+  final Color? titleColor;
   final EdgeInsetsGeometry? padding;
 
   /// Tighter paddings for dense grids (menu cards, small tiles).
@@ -35,12 +46,20 @@ class UiCard extends StatelessWidget {
     this.image,
     this.subtitle,
     this.leading,
+    this.content,
     this.actions = const [],
     this.onTap,
     this.background,
+    this.titleColor,
     this.padding,
     this.compact = false,
   });
+
+  /// Closes [content] with the same bottom inset the [actions] row would use,
+  /// so a content-only card doesn't look bottom-heavy.
+  double get _contentBottom => actions.isEmpty
+      ? (compact ? Space.md : Space.lg)
+      : (compact ? Space.sm : Space.lg);
 
   @override
   Widget build(BuildContext context) {
@@ -61,13 +80,10 @@ class UiCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (image != null)
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: image!,
-              ),
+            if (image != null) AspectRatio(aspectRatio: 16 / 9, child: image!),
             Padding(
-              padding: padding ??
+              padding:
+                  padding ??
                   EdgeInsets.all(
                     compact
                         ? Space.md
@@ -80,10 +96,7 @@ class UiCard extends StatelessWidget {
                   ),
               child: Row(
                 children: [
-                  if (leading != null) ...[
-                    leading!,
-                    SizedBox(width: Space.md),
-                  ],
+                  if (leading != null) ...[leading!, SizedBox(width: Space.md)],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,6 +105,7 @@ class UiCard extends StatelessWidget {
                           title,
                           type: UiTextType.titleMedium,
                           fontWeight: FontWeight.w600,
+                          color: titleColor,
                         ),
                         if (subtitle != null && subtitle!.isNotEmpty) ...[
                           SizedBox(height: Space.xs),
@@ -109,6 +123,16 @@ class UiCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (content != null)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? Space.md : Space.lg,
+                  Space.xs,
+                  compact ? Space.md : Space.lg,
+                  _contentBottom,
+                ),
+                child: content,
+              ),
             if (actions.isNotEmpty)
               Padding(
                 padding: EdgeInsets.fromLTRB(

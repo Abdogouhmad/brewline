@@ -24,12 +24,12 @@ class OrdersPage extends ConsumerWidget {
     final total = ref.watch(orderTotalProvider);
     final order = ref.read(orderControllerProvider.notifier);
 
-    /// Charges the order — advances the ticket number, logs the receipt
-    /// to the terminal and resets the cart. TODO: real payment flow.
-    void charge() {
+    /// Charges the order — persists it to the journal, advances the ticket
+    /// number and resets the cart. TODO: real payment flow.
+    Future<void> charge() async {
       final charged = ref.read(orderTotalProvider);
-      ref.read(orderNumberProvider.notifier).advance();
-      order.charge();
+      await order.charge();
+      if (!context.mounted) return;
       showUiSnackBar(
         context,
         'Charged ${formatPrice(charged)}',

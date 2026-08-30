@@ -6,13 +6,11 @@ import 'package:brewline/features/auth/providers/login_form_provider.dart';
 import 'package:brewline/shared/widgets/shared/app_text_field.dart';
 import 'package:brewline/shared/widgets/shared/pin_keypad_field.dart';
 
-import 'role_segmented_control.dart';
-
-/// The login form: role switch → username → PIN → submit.
+/// The login form: username → PIN → submit.
 ///
 /// Purely presentational — reads/writes [loginFormProvider] and submits through
-/// it. Switching roles swaps the contextual field labels in place without
-/// navigating or clearing an already-entered username.
+/// it. The account's role (admin vs waiter) is auto-detected from the
+/// username, so there is no role switch.
 class LoginForm extends ConsumerStatefulWidget {
   const LoginForm({super.key});
 
@@ -35,24 +33,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
     final notifier = ref.read(loginFormProvider.notifier);
     final colorScheme = Theme.of(context).colorScheme;
 
-    final roleLabel = state.role.label;
-
     return SingleChildScrollView(
       padding: EdgeInsets.all(Space.x2l),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // --- Role switch ---
-          RoleSegmentedControl(
-            selected: state.role,
-            onChanged: (role) => notifier.setRole(role),
-          ),
-          SizedBox(height: Space.xl),
-
-          // --- Username (contextual label, kept across role switches) ---
+          // --- Username ---
           AppTextField(
-            label: '$roleLabel username',
+            label: 'Username',
             hintText: 'Enter your username',
             controller: _usernameController,
             errorText: null,
@@ -64,7 +53,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
 
           // --- PIN keypad ---
           PinKeypadField(
-            label: '$roleLabel PIN',
+            label: 'PIN',
             length: kAdminPinLength,
             hasError: state.hasError,
             resetSignal: state.resetSignal,
@@ -84,7 +73,13 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           // --- Submit ---
           FilledButton(
             onPressed: state.canSubmit && !state.isSubmitting
-                ? () => notifier.submit()
+                ? () {
+                    // Drop focus before submitting: the username field's
+                    // blinking-cursor ticker would otherwise keep scheduling
+                    // frames until pushReplacement disposes the page.
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    notifier.submit();
+                  }
                 : null,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
@@ -103,10 +98,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                   )
                 : Text(
                     'Log in',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
           ),
         ],

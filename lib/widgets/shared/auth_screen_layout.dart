@@ -50,19 +50,13 @@ class _BrandHeader extends StatelessWidget {
 
     return Column(
       children: [
-        Icon(
-          Icons.local_cafe_rounded,
-          size: 40,
-          color: colorScheme.primary,
-        ),
+        Icon(Icons.local_cafe_rounded, size: 40, color: colorScheme.primary),
         SizedBox(height: Space.sm),
         const BrandTitle(),
         SizedBox(height: Space.xs),
         Text(
           message,
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
+          style: Theme.of(context).textTheme.bodyMedium
               ?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
       ],
@@ -135,9 +129,8 @@ class _MediumBody extends StatelessWidget {
                     SizedBox(height: Space.xs),
                     Text(
                       headerMessage,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -201,9 +194,10 @@ class _ExpandedBody extends ConsumerWidget {
                   Text(
                     headerMessage,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: colorScheme.onSecondaryContainer
-                              .withValues(alpha: 0.8),
-                        ),
+                      color: colorScheme.onSecondaryContainer.withValues(
+                        alpha: 0.8,
+                      ),
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],

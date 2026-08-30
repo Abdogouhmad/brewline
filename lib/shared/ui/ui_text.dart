@@ -21,22 +21,22 @@ enum UiTextType {
 
 extension UiTextTypeX on UiTextType {
   TextStyle? of(TextTheme theme) => switch (this) {
-        UiTextType.displayLarge => theme.displayLarge,
-        UiTextType.displayMedium => theme.displayMedium,
-        UiTextType.displaySmall => theme.displaySmall,
-        UiTextType.headlineLarge => theme.headlineLarge,
-        UiTextType.headlineMedium => theme.headlineMedium,
-        UiTextType.headlineSmall => theme.headlineSmall,
-        UiTextType.titleLarge => theme.titleLarge,
-        UiTextType.titleMedium => theme.titleMedium,
-        UiTextType.titleSmall => theme.titleSmall,
-        UiTextType.bodyLarge => theme.bodyLarge,
-        UiTextType.bodyMedium => theme.bodyMedium,
-        UiTextType.bodySmall => theme.bodySmall,
-        UiTextType.labelLarge => theme.labelLarge,
-        UiTextType.labelMedium => theme.labelMedium,
-        UiTextType.labelSmall => theme.labelSmall,
-      };
+    UiTextType.displayLarge => theme.displayLarge,
+    UiTextType.displayMedium => theme.displayMedium,
+    UiTextType.displaySmall => theme.displaySmall,
+    UiTextType.headlineLarge => theme.headlineLarge,
+    UiTextType.headlineMedium => theme.headlineMedium,
+    UiTextType.headlineSmall => theme.headlineSmall,
+    UiTextType.titleLarge => theme.titleLarge,
+    UiTextType.titleMedium => theme.titleMedium,
+    UiTextType.titleSmall => theme.titleSmall,
+    UiTextType.bodyLarge => theme.bodyLarge,
+    UiTextType.bodyMedium => theme.bodyMedium,
+    UiTextType.bodySmall => theme.bodySmall,
+    UiTextType.labelLarge => theme.labelLarge,
+    UiTextType.labelMedium => theme.labelMedium,
+    UiTextType.labelSmall => theme.labelSmall,
+  };
 }
 
 /// Theme-aware text widget. Picks a base style from [type] (defaults to

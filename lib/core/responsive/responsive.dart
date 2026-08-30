@@ -1,4 +1,16 @@
+/// Responsive layout toolkit — the shared helpers behind every adaptive
+/// screen in the app.
+///
+/// Breakpoints come from `core/responsive/breakpoints.dart` (600 / 905, the
+/// canonical scale from `improve.md` §6): mobile/compact < 600, tablet/medium
+/// 600–904, desktop/expanded ≥ 905. Reach for [responsiveValue] before a
+/// width conditional, [ResponsiveLayout] for structurally different trees,
+/// and [ResponsiveGrid] for card/tile grids.
+library;
+
 import 'package:flutter/material.dart';
+
+import 'breakpoints.dart';
 
 enum DeviceType { mobile, tablet, desktop }
 
@@ -7,8 +19,8 @@ class Responsive {
 
   static DeviceType getDeviceType(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
-    if (width >= 1024) return DeviceType.desktop;
-    if (width >= 600) return DeviceType.tablet;
+    if (width >= Breakpoints.expanded) return DeviceType.desktop;
+    if (width >= Breakpoints.medium) return DeviceType.tablet;
     return DeviceType.mobile;
   }
 
@@ -35,8 +47,8 @@ T responsiveValue<T>(
   required T desktop,
 }) {
   final width = MediaQuery.of(context).size.width;
-  if (width >= 1024) return desktop;
-  if (width >= 600) return tablet ?? mobile;
+  if (width >= Breakpoints.expanded) return desktop;
+  if (width >= Breakpoints.medium) return tablet ?? mobile;
   return mobile;
 }
 
@@ -58,8 +70,8 @@ class ResponsiveLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= 1024) return desktop;
-        if (constraints.maxWidth >= 600) return tablet ?? mobile;
+        if (constraints.maxWidth >= Breakpoints.expanded) return desktop;
+        if (constraints.maxWidth >= Breakpoints.medium) return tablet ?? mobile;
         return mobile;
       },
     );
@@ -69,10 +81,15 @@ class ResponsiveLayout extends StatelessWidget {
 /// Reusable responsive grid for card/tile lists — fewer/more columns by width.
 ///
 /// Column counts and spacing are overridable per breakpoint; defaults keep
-/// the original layout.
+/// the original layout. Give [mainAxisExtent] a fixed tile height instead of
+/// [childAspectRatio] when card content must never overflow (e.g. KPI cards).
 class ResponsiveGrid extends StatelessWidget {
   final List<Widget> children;
   final EdgeInsetsGeometry padding;
+
+  /// Row height when cards have fixed-height content. When null (default),
+  /// [childAspectRatio] instead drives row height.
+  final double? mainAxisExtent;
   final double childAspectRatio;
 
   /// Column counts per breakpoint. Null falls back to [defaultColumns].
@@ -90,6 +107,7 @@ class ResponsiveGrid extends StatelessWidget {
     super.key,
     required this.children,
     this.padding = const EdgeInsets.all(16),
+    this.mainAxisExtent,
     this.childAspectRatio = 1.3,
     this.mobileColumns,
     this.tabletColumns,
@@ -102,24 +120,34 @@ class ResponsiveGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        int columns;
-        if (constraints.maxWidth >= 1024) {
-          columns = desktopColumns ?? defaultDesktopColumns;
-        } else if (constraints.maxWidth >= 600) {
-          columns = tabletColumns ?? defaultTabletColumns;
-        } else {
-          columns = mobileColumns ?? defaultMobileColumns;
-        }
+        final width = constraints.maxWidth;
+        final columns = width >= Breakpoints.expanded
+            ? desktopColumns ?? defaultDesktopColumns
+            : width >= Breakpoints.medium
+            ? tabletColumns ?? defaultTabletColumns
+            : mobileColumns ?? defaultMobileColumns;
 
-        return GridView.count(
-          crossAxisCount: columns,
+        final delegate = mainAxisExtent == null
+            ? SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: crossAxisSpacing,
+                mainAxisSpacing: mainAxisSpacing,
+                childAspectRatio: childAspectRatio,
+              )
+            : SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: crossAxisSpacing,
+                mainAxisSpacing: mainAxisSpacing,
+                mainAxisExtent: mainAxisExtent,
+              );
+
+        return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           padding: padding,
-          crossAxisSpacing: crossAxisSpacing,
-          mainAxisSpacing: mainAxisSpacing,
-          childAspectRatio: childAspectRatio,
-          children: children,
+          gridDelegate: delegate,
+          itemCount: children.length,
+          itemBuilder: (_, i) => children[i],
         );
       },
     );
