@@ -6,13 +6,15 @@ import 'package:google_fonts/google_fonts.dart';
 const Color kSeedColor = Color(0xFF6F4E37);
 
 ThemeData buildLightTheme(ColorScheme? dynamicScheme) {
-  final colorScheme = dynamicScheme ?? ColorScheme.fromSeed(seedColor: kSeedColor);
+  final colorScheme =
+      dynamicScheme ?? ColorScheme.fromSeed(seedColor: kSeedColor);
   return _baseTheme(colorScheme);
 }
 
 ThemeData buildDarkTheme(ColorScheme? dynamicScheme) {
   final colorScheme =
-      dynamicScheme ?? ColorScheme.fromSeed(seedColor: kSeedColor, brightness: Brightness.dark);
+      dynamicScheme ??
+      ColorScheme.fromSeed(seedColor: kSeedColor, brightness: Brightness.dark);
   return _baseTheme(colorScheme);
 }
 

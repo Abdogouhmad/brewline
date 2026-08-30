@@ -37,20 +37,20 @@ class OnboardingState {
     bool? isSubmitting,
     String? submitError,
     bool clearSubmitError = false,
-  }) =>
-      OnboardingState(
-        username: username ?? this.username,
-        pin: pin ?? this.pin,
-        confirmPin: confirmPin ?? this.confirmPin,
-        usernameError: clearUsernameError
-            ? null
-            : (usernameError ?? this.usernameError),
-        pinError: clearPinError ? null : (pinError ?? this.pinError),
-        confirmError:
-            clearConfirmError ? null : (confirmError ?? this.confirmError),
-        isSubmitting: isSubmitting ?? this.isSubmitting,
-        submitError: clearSubmitError ? null : (submitError ?? this.submitError),
-      );
+  }) => OnboardingState(
+    username: username ?? this.username,
+    pin: pin ?? this.pin,
+    confirmPin: confirmPin ?? this.confirmPin,
+    usernameError: clearUsernameError
+        ? null
+        : (usernameError ?? this.usernameError),
+    pinError: clearPinError ? null : (pinError ?? this.pinError),
+    confirmError: clearConfirmError
+        ? null
+        : (confirmError ?? this.confirmError),
+    isSubmitting: isSubmitting ?? this.isSubmitting,
+    submitError: clearSubmitError ? null : (submitError ?? this.submitError),
+  );
 
   /// Username: 3–24 chars, letters/numbers/underscore only.
   bool get _isUsernameValid {
@@ -70,20 +70,17 @@ class OnboardingState {
 
   /// Returns a copy with inline validation errors populated.
   OnboardingState validate() => copyWith(
-        clearUsernameError: true,
-        clearPinError: true,
-        clearConfirmError: true,
-        usernameError: username.isEmpty
-            ? null
-            : (_isUsernameValid
-                ? null
-                : '3–24 characters, letters, numbers, or _'),
-        pinError: pin.isEmpty
-            ? null
-            : (_isPinValid
-                ? null
-                : 'PIN must be exactly $kAdminPinLength digits'),
-        confirmError:
-            confirmPin.isEmpty ? null : (_isConfirmValid ? null : "PINs don't match"),
-      );
+    clearUsernameError: true,
+    clearPinError: true,
+    clearConfirmError: true,
+    usernameError: username.isEmpty
+        ? null
+        : (_isUsernameValid ? null : '3–24 characters, letters, numbers, or _'),
+    pinError: pin.isEmpty
+        ? null
+        : (_isPinValid ? null : 'PIN must be exactly $kAdminPinLength digits'),
+    confirmError: confirmPin.isEmpty
+        ? null
+        : (_isConfirmValid ? null : "PINs don't match"),
+  );
 }

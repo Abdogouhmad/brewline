@@ -40,12 +40,16 @@ class SettingsTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final contentColor = destructive ? colorScheme.error : colorScheme.onSurface;
+    final contentColor = destructive
+        ? colorScheme.error
+        : colorScheme.onSurface;
 
     return MergeSemantics(
       child: ListTile(
         onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rounded.lg)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Rounded.lg),
+        ),
         contentPadding: EdgeInsets.zero,
         minVerticalPadding: Space.sm,
         minLeadingWidth: 0,
@@ -80,6 +84,7 @@ class SettingsTile extends StatelessWidget {
     );
   }
 
-  Widget? _defaultChevron(ColorScheme colorScheme) =>
-      onTap == null ? null : Icon(Icons.chevron_right_rounded, color: colorScheme.onSurfaceVariant);
+  Widget? _defaultChevron(ColorScheme colorScheme) => onTap == null
+      ? null
+      : Icon(Icons.chevron_right_rounded, color: colorScheme.onSurfaceVariant);
 }

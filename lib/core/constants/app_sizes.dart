@@ -4,7 +4,8 @@
 library;
 
 /// Number of digits in the admin PIN keypad.
-const int kAdminPinLength = 6;
+const int kAdminPinLength = 4;
+
 class Space {
   Space._();
 

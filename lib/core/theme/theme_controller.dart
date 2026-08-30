@@ -35,8 +35,9 @@ class ThemeController extends Notifier<ThemePref> {
   }
 }
 
-final themeControllerProvider =
-    NotifierProvider<ThemeController, ThemePref>(ThemeController.new);
+final themeControllerProvider = NotifierProvider<ThemeController, ThemePref>(
+  ThemeController.new,
+);
 
 /// Maps the persisted preference to Material's [ThemeMode].
 final themeModeProvider = Provider<ThemeMode>((ref) {

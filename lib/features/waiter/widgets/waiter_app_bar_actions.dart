@@ -1,3 +1,4 @@
+import 'package:brewline/widgets/shared/logout_button.dart';
 import 'package:brewline/shared/widgets/profile_chip.dart';
 import 'package:flutter/material.dart';
 import 'package:brewline/features/waiter/pages/settings_page.dart';
@@ -11,7 +12,7 @@ class WaiterAppBarActions extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.max,
       children: [
-        ProfileChip(),
+        const ProfileChip(),
         IconButton(
           tooltip: 'Settings',
           onPressed: () {
@@ -22,11 +23,7 @@ class WaiterAppBarActions extends StatelessWidget {
           },
           icon: Icon(Icons.settings_outlined),
         ),
-        IconButton(
-          tooltip: 'Log out',
-          onPressed: null,
-          icon: Icon(Icons.logout),
-        ),
+        const LogoutButton(),
       ],
     );
   }

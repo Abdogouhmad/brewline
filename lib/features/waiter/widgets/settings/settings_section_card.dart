@@ -92,11 +92,13 @@ class SettingsSectionCard extends StatelessWidget {
               subtitle: subtitle,
               accent: accent,
             ),
-            SizedBox(height: responsiveValue(
-              context,
-              mobile: Space.sm,
-              desktop: Space.md,
-            )),
+            SizedBox(
+              height: responsiveValue(
+                context,
+                mobile: Space.sm,
+                desktop: Space.md,
+              ),
+            ),
             // Rows with hairline dividers between them.
             for (var i = 0; i < children.length; i++) ...[
               if (i > 0)
@@ -148,7 +150,11 @@ class _SectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              UiText(title, type: UiTextType.titleMedium, fontWeight: FontWeight.w700),
+              UiText(
+                title,
+                type: UiTextType.titleMedium,
+                fontWeight: FontWeight.w700,
+              ),
               if (subtitle != null && subtitle!.isNotEmpty) ...[
                 SizedBox(height: Space.xs / 2),
                 UiText(

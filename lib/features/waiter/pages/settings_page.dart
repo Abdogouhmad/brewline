@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
+import 'package:brewline/core/repositories/audit_repository.dart';
+import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
+import 'package:brewline/features/auth/login_page.dart';
+import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/features/waiter/providers/printing_preferences_provider.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
@@ -12,6 +16,8 @@ import 'package:brewline/features/waiter/widgets/settings/settings_section_card.
 import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
+import 'package:brewline/shared/widgets/settings/language_dropdown.dart';
+import 'package:brewline/shared/widgets/settings/theme_segmented_control.dart';
 
 /// All user-facing copy for the settings screen in one place so wording
 /// stays consistent and easy to localize later.
@@ -24,8 +30,6 @@ class _Copy {
   static const generalSubtitle = 'Language and appearance';
   static const languageTile = 'Language';
   static const languageHint = 'Interface language for this device';
-  static const themeTile = 'Theme';
-  static const themeHint = 'Match your light / dark preference';
 
   // Account
   static const accountTitle = 'Account profile';
@@ -52,7 +56,6 @@ class _Copy {
 
   // Feedback
   static const cashoutDone = 'Shift closed — report sent to the printer';
-  static const loggedOut = 'Logged out (demo)';
 }
 
 /// Static icon set for the settings screen.
@@ -62,7 +65,6 @@ class _SettingsIcons {
   static const printing = Icons.receipt_long_rounded;
 
   static const language = Icons.language_rounded;
-  static const theme = Icons.brightness_6_rounded;
   static const password = Icons.lock_reset_rounded;
   static const cashout = Icons.point_of_sale_rounded;
   static const logout = Icons.logout_rounded;
@@ -139,16 +141,14 @@ class SettingsPage extends ConsumerWidget {
           icon: _SettingsIcons.language,
           title: _Copy.languageTile,
           subtitle: _Copy.languageHint,
-          trailing: _SettingsDropdown<AppLanguage>(
+          trailing: LanguageDropdown(
             value: language,
-            items: AppLanguage.values,
-            label: (value) => value.label,
             onChanged: (value) => ref
                 .read(languageControllerProvider.notifier)
                 .setLanguage(value),
           ),
         ),
-        _ThemeSegmentedControl(
+        ThemeSegmentedControl(
           themePref: themePref,
           onChanged: (value) =>
               ref.read(themeControllerProvider.notifier).setTheme(value),
@@ -174,21 +174,43 @@ class SettingsPage extends ConsumerWidget {
           icon: _SettingsIcons.cashout,
           title: _Copy.cashoutTile,
           subtitle: _Copy.cashoutHint,
-          onTap: () => showUiSnackBar(
-            context,
-            _Copy.cashoutDone,
-            type: UiSnackBarType.success,
-          ),
+          onTap: () => _cashout(context, ref),
         ),
         SettingsTile(
           icon: _SettingsIcons.logout,
           title: _Copy.logoutTile,
           subtitle: _Copy.logoutHint,
           destructive: true,
-          onTap: () => _confirmLogout(context),
+          onTap: () => _confirmLogout(context, ref),
         ),
       ],
     );
+  }
+
+  /// Closes the shift and logs it on the audit stream.
+  ///
+  /// There is no shift table yet — the "shift" is today so far — so the
+  /// ledger row carries today's gross + order count as JSON metadata and the
+  /// (still virtual) printer report keeps its snackbar behaviour.
+  Future<void> _cashout(BuildContext context, WidgetRef ref) async {
+    final actor = ref.read(authProvider).value?.username;
+    if (actor != null) {
+      final journal = await ref.read(orderJournalRepositoryProvider.future);
+      final now = DateTime.now();
+      final dayStart = DateTime(now.year, now.month, now.day);
+      final stats = await journal.statsBetween(dayStart, now);
+      final audit = await ref.read(auditRepositoryProvider.future);
+      await audit.logEvent(
+        eventType: 'cashout',
+        actor: actor,
+        metadata:
+            '{"totalSales":${stats.revenue},'
+            '"orderCount":${stats.orderCount}}',
+      );
+    }
+    if (context.mounted) {
+      showUiSnackBar(context, _Copy.cashoutDone, type: UiSnackBarType.success);
+    }
   }
 
   Widget _buildPrintingCard(WidgetRef ref) {
@@ -227,7 +249,7 @@ class SettingsPage extends ConsumerWidget {
   // Actions
   // ---------------------------------------------------------------------------
 
-  Future<void> _confirmLogout(BuildContext context) async {
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -257,23 +279,27 @@ class SettingsPage extends ConsumerWidget {
     );
 
     if (confirmed ?? false) {
-      // TODO: route to the login page once auth flow exists.
+      await ref.read(authProvider.notifier).logout();
       if (context.mounted) {
-        showUiSnackBar(context, _Copy.loggedOut, type: UiSnackBarType.info);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       }
     }
   }
 }
 
 /// Hero card at the top of Settings: large initials avatar, user name,
-/// role badge and a live "on shift" status dot. Bound to
-/// [currentUserProvider] (later: database-backed).
+/// role badge and a live "on shift" status dot. Bound to the signed-in
+/// session via [currentUserProvider]; hidden until it resolves.
 class _ProfileHeader extends ConsumerWidget {
   const _ProfileHeader();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
+    final user = ref.watch(currentUserProvider).value;
+    if (user == null) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -408,8 +434,7 @@ class _ResponsiveSections extends StatelessWidget {
         final twoColumns = width >= breakpoint;
         final columnWidth = twoColumns ? (width - Space.lg) / 2 : width;
 
-        Widget cell(Widget child) =>
-            SizedBox(width: columnWidth, child: child);
+        Widget cell(Widget child) => SizedBox(width: columnWidth, child: child);
 
         return Wrap(
           spacing: Space.lg,
@@ -424,129 +449,3 @@ class _ResponsiveSections extends StatelessWidget {
     );
   }
 }
-
-/// Theme preference as a full-width [SegmentedButton] row — three mutually
-/// exclusive options read better as segments than inside a dropdown.
-class _ThemeSegmentedControl extends StatelessWidget {
-  final ThemePref themePref;
-  final ValueChanged<ThemePref> onChanged;
-
-  const _ThemeSegmentedControl({
-    required this.themePref,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: EdgeInsets.only(top: Space.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: AppSizes.iconMd / 2 + 2,
-            backgroundColor: colorScheme.secondaryContainer,
-            foregroundColor: colorScheme.onSecondaryContainer,
-            child: Icon(
-              _SettingsIcons.theme,
-              size: AppSizes.iconSm + 4,
-            ),
-          ),
-          SizedBox(width: Space.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                UiText(
-                  _Copy.themeTile,
-                  type: UiTextType.titleSmall,
-                  fontWeight: FontWeight.w600,
-                ),
-                UiText(
-                  _Copy.themeHint,
-                  type: UiTextType.bodySmall,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                SizedBox(height: Space.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<ThemePref>(
-                    selected: {themePref},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) =>
-                        onChanged(selection.first),
-                    segments: [
-                      for (final pref in ThemePref.values)
-                        ButtonSegment(
-                          value: pref,
-                          icon: Icon(_themeIcon(pref),
-                              size: AppSizes.iconSm + 2),
-                          label: Text(switch (pref) {
-                            ThemePref.system => 'System',
-                            ThemePref.light => 'Light',
-                            ThemePref.dark => 'Dark',
-                          }),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _themeIcon(ThemePref pref) => switch (pref) {
-        ThemePref.system => Icons.brightness_auto_rounded,
-        ThemePref.light => Icons.light_mode_outlined,
-        ThemePref.dark => Icons.dark_mode_outlined,
-      };
-}
-
-/// Compact dropdown rendered as a tile trailing control.
-class _SettingsDropdown<T> extends StatelessWidget {
-  final T value;
-  final List<T> items;
-  final String Function(T value) label;
-  final ValueChanged<T> onChanged;
-
-  const _SettingsDropdown({
-    required this.value,
-    required this.items,
-    required this.label,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return DropdownButtonHideUnderline(
-      child: DropdownButton<T>(
-        value: value,
-        borderRadius: BorderRadius.circular(Rounded.lg),
-        padding: EdgeInsets.symmetric(horizontal: Space.sm),
-        items: [
-          for (final item in items)
-            DropdownMenuItem<T>(
-              value: item,
-              child: UiText(
-                label(item),
-                type: UiTextType.labelLarge,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-        ],
-        onChanged: (item) {
-          if (item != null) onChanged(item);
-        },
-        icon: Icon(Icons.expand_more_rounded, color: colorScheme.primary),
-      ),
-    );
-  }
-}
-

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
+
 import 'ui_text.dart';
 
 /// Section wrapper with an uppercase header, used to group [UiListGroup]s.
@@ -18,10 +19,7 @@ class UiListSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(
-            left: Space.sm,
-            bottom: Space.md,
-          ),
+          padding: EdgeInsets.only(left: Space.sm, bottom: Space.md),
           child: UiText(
             title.toUpperCase(),
             type: UiTextType.labelLarge,
@@ -157,13 +155,17 @@ class UiListTile extends StatelessWidget {
         vertical: dense ? Space.xs : Space.sm,
       ),
       minVerticalPadding: Space.md,
-      leading: leading ??
+      leading:
+          leading ??
           (outlined
               ? CircleAvatar(
                   radius: AppSizes.iconMd / 2 + 4,
                   backgroundColor: colorScheme.secondaryContainer,
                   foregroundColor: colorScheme.onSecondaryContainer,
-                  child: Icon(actionIcon ?? Icons.circle, size: AppSizes.iconMd),
+                  child: Icon(
+                    actionIcon ?? Icons.circle,
+                    size: AppSizes.iconMd,
+                  ),
                 )
               : null),
       title: UiText(
@@ -212,7 +214,12 @@ class UiListAvatar extends StatelessWidget {
   final Color? background;
   final Color? foreground;
 
-  const UiListAvatar({super.key, required this.icon, this.background, this.foreground});
+  const UiListAvatar({
+    super.key,
+    required this.icon,
+    this.background,
+    this.foreground,
+  });
 
   @override
   Widget build(BuildContext context) {
