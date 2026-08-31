@@ -196,12 +196,23 @@ class OrderJournalRepository {
   }
 
   /// Revenue, order count and total units sold in `[from, to)`.
+  ///
+  /// Nets out partial refunds and excludes voided orders (see §4 of
+  /// improve.md) so the dashboard shows net revenue — a voided order no longer
+  /// counts toward sales, and partially-refunded lines are reduced by the
+  /// refunded amount. Refunds are pre-aggregated into a 1:1 LEFT JOIN so the
+  /// revenue sum isn't inflated by the join.
   Future<PeriodStats> statsBetween(DateTime from, DateTime to) async {
     final rows = await _db.rawQuery(
-      'SELECT IFNULL(SUM(o.total), 0) AS revenue, '
-      'COUNT(*) AS orders, '
+      'SELECT IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'IFNULL(SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END), 0) '
+      '  AS order_count, '
       'IFNULL(SUM(oi.items), 0) AS items '
       'FROM orders o '
+      'LEFT JOIN ('
+      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  FROM order_refunds GROUP BY order_id'
+      ') r ON r.order_id = o.id '
       'LEFT JOIN ('
       '  SELECT order_id, SUM(quantity) AS items '
       '  FROM order_items GROUP BY order_id'
@@ -212,18 +223,25 @@ class OrderJournalRepository {
     final row = rows.first;
     return PeriodStats(
       revenue: (row['revenue'] as num).toDouble(),
-      orderCount: (row['orders'] as num).toInt(),
+      orderCount: (row['order_count'] as num).toInt(),
       itemCount: (row['items'] as num).toInt(),
     );
   }
 
   /// Per-local-day revenue series inside `[from, to)`, one bucket per matched
   /// day (missing days omitted).
+  ///
+  /// Nets out partial refunds and excludes voided orders (§4 of improve.md).
   Future<List<DailyRevenue>> revenuePerDay(DateTime from, DateTime to) async {
     final rows = await _db.rawQuery(
       'SELECT ((o.created_at + ?) / 86400000) AS day_key, '
-      'IFNULL(SUM(o.total), 0) AS revenue, COUNT(*) AS orders '
+      'IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END) AS orders '
       'FROM orders o '
+      'LEFT JOIN ('
+      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  FROM order_refunds GROUP BY order_id'
+      ') r ON r.order_id = o.id '
       'WHERE o.created_at >= ? AND o.created_at < ? '
       'GROUP BY day_key ORDER BY day_key ASC',
       [_tzOffsetMs, from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
@@ -241,6 +259,8 @@ class OrderJournalRepository {
   }
 
   /// Best-selling products within `[from, to)`, ranked by units sold.
+  ///
+  /// Excludes voided orders (§4 of improve.md).
   Future<List<ProductSold>> topProducts(
     DateTime from,
     DateTime to, {
@@ -252,7 +272,8 @@ class OrderJournalRepository {
       'SUM(oi.quantity * oi.unit_price) AS revenue '
       'FROM order_items oi '
       'JOIN orders o ON o.id = oi.order_id '
-      'WHERE o.created_at >= ? AND o.created_at < ? '
+      'WHERE o.is_voided = 0 '
+      'AND o.created_at >= ? AND o.created_at < ? '
       'GROUP BY oi.product_id, oi.name '
       'ORDER BY quantity DESC LIMIT ?',
       [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch, limit],
@@ -270,12 +291,19 @@ class OrderJournalRepository {
 
   /// Revenue + order counts grouped by hour of day (local), for staffing
   /// decisions and the Today revenue chart.
+  ///
+  /// Nets out partial refunds and excludes voided orders (§4 of improve.md).
   Future<List<HourBucket>> revenueByHour(DateTime from, DateTime to) async {
     final rows = await _db.rawQuery(
       'SELECT CAST(STRFTIME(\'%H\', o.created_at / 1000, '
       '\'unixepoch\', \'localtime\') AS INTEGER) AS hour, '
-      'IFNULL(SUM(o.total), 0) AS revenue, COUNT(*) AS orders '
+      'IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END) AS orders '
       'FROM orders o '
+      'LEFT JOIN ('
+      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  FROM order_refunds GROUP BY order_id'
+      ') r ON r.order_id = o.id '
       'WHERE o.created_at >= ? AND o.created_at < ? '
       'GROUP BY hour ORDER BY hour ASC',
       [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
@@ -291,11 +319,18 @@ class OrderJournalRepository {
   }
 
   /// Sales credited to each waiter, ranked by revenue.
+  ///
+  /// Nets out partial refunds and excludes voided orders (§4 of improve.md).
   Future<List<WaiterSales>> salesByWaiter(DateTime from, DateTime to) async {
     final rows = await _db.rawQuery(
       'SELECT o.waiter_username AS username, '
-      'IFNULL(SUM(o.total), 0) AS revenue, COUNT(*) AS orders '
+      'IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END) AS orders '
       'FROM orders o '
+      'LEFT JOIN ('
+      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  FROM order_refunds GROUP BY order_id'
+      ') r ON r.order_id = o.id '
       'WHERE o.created_at >= ? AND o.created_at < ? '
       'AND o.waiter_username IS NOT NULL AND o.waiter_username <> \'\' '
       'GROUP BY o.waiter_username '
@@ -316,6 +351,8 @@ class OrderJournalRepository {
   /// `products` catalog via LEFT JOIN; lines whose product was deleted group
   /// under "Other" by falling back to the snapshot: since order_items has no
   /// category, `''` maps to "Other".
+  ///
+  /// Excludes voided orders (§4 of improve.md).
   Future<List<CategoryRevenue>> revenueByCategory(
     DateTime from,
     DateTime to,
@@ -328,7 +365,8 @@ class OrderJournalRepository {
       'FROM order_items oi '
       'JOIN orders o ON o.id = oi.order_id '
       'LEFT JOIN products p ON p.id = oi.product_id '
-      'WHERE o.created_at >= ? AND o.created_at < ? '
+      'WHERE o.is_voided = 0 '
+      'AND o.created_at >= ? AND o.created_at < ? '
       'GROUP BY category ORDER BY revenue DESC',
       [from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
     );

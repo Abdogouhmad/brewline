@@ -2,19 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/models/shift_status.dart';
 import 'package:brewline/core/models/user_role.dart';
-import 'package:brewline/core/repositories/staff_repository.dart';
+import 'package:brewline/features/admin/providers/shift_status_provider.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
 
-/// Who is on shift and how the team is staffed right now.
+/// Who is on shift and when each staff member tapped in / closed out.
 ///
 /// The header confirms the signed-in admin's session is live (green dot) and
-/// shows their account; the footer gives the active/total roster as a count
-/// plus a tiny progress bar, so a glance answers both "who runs the floor" and
-/// "is anyone covering it?" in the same period the KPIs report on.
+/// shows their account; the body lists every active waiter with a live
+/// tick that says whether they are currently clocked in (green, with the
+/// login time and elapsed duration) or clocked out (neutral, with the login
+/// and last cash-out times), so a glance answers both "who runs the floor"
+/// and "when did each shift start and end".
 class ShiftStatusCard extends ConsumerWidget {
   const ShiftStatusCard({super.key});
 
@@ -22,14 +25,7 @@ class ShiftStatusCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(authProvider).value;
     final username = session?.username;
-    final staff = ref.watch(staffListProvider);
-    final colorScheme = Theme.of(context).colorScheme;
-
-    final activeCount = staff.value?.where((s) => s.active).length;
-    final totalCount = staff.value?.length;
-    final ratio = (totalCount == null || totalCount == 0)
-        ? 0.0
-        : activeCount! / totalCount;
+    final shifts = ref.watch(shiftStatusProvider);
 
     return DashboardCard(
       title: 'Shift status',
@@ -50,7 +46,7 @@ class ShiftStatusCard extends ConsumerWidget {
             'On shift',
             type: UiTextType.labelMedium,
             fontWeight: FontWeight.w700,
-            color: colorScheme.onSurfaceVariant,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ],
       ),
@@ -61,8 +57,10 @@ class ShiftStatusCard extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: colorScheme.primaryContainer,
-                foregroundColor: colorScheme.onPrimaryContainer,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor: Theme.of(context)
+                    .colorScheme
+                    .onPrimaryContainer,
                 child: UiText(
                   _initials(username),
                   type: UiTextType.titleMedium,
@@ -77,7 +75,7 @@ class ShiftStatusCard extends ConsumerWidget {
                     UiText(
                       'Signed in as',
                       type: UiTextType.bodySmall,
-                      color: colorScheme.onSurfaceVariant,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     UiText(
                       username ?? '—',
@@ -93,35 +91,41 @@ class ShiftStatusCard extends ConsumerWidget {
             ],
           ),
           SizedBox(height: Space.lg),
-          Divider(height: 1, color: colorScheme.outlineVariant),
-          SizedBox(height: Space.lg),
-          Row(
-            children: [
-              UiText(
-                'Team on shift',
-                type: UiTextType.labelMedium,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              const Spacer(),
-              UiText(
-                activeCount == null
-                    ? '—'
-                    : '$activeCount of $totalCount active',
-                type: UiTextType.titleSmall,
-                fontWeight: FontWeight.w700,
-                color: _teamColor(context, activeCount),
-              ),
-            ],
+          Divider(
+            height: 1,
+            color: Theme.of(context).colorScheme.outlineVariant,
           ),
-          SizedBox(height: Space.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(Rounded.full),
-            child: LinearProgressIndicator(
-              value: ratio,
-              minHeight: 6,
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              color: _progressColor(context, activeCount),
+          SizedBox(height: Space.lg),
+          shifts.when(
+            loading: () => const SizedBox(
+              height: 48,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             ),
+            error: (_, _) => Padding(
+              padding: EdgeInsets.symmetric(vertical: Space.sm),
+              child: UiText(
+                'Couldn\'t load shift status.',
+                type: UiTextType.bodyMedium,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            data: (list) {
+              if (list.isEmpty) {
+                return UiText(
+                  'No staff on the roster yet.',
+                  type: UiTextType.bodyMedium,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                );
+              }
+              return Column(
+                children: [
+                  for (var i = 0; i < list.length; i++) ...[
+                    _StaffShiftRow(shift: list[i]),
+                    if (i != list.length - 1) SizedBox(height: Space.md),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -135,20 +139,6 @@ class ShiftStatusCard extends ConsumerWidget {
     final digits = username.replaceAll(RegExp(r'[^0-9]'), '');
     final second = digits.isNotEmpty ? digits[digits.length - 1] : '';
     return (first + second).toUpperCase();
-  }
-
-  /// Warm colours hint at teams that are short staffed on the floor.
-  static Color? _teamColor(BuildContext context, int? activeCount) {
-    if (activeCount == null) return null;
-    final colorScheme = Theme.of(context).colorScheme;
-    if (activeCount == 0) return colorScheme.error;
-    if (activeCount <= 1) return colorScheme.tertiary;
-    return null;
-  }
-
-  static Color _progressColor(BuildContext context, int? activeCount) {
-    return _teamColor(context, activeCount) ??
-        Theme.of(context).colorScheme.primary;
   }
 
   Widget _roleBadge(BuildContext context, Role role) {
@@ -166,5 +156,139 @@ class ShiftStatusCard extends ConsumerWidget {
         color: colorScheme.onSecondaryContainer,
       ),
     );
+  }
+}
+
+/// One staff member's current shift summary: a live dot, the login time, and
+/// either the elapsed duration (on shift) or the last cash-out time.
+class _StaffShiftRow extends StatelessWidget {
+  final ShiftStatus shift;
+
+  const _StaffShiftRow({required this.shift});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final onShift = shift.onShift;
+
+    final (dotColor, statusText, detail) = onShift
+        ? (
+            Colors.green.shade600,
+            'On shift',
+            'Clocked in ${_formatTime(shift.checkIn)} · ${_elapsed(shift.checkIn)}',
+          )
+        : shift.checkIn != null
+        ? (
+            colorScheme.outlineVariant,
+            'Clocked out',
+            'Clocked in ${_formatTime(shift.checkIn)}'
+                '${shift.lastCashOut != null ? ' · Cashed out ${_formatTime(shift.lastCashOut)}' : ''}',
+          )
+        : (colorScheme.outlineVariant, 'No shift yet', 'Never logged in');
+
+    return Row(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: colorScheme.surfaceContainerHighest,
+              foregroundColor: colorScheme.onSurfaceVariant,
+              child: UiText(
+                _initials(shift.name),
+                type: UiTextType.labelMedium,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Positioned(
+              right: -1,
+              bottom: -1,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: colorScheme.surfaceContainerLow,
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(width: Space.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: UiText(
+                      shift.name,
+                      type: UiTextType.bodyMedium,
+                      fontWeight: FontWeight.w700,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  SizedBox(width: Space.sm),
+                  UiText(
+                    statusText,
+                    type: UiTextType.labelSmall,
+                    fontWeight: FontWeight.w600,
+                    color: onShift
+                        ? Colors.green.shade700
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+              SizedBox(height: Space.xs),
+              UiText(
+                detail,
+                type: UiTextType.bodySmall,
+                color: colorScheme.onSurfaceVariant,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+
+  /// Local 12-hour time, e.g. `9:15 AM`.
+  static String _formatTime(DateTime? at) {
+    if (at == null) return '—';
+    final local = at.toLocal();
+    final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = local.hour < 12 ? 'AM' : 'PM';
+    return '$hour12:$minute $period';
+  }
+
+  /// Elapsed time on shift, e.g. `3h 20m`, `45m`.
+  static String _elapsed(DateTime? since) {
+    if (since == null) return '—';
+    final diff = DateTime.now().difference(since.toLocal());
+    final hours = diff.inHours;
+    final minutes = diff.inMinutes % 60;
+    if (hours <= 0) return '${diff.inMinutes}m';
+    return '${hours}h ${minutes}m';
   }
 }

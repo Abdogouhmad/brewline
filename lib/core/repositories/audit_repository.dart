@@ -1,11 +1,13 @@
 /// Write/read access to the `audit_events` session log.
 ///
-/// One lean table, five event types: `login`, `logout`, `cashout`,
-/// `report_print`, `password_changed` (the CHECK constraint keeps typos out).
-/// Appended to by the auth flow, account updates, the final cashout and the
-/// interim shift-report print; read by the (future) admin audit view and
-/// fraud signals. Nothing else should touch the table — route every
-/// session/money event through [logEvent] so the stream stays consistent.
+/// One lean table, seven event types: `login`, `logout`, `cashout`,
+/// `report_print`, `password_changed`, `void`, `post_print_edit` (the CHECK
+/// constraint keeps typos out). Appended to by the auth flow, account
+/// updates, the final cashout, the interim shift-report print, and the refund
+/// system (void / post_print_edit fraud signals); read by the (future) admin
+/// audit view and fraud signals. Nothing else should touch the table — route
+/// every session/money event through [logEvent] so the stream stays
+/// consistent.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,8 @@ class AuditRepository {
     'cashout',
     'report_print',
     'password_changed',
+    'void',
+    'post_print_edit',
   };
 
   /// Appends one row to the log.
@@ -64,6 +68,26 @@ class AuditRepository {
     return rows.map(AuditEvent.fromRow).toList();
   }
 
+  /// The most recent shift-defining events (`login`, `logout`, `cashout`) for
+  /// each actor, newest first.
+  ///
+  /// Used by the admin dashboard to derive per-waiter shift status. Only
+  /// session-boundary events are returned so a caller can decide, from the
+  /// latest one, whether a member is on shift and when they last closed.
+  Future<Map<String, List<AuditEvent>>> shiftEvents() async {
+    final rows = await _db.query(
+      'audit_events',
+      where: "event_type IN ('login', 'logout', 'cashout')",
+      orderBy: 'id DESC',
+    );
+    final byActor = <String, List<AuditEvent>>{};
+    for (final row in rows) {
+      final event = AuditEvent.fromRow(row);
+      byActor.putIfAbsent(event.actor, () => []).add(event);
+    }
+    return byActor;
+  }
+
   /// The most recent `login` event for [actor], or `null` if the account has
   /// never logged in.
   ///
@@ -78,9 +102,7 @@ class AuditRepository {
       limit: 1,
     );
     if (rows.isEmpty) return null;
-    return DateTime.fromMillisecondsSinceEpoch(
-      rows.first['created_at'] as int,
-    );
+    return DateTime.fromMillisecondsSinceEpoch(rows.first['created_at'] as int);
   }
 }
 

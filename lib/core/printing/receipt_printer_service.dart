@@ -30,6 +30,7 @@ import 'package:brewline/core/printing/printer_settings.dart';
 import 'package:brewline/core/printing/printer_transport.dart';
 import 'package:brewline/core/printing/receipt_templates/client_receipt_template.dart';
 import 'package:brewline/core/printing/receipt_templates/kitchen_ticket_template.dart';
+import 'package:brewline/core/printing/receipt_templates/refund_receipt_template.dart';
 import 'package:brewline/core/printing/receipt_templates/shift_report_template.dart';
 import 'package:brewline/core/printing/usb_printer_transport.dart';
 
@@ -63,6 +64,13 @@ class ReceiptPrinterService {
   /// report itself tells the printer apart via [ShiftReportData.isFinal].
   Future<void> printShiftReport(ShiftReportData data) async {
     final bytes = await ShiftReportTemplate(data: data).build();
+    await _transport().send(bytes);
+  }
+
+  /// Refund receipt (88mm) — printed only when explicitly requested after a
+  /// refund, never automatically.
+  Future<void> printRefundReceipt(RefundReceiptData data) async {
+    final bytes = await RefundReceiptTemplate(data: data).build();
     await _transport().send(bytes);
   }
 

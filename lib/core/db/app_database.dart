@@ -7,14 +7,16 @@
 ///   (`image_path`, may also point at a bundled `assets/` file).
 /// * `orders` — journal header. `order_number` is the human-friendly,
 ///   per-day sequential number shown to customers; `id` stays the internal
-///   ticket key.
+///   ticket key. `is_voided` flags orders that have been fully voided.
 /// * `order_items` — journal lines, snapshotted at charge time.
+/// * `order_refunds` — refund records: one row per partial or full refund,
+///   queryable and filterable on its own (not derived from audit_events).
 /// * `staff` — POS accounts (waiters).
 /// * `order_counters` — one row per calendar day holding the latest
 ///   `order_number`, so the next number is one atomic `UPDATE` away instead
 ///   of a `MAX()` scan. The "small" way to keep numbers sequential.
 /// * `audit_events` — the session/cashout event log (login, logout, cashout,
-///   report_print).
+///   report_print, password_changed, void, post_print_edit).
 /// * `cashout_logs` — one row per *finalized* shift close, snapshotting the
 ///   counted cash + variance that can't be derived from `orders` alone.
 ///
@@ -66,7 +68,7 @@ Future<Database> openAppDatabase({
     options: OpenDatabaseOptions(
       // Bump this when a schema change lands and add the matching
       // step to [kMigrations]. See the migration history below.
-      version: 3,
+      version: 4,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -87,6 +89,11 @@ Future<Database> openAppDatabase({
 ///            time); `audit_events.event_type` CHECK extended with
 ///            `report_print` (interim prints) and `password_changed`
 ///            (account updates) by table rebuild, data preserved. |
+/// | 4       | `orders.is_voided` (soft-void flag for full refunds); new
+///            `order_refunds` table (one row per partial/full refund);
+///            `audit_events.event_type` CHECK widened with `void` and
+///            `post_print_edit` (the refund fraud signals) by table rebuild,
+///            data preserved. |
 ///
 /// Keep this table up to date — it is the traceable record of every schema
 /// change for `openAppDatabase()` callers (migration tests, feature dev).
@@ -146,6 +153,41 @@ const Map<int, List<String>> kMigrations = {
     'DROP TABLE audit_events',
     'ALTER TABLE audit_events_new RENAME TO audit_events',
   ],
+  // 4 adds the refund system: the soft-void flag on `orders`, the dedicated
+  // `order_refunds` ledger, and two more audit event types (`void` and
+  // `post_print_edit`) that already power the fraud-detection signals. The
+  // audit CHECK is widened via the standard create→copy→drop→rename dance
+  // since SQLite can't ALTER a CHECK constraint.
+  4: [
+    'ALTER TABLE orders ADD COLUMN is_voided INTEGER NOT NULL DEFAULT 0',
+    'CREATE TABLE IF NOT EXISTS order_refunds ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        'order_id INTEGER NOT NULL REFERENCES orders(id),'
+        'admin_id TEXT NOT NULL,'
+        "refund_type TEXT NOT NULL CHECK (refund_type IN ('partial', 'full')),"
+        'amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),'
+        'reason TEXT NOT NULL,'
+        'created_at INTEGER NOT NULL'
+        ')',
+    'CREATE INDEX IF NOT EXISTS idx_order_refunds_order_id '
+        'ON order_refunds(order_id)',
+    'CREATE INDEX IF NOT EXISTS idx_order_refunds_created_at '
+        'ON order_refunds(created_at)',
+    'CREATE TABLE audit_events_new ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        "event_type TEXT NOT NULL CHECK (event_type IN "
+        "('login', 'logout', 'cashout', 'report_print', 'password_changed', "
+        "'void', 'post_print_edit')),"
+        'actor TEXT NOT NULL,'
+        'metadata TEXT,'
+        'created_at INTEGER NOT NULL'
+        ')',
+    'INSERT INTO audit_events_new (id, event_type, actor, metadata, '
+        'created_at) SELECT id, event_type, actor, metadata, created_at '
+        'FROM audit_events',
+    'DROP TABLE audit_events',
+    'ALTER TABLE audit_events_new RENAME TO audit_events',
+  ],
 };
 
 /// Every lookup the dashboards actually run, indexed so the fast paths in
@@ -155,6 +197,7 @@ const List<String> _kIndexes = [
   'CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)',
   'CREATE INDEX IF NOT EXISTS idx_orders_waiter_username '
       'ON orders(waiter_username)',
+  'CREATE INDEX IF NOT EXISTS idx_orders_is_voided ON orders(is_voided)',
   'CREATE INDEX IF NOT EXISTS idx_order_items_product_id '
       'ON order_items(product_id)',
   'CREATE INDEX IF NOT EXISTS idx_order_items_order_id '
@@ -164,6 +207,10 @@ const List<String> _kIndexes = [
       'ON cashout_logs(waiter_id)',
   'CREATE INDEX IF NOT EXISTS idx_cashout_logs_created_at '
       'ON cashout_logs(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_order_refunds_order_id '
+      'ON order_refunds(order_id)',
+  'CREATE INDEX IF NOT EXISTS idx_order_refunds_created_at '
+      'ON order_refunds(created_at)',
 ];
 
 /// A *brand-new* database is created straight at the current schema (v3) via
@@ -187,7 +234,7 @@ Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
   await _createIndexes(db);
 }
 
-/// Creates every table at the *current* schema (v3). Do not add columns here
+/// Creates every table at the *current* schema (v4). Do not add columns here
 /// for future versions — use [kMigrations] + [onUpgrade] instead.
 Future<void> _createSchema(Database db) async {
   await db.execute('''
@@ -209,7 +256,8 @@ Future<void> _createSchema(Database db) async {
       created_at INTEGER NOT NULL,
       waiter_username TEXT,
       total REAL NOT NULL,
-      order_number INTEGER NOT NULL DEFAULT 0
+      order_number INTEGER NOT NULL DEFAULT 0,
+      is_voided INTEGER NOT NULL DEFAULT 0
     )
   ''');
   // order_items.product_id intentionally has no FK — deleting a product must
@@ -222,6 +270,23 @@ Future<void> _createSchema(Database db) async {
       name TEXT NOT NULL,
       quantity INTEGER NOT NULL,
       unit_price REAL NOT NULL
+    )
+  ''');
+  // order_refunds: one row per partial/full refund. A dedicated table (not
+  // an audit_events blob) because refunds need to be summed, filtered by date
+  // and displayed as structured data (order id, amount, reason).
+  // admin_id intentionally has no FK — the refunding account is the admin (or
+  // a waiter) in SharedPreferences/staff, and like order_items.product_id we
+  // avoid a cascading FK into history.
+  await db.execute('''
+    CREATE TABLE order_refunds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL REFERENCES orders(id),
+      admin_id TEXT NOT NULL,
+      refund_type TEXT NOT NULL CHECK (refund_type IN ('partial', 'full')),
+      amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+      reason TEXT NOT NULL,
+      created_at INTEGER NOT NULL
     )
   ''');
   await db.execute('''
@@ -243,7 +308,7 @@ Future<void> _createSchema(Database db) async {
   await db.execute('''
     CREATE TABLE audit_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event_type TEXT NOT NULL CHECK (event_type IN ('login', 'logout', 'cashout', 'report_print', 'password_changed')),
+      event_type TEXT NOT NULL CHECK (event_type IN ('login', 'logout', 'cashout', 'report_print', 'password_changed', 'void', 'post_print_edit')),
       actor TEXT NOT NULL,
       metadata TEXT,
       created_at INTEGER NOT NULL
@@ -335,6 +400,7 @@ Future<void> seedDefaultProducts(Database db) async {
 /// Wipes all business rows (used by "Reset onboarding" and tests), then
 /// re-seeds the default catalog so a fresh setup is immediately usable.
 Future<void> deleteAllData(Database db) async {
+  await db.delete('order_refunds');
   await db.delete('order_items');
   await db.delete('orders');
   await db.delete('order_counters');

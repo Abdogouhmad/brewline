@@ -30,33 +30,51 @@ class CashoutRepository {
 
   /// A live, derived summary of [waiterUsername]'s current shift.
   ///
-  /// Shift start = the waiter's most recent `login` audit event, falling back
-  /// to the start of the current local day when the account has no recorded
-  /// login (seed/historical data). [end] defaults to now and is overridable
-  /// so callers can compute a cashout at a slightly earlier moment without
-  /// moving "now" between the summary and the close row.
+  /// Shift start = the waiter's most recent `cashout` audit event, falling
+  /// back to the start of the current local day when no cashout exists yet.
+  /// This ensures orders from a previous logout-login cycle (without an
+  /// intermediate cashout) are still included in the current shift.
+  /// [end] defaults to now and is overridable so callers can compute a
+  /// cashout at a slightly earlier moment without moving "now" between the
+  /// summary and the close row.
   Future<ShiftSummary> currentShiftSummary({
     required String waiterUsername,
     DateTime? end,
   }) async {
     final shiftEnd = (end ?? DateTime.now()).toLocal();
-    final login = await _db.query(
+
+    // The shift starts after the most recent cashout for this waiter.
+    // This ensures orders from a previous logout-login cycle (without an
+    // intermediate cashout) are still included.  When no cashout exists yet
+    // today, fall back to the start of the current local day.
+    final cashout = await _db.query(
       'audit_events',
-      where: "event_type = 'login' AND actor = ?",
+      where: "event_type = 'cashout' AND actor = ?",
       whereArgs: [waiterUsername],
       orderBy: 'id DESC',
       limit: 1,
     );
-    final shiftStart = login.isEmpty
+    final shiftStart = cashout.isEmpty
         ? DateTime(shiftEnd.year, shiftEnd.month, shiftEnd.day)
         : DateTime.fromMillisecondsSinceEpoch(
-            login.first['created_at'] as int,
+            cashout.first['created_at'] as int,
           );
 
+    // Net revenue: subtract partial-refund amounts and exclude voided orders
+    // so the shift total matches the cash that should actually be in the
+    // drawer.
     final rows = await _db.rawQuery(
-      'SELECT COUNT(*) AS orders, IFNULL(SUM(total), 0) AS revenue '
-      'FROM orders '
-      'WHERE waiter_username = ? AND created_at >= ? AND created_at < ?',
+      'SELECT '
+      'IFNULL(SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END), 0) AS orders, '
+      'IFNULL(SUM(o.total), 0) '
+      '  - IFNULL(SUM(r.refund), 0) AS revenue '
+      'FROM orders o '
+      'LEFT JOIN ('
+      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  FROM order_refunds GROUP BY order_id'
+      ') r ON r.order_id = o.id '
+      'WHERE o.waiter_username = ? '
+      '  AND o.created_at >= ? AND o.created_at < ?',
       [
         waiterUsername,
         shiftStart.millisecondsSinceEpoch,

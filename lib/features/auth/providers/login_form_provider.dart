@@ -84,11 +84,15 @@ class LoginFormNotifier extends Notifier<LoginFormState> {
       await ref
           .read(authProvider.notifier)
           .login(username: state.username, pin: state.pin);
+      // On success the page navigates away and this autoDispose provider is
+      // disposed during the await above, so the ref may no longer be mounted.
+      if (!ref.mounted) return;
       state = state.copyWith(isSubmitting: false);
     } catch (_) {
       // Failure is surfaced generically (see authProvider); clear the PIN and
       // shake the keypad, but keep the username so a typo is easy to fix. The
       // pin is reset here (not via onChanged) so the error text survives.
+      if (!ref.mounted) return;
       state = state.copyWith(
         isSubmitting: false,
         pin: '',

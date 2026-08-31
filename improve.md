@@ -1,200 +1,144 @@
-# Cashout & Report Printing — Implementation Spec (Brewline / Café POS)
- 
+# Refund System — Implementation Spec (Brewline / Café POS)
+
 **Audience:** opencode coding agent
-**Stack:** Flutter, Riverpod, `sqflite_common_ffi`, `esc_pos_utils_plus`
-**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (repository pattern, `audit_events` table, Sales Log screen pattern), `LOGIN_UI_SPEC.md` (`authProvider.logout()`). Read those first.
-**Status:** Ready for implementation. One deliberate deviation from the literal request is called out in §3 with reasoning — flag back if you'd rather I follow the literal version.
- 
+**Stack:** Flutter, Riverpod, `sqflite_common_ffi`
+**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (Sales Log screen, repository pattern, `audit_events`), `CASHOUT_PRINTING_SPEC.md` (`ReceiptPrinterService`, receipt templates). Read those first.
+**Status:** Ready for implementation. Scope is deliberately narrowed to "fix a mistaken order," not general order editing — see §2.1.
+
 ---
- 
+
 ## 0. Summary of Changes
- 
-1. A `cashout_logs` table — a real, dedicated table (not a query/view) recording every finalized shift close, because it captures a point-in-time snapshot (counted cash, variance) that can't be derived from `orders` alone.
-2. Waiter **Settings** page gets two actions: **"Cash Out & Print Report"** (closes the shift, logs waiter out) and **"Print Report"** (interim, no shift close, no logout).
-3. Admin gets a **Cashout Logs** page mirroring the Sales Log pattern: Date/Time, Orders Made, Waiter Name, Total Made.
-4. A printer transport layer supporting **both USB-cable and network (Ethernet/RJ45) printers** through one abstraction, plus three receipt templates at two paper widths (55mm kitchen, 88mm client/report).
+
+1. A refund entry point inside the **Sales Log** row actions: admin can either **partially correct** (update) or **fully void** (delete/refund) a mistaken order.
+2. A new `order_refunds` table — a real table, not derived, because it needs to be queryable, filterable, and printable on its own.
+3. Reuses the fraud-detection `audit_events` signals that already exist for exactly this — `void` and `post_print_edit` — no new event types needed.
+4. A responsive action UI: **dialog on desktop, bottom sheet on mobile/tablet.**
+5. An optional refund receipt print showing the refunded amount as a negative figure.
+
 ---
- 
-## 1. Printer Connectivity (USB + Network)
- 
-### 1.1 Recommended packages
-- **`esc_pos_utils_plus`** — already in the stack. Keep using it purely to *build* ESC/POS byte sequences (text, alignment, bold, cut, line feeds). It doesn't send anything over a wire; it just generates `List<int>` bytes.
-- **Network (RJ45/Ethernet) transport → plain Dart `Socket`, no extra package needed.** Thermal printers with an Ethernet port almost universally listen for raw ESC/POS bytes on **TCP port 9100** (RAW/JetDirect-style printing). Dart's built-in `dart:io` `Socket.connect(ip, 9100)` + `socket.add(bytes)` is enough — it's simpler and more reliable than any plugin for this case, and it works identically on Android and desktop with zero native code.
-- **USB transport → `flutter_pos_printer_platform_image_3`.** Unlike network printing, USB requires the Android USB Host API, which needs a native plugin — plain Dart sockets can't do this. This package already covers USB (and Bluetooth, unused here) through one plugin, so it's the right single dependency for the USB path. Drop `print_bluetooth_thermal` from the dependency list if it's still there — it only covers Bluetooth, which isn't needed for this feature, and having two overlapping printer plugins is exactly the kind of redundancy worth avoiding.
-### 1.2 Transport abstraction
-Keep printing transport-agnostic (matches this project's existing preference for transport-agnostic service interfaces) so receipt-building code never knows or cares whether it's USB or network:
- 
-```
-lib/core/printing/
-  printer_transport.dart            // abstract class PrinterTransport { Future<void> send(List<int> bytes); Future<bool> isConnected(); }
-  network_printer_transport.dart    // implements PrinterTransport via Socket.connect(ip, 9100)
-  usb_printer_transport.dart        // implements PrinterTransport via flutter_pos_printer_platform_image_3
-  receipt_printer_service.dart      // builds bytes with esc_pos_utils_plus, sends via the configured PrinterTransport
-```
-- `receipt_printer_service.dart` reads the active transport type from printer settings (§1.3) at call time — callers just do `receiptPrinterService.printKitchenTicket(order)` etc. and never touch USB/network details directly.
-- Wrap every `send()` call with a timeout (e.g. 5s) and a clear typed error (`PrinterOfflineException`, `PrinterTimeoutException`) so the UI can show "Printer not reachable" instead of hanging.
-### 1.3 Printer settings (admin-configurable)
-Add a small settings section (device-level, not per-waiter) since a printer is physically attached to one device:
-- Connection type: `usb` | `network` (radio/segmented choice)
-- If `network`: IP address field + port field (default `9100`, editable in case a printer uses a nonstandard port)
-- Location: `lib/features/admin/settings/widgets/printer_settings_section.dart`, added to the same Settings page that now hosts logout (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §5). Persist via a simple key-value settings table or `shared_preferences` — this is small enough that a new dedicated table isn't warranted.
-**Assumption:** one printer handles all three receipt types (kitchen, client, report) sequentially. If you actually have two physical printers (e.g. a kitchen printer and a front-counter printer), this needs a second transport config — flag that back rather than assuming.
- 
+
+## 1. Where This Lives
+
+Entry point: a row action (icon button or overflow menu item) on each row of the Sales Log screen (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §3) — "Refund." Tapping it opens the refund UI (§5) scoped to that one order.
+
 ---
- 
-## 2. Receipt Widths & Templates
- 
-Three receipt types, two physical widths:
- 
-| Receipt | Width | Used for |
-|---|---|---|
-| Kitchen ticket | 55mm | Sent to kitchen on order creation (existing) |
-| Client receipt | 88mm | Given to the customer (existing) |
-| Shift report | 88mm | New — printed by both Settings buttons in §3 |
- 
-`esc_pos_utils_plus`'s built-in `PaperSize` enum only ships presets for **58mm** and **80mm** — there is no built-in 55mm/88mm preset. Since your rolls are 55mm and 88mm specifically, don't rely on the enum: set the `LINE_WIDTH` (characters-per-line) constant directly per template based on the *actual* printable character count for your printer/font combination, rather than assuming it matches the 58mm/80mm presets. This continues the plan already noted for this project (confirm paper width, adjust `LINE_WIDTH` accordingly) — verify the real character count against a physical test print before finalizing the constants; don't hardcode a guessed number.
- 
-```
-lib/core/printing/receipt_templates/
-  kitchen_ticket_template.dart   // 55mm — existing, unchanged by this spec
-  client_receipt_template.dart   // 88mm — existing, unchanged by this spec
-  shift_report_template.dart     // 88mm — NEW, see §2.1
-```
- 
-### 2.1 Shift report template
-Content, top to bottom:
-1. Café name / header (reuse whatever header block the client receipt already uses, for visual consistency)
-2. "SHIFT REPORT" label, bold/centered
-3. Waiter name
-4. Shift start time → end time (end time = "now" if this is an interim print, see §3.2)
-5. Order count
-6. Total sales (formatted from integer cents)
-7. Cash counted (only on the final cash-out print, §3.1 — omit this line entirely on the interim print since there's nothing counted yet)
-8. Cash variance = counted − expected (only on the final print, same reason)
-9. Footer: print timestamp
-10. If this is the **interim** print (§3.2): a clearly visible **"PREVIEW — SHIFT NOT CLOSED"** line near the top, so nobody mistakes it for the final record.
-Build with the same single `.write()`-with-embedded-`\n` approach already established for receipt assembly on this project — not `.writeln()` — to avoid the ESC/POS collapse issue already documented.
- 
+
+## 2. Functionality
+
+### 2.1 Scope constraint (read this first)
+The request describes fixing a **mistaken order** — an overcharge or wrong item, not general order editing. To keep the feature from becoming an unaudited way to inflate revenue, both actions below can only ever **decrease** an order's total, never increase it:
+- "Update" may reduce a line item's quantity or remove a line item entirely. It cannot add new items or increase quantities.
+- If you actually want full bidirectional order editing (not just refund-oriented corrections), that's a bigger feature — flag it back rather than assuming this spec covers it.
+
+### 2.2 "Update sale order" (partial refund)
+- Admin opens the order's line items in edit mode, reduces a quantity or removes an item.
+- The new total is recomputed live as they edit; the **refund amount = old total − new total** (always ≥ 0, given the §2.1 constraint).
+- Reason field is **required** (short free text, e.g. "wrong item entered") — this is a financial adjustment, it needs a paper trail.
+- On confirm: `order_items` is updated to the corrected quantities (the order itself now reflects the corrected state — this is a genuine correction, not just an annotation), and one row is written to `order_refunds` (§3) with `refund_type = 'partial'` and the computed amount.
+- Logs an `audit_events` row with `event_type = 'post_print_edit'` (this signal already exists in the fraud-detection model — reuse it, don't add a new type) with metadata `{order_id, old_total, new_total, reason}`.
+
+### 2.3 "Delete sale order" (full refund / void)
+- Admin confirms voiding the entire order. Reason field required, same as above.
+- The order is **not hard-deleted** from the database — historical financial records must stay intact for reporting and audit (same principle already applied to product deletion → soft archive in the admin dashboard spec). Instead:
+  - `orders.is_voided` is set to `1` (new column, see §3).
+  - One row is written to `order_refunds` with `refund_type = 'full'` and `amount_cents` equal to the order's full total.
+- Logs an `audit_events` row with `event_type = 'void'` (also already an existing signal — reuse it) with metadata `{order_id, amount, reason}`.
+- A voided order's items are left untouched in `order_items` — the void is expressed entirely through `orders.is_voided` + the `order_refunds` row, not by deleting line items.
+
 ---
- 
-## 3. Waiter Settings — Two Actions
- 
-### 3.1 "Cash Out & Print Report" (final, closes the shift)
-1. Confirm dialog first — this is irreversible for the shift: *"Cash out and print report? This will close your shift and log you out."* / Cancel / Confirm.
-2. Prompt for **cash counted** (a numeric entry — the physical cash counted in the drawer at end of shift).
-3. Compute the shift summary: order count + total sales for this shift (query via the existing order/shift relationship), variance = counted − expected.
-4. Write **one row** to `cashout_logs` (§4) — this is the authoritative, final record of the shift.
-5. Log an `audit_events` row with `event_type = 'cashout'` (per `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §4) with the same metadata.
-6. Mark the shift closed — following this project's existing convention that shift status is *derived*, this means setting whatever field the "closed" state is derived from (e.g. a `cashed_out_at` timestamp on the shift), not adding a separate status flag.
-7. Print the shift report (§2.1, final variant, includes cash-counted/variance lines).
-8. On print success, call `authProvider.logout()` (reuses the existing logout flow/confirm-free, since the user already confirmed the combined action in step 1 — don't double-confirm).
-9. If printing fails (printer offline/timeout): still complete steps 3–6 (don't lose the cashout because the printer was unreachable), show a clear "Report saved, but printing failed — check the printer" message, and offer a retry-print action before logging out. Never block the actual cashout on printer availability.
-### 3.2 "Print Report" (interim, no sign-out) — deviation from the literal request
-The original request said to also store this action's data in `cashout_logs`. I'm recommending against that, with reasoning:
- 
-- The shift is still **open** when this button is pressed — there's no final cash-counted or variance figure yet, and the order count/total could still change before the real cash-out.
-- Writing a row to `cashout_logs` every time a waiter previews the report would leave multiple rows per shift, only one of which (the final one) is actually authoritative — which would make the admin's Cashout Logs screen (§5) misleading (which row is the "real" total for that shift?).
-- This project already has a fraud-detection signal for **reprint frequency** — an interim/preview report print is exactly that kind of event. So: this button logs an `audit_events` row with `event_type = 'report_print'` (add this to the check constraint alongside `login`/`logout`/`cashout` from the previous spec) instead of writing to `cashout_logs`.
-If you actually want every preview print recorded in `cashout_logs` regardless, that's a one-line change (call the same `CashoutRepository.logCashout(...)` method here too) — just be aware it'll produce multiple rows per shift and the admin screen will need a way to tell "final" rows apart from "preview" ones (e.g. an `is_final` column) if you go that route.
- 
-Behavior:
-1. No confirm dialog needed — non-destructive, doesn't close anything.
-2. Compute the *current* shift summary the same way as §3.1 step 3, but there's no cash-counted input for this path.
-3. Print the shift report (§2.1, interim variant — "PREVIEW" label, no cash-counted/variance lines).
-4. Log the `audit_events` row (`report_print`) as described above.
-5. No navigation change — waiter stays on the Settings page.
----
- 
-## 4. Database: `cashout_logs`
- 
+
+## 3. Database
+
 ```sql
-CREATE TABLE IF NOT EXISTS cashout_logs (
+ALTER TABLE orders ADD COLUMN is_voided INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS order_refunds (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  waiter_id INTEGER NOT NULL REFERENCES users(id),
-  shift_id INTEGER NOT NULL REFERENCES shifts(id),
-  shift_start TEXT NOT NULL,
-  shift_end TEXT NOT NULL,
-  order_count INTEGER NOT NULL,
-  total_sales_cents INTEGER NOT NULL,
-  cash_counted_cents INTEGER NOT NULL,
-  cash_variance_cents INTEGER NOT NULL,
+  order_id INTEGER NOT NULL REFERENCES orders(id),
+  admin_id INTEGER NOT NULL REFERENCES users(id),
+  refund_type TEXT NOT NULL CHECK (refund_type IN ('partial', 'full')),
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  reason TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
- 
-CREATE INDEX IF NOT EXISTS idx_cashout_logs_waiter_id ON cashout_logs(waiter_id);
-CREATE INDEX IF NOT EXISTS idx_cashout_logs_created_at ON cashout_logs(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_order_refunds_order_id ON order_refunds(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_refunds_created_at ON order_refunds(created_at);
 ```
- 
-This is a genuine dedicated table, not a derived query — unlike the Sales Log (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §3), it stores `cash_counted_cents`, which is manually entered by the waiter and has no other source of truth in the schema.
- 
-Also extend the `audit_events.event_type` check constraint from the previous spec to add `report_print`:
-```sql
--- event_type now: 'void','discount','post_print_edit','cash_variance',
--- 'no_sale_open','reprint','off_hours','login','logout','cashout','report_print'
-```
- 
-Repository: `lib/core/database/repositories/cashout_repository.dart`
-- `logCashout(CashoutRecord record)` — the one write path for §3.1 step 4, inside a transaction alongside the shift-close update (step 6).
-- `getCashoutLogs({DateTimeRange? dateRange, int? waiterId, int limit = 100, int offset = 0})` — powers the admin screen in §5, indexed on `created_at`/`waiter_id`.
-- `getCurrentShiftSummary(int shiftId)` — read-only, used by both §3.1 and §3.2 to compute live order count/total without duplicating that query logic in two places.
+
+Why a dedicated table and not just an `audit_events` metadata blob: the same reasoning as `cashout_logs` — this needs to be summed, filtered by date, and displayed/printed as structured data (order id, amount, reason), not just counted as a fraud-signal flag. `audit_events` still gets its own row too (§2.2/§2.3) purely for the fraud-signal side — the two tables serve different purposes and neither substitutes for the other.
+
+Repository: `lib/core/database/repositories/refund_repository.dart`
+- `applyPartialRefund({required int orderId, required List<OrderItemAdjustment> adjustments, required String reason, required int adminId})` — runs the `order_items` update + `order_refunds` insert + `audit_events` insert in **one transaction**.
+- `voidOrder({required int orderId, required String reason, required int adminId})` — same pattern: `orders.is_voided = 1` + `order_refunds` insert + `audit_events` insert, one transaction.
+- `getRefundsForOrder(int orderId)` — used to show refund history on an order if it's been partially refunded more than once.
+
 ---
- 
-## 5. Admin: Cashout Logs Page
- 
-- Location: `lib/features/admin/reports/cashout_logs_page.dart`, reachable from admin navigation alongside the Sales Log page.
-- Same shape as the Sales Log screen (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §3): filter controls (date range, waiter) above a `DataTable2` below.
-- Columns exactly as requested: **Date & Time, Orders Made, Waiter Name, Total Made.** (Cash-counted/variance are stored but not required as visible columns here — reasonable to add as an expandable row detail later if you want it, not required now.)
-- Backed by `CashoutRepository.getCashoutLogs(...)` — one row per finalized shift close.
-- *(Optional, not required for this pass):* a "reprint" action per row that re-runs the shift-report template against the stored row's data and sends it through `ReceiptPrinterService` — natural follow-on given the printer plumbing this spec already builds, but flagged as optional so it doesn't silently expand scope.
+
+## 4. Cross-Cutting Impacts (don't skip this)
+
+Once refunds exist, every place that sums "total sales" needs to account for them, or your numbers will be wrong:
+
+- **Sales Log** (`sales_query_repository.dart`): join in refunded amounts per order (`LEFT JOIN` an aggregated `SUM(order_refunds.amount_cents) GROUP BY order_id`, using the index from §3) and display **net total** (original − refunded), plus a visible badge: "Refunded" (partial) or "Voided" (full) on affected rows. Excluded/adjusted consistently — don't just subtract silently with no visual indicator, the admin needs to see which rows were touched.
+- **Dashboard summary cards / busiest-hours heatmap** (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §6–7): these should reflect net revenue too — a voided order shouldn't count toward "today's sales" or inflate a busy-hour cell. Exclude `is_voided = 1` orders and subtract partial-refund amounts from whatever total-sales query currently powers them.
+- **Cashout logs are immutable snapshots — do not retroactively edit them.** If a refund happens *after* a shift has already been cashed out (`cashout_logs` row already written), that historical row stays exactly as printed/recorded at the time — don't rewrite `cashout_logs.total_sales_cents` after the fact. The refund still gets recorded in `order_refunds` with its own timestamp; it just won't retroactively change a shift report that was already finalized and printed. This is a known, acceptable gap (real-world equivalent: a paper correction after the till was already closed) — flag back if you'd rather have cashout reports auto-adjust, but that would mean a "final" report isn't actually final, which undermines the point of §3.1 in the cashout spec.
+
 ---
- 
-## 6. File Structure (new/changed files)
- 
+
+## 5. UI — Responsive Refund Action
+
+One shared widget picks its presentation by `ScreenSize` (`core/responsive/breakpoints.dart`, already established):
+
+- **Expanded (desktop):** `showDialog` — a fixed-width (~480dp) M3 dialog.
+- **Compact / Medium (mobile & tablet):** `showModalBottomSheet` — full-width, rounded top corners (28dp, consistent with the rest of the app's M3 Expressive corner radii), draggable to dismiss.
+
 ```
-lib/
-  core/
-    printing/
-      printer_transport.dart
-      network_printer_transport.dart
-      usb_printer_transport.dart
-      receipt_printer_service.dart
-      receipt_templates/
-        shift_report_template.dart
-    database/
-      repositories/
-        cashout_repository.dart
-  features/
-    waiter/
-      settings/
-        widgets/
-          cashout_button.dart
-          print_report_button.dart
-    admin/
-      settings/
-        widgets/
-          printer_settings_section.dart
-      reports/
-        cashout_logs_page.dart
+lib/features/reports/widgets/
+  refund_action_sheet.dart   // picks Dialog vs BottomSheet by ScreenSize, hosts the shared form content
+  order_refund_form.dart     // the actual form: order summary + edit/void toggle + reason field + confirm button
 ```
- 
+
+**`order_refund_form.dart` contents (same content, either shell):**
+1. Read-only order summary at the top: order #, waiter name, date/time, current line items and total.
+2. A segmented toggle: **"Correct Order"** (update) vs **"Void Order"** (full refund).
+   - Correct Order mode: each line item gets a quantity stepper (can only go down) and a remove (×) action; running total updates live; a computed "Refund amount: $X.XX" is shown once anything's been changed.
+   - Void Order mode: no line-item editing, just a summary confirming the full amount that will be refunded.
+3. Reason field (`AppTextField`, required, non-empty) — shared field regardless of mode.
+4. Confirm button label reflects the mode and amount: "Refund $X.XX" — disabled until the reason is filled and (in Correct Order mode) at least one change has been made.
+5. On success: close the sheet/dialog, show a brief success confirmation, and offer the optional print action (§6).
+
 ---
- 
+
+## 6. Refund Receipt (optional)
+
+If you want a printed record of the refund (the "-9" style report), add one more template reusing the existing printer plumbing from `CASHOUT_PRINTING_SPEC.md` — no new transport work needed.
+
+```
+lib/core/printing/receipt_templates/
+  refund_receipt_template.dart   // 88mm, same width as the client receipt/report
+```
+
+Content: header (café name, same as other receipts) → "REFUND" label, bold/centered → order # → original total → refunded amount shown as a **negative figure** (e.g. `-$9.00`) → reason → admin name → timestamp. Print is **not automatic** — after a successful refund, show a "Print Refund Receipt" button in the success state (§5 step 5); admin decides whether it's needed, since not every till correction needs a paper copy.
+
+---
+
 ## 7. Documentation Requirements
- 
-- `receipt_printer_service.dart` gets a file-level comment explaining the transport-agnostic design and why network printing uses a raw socket while USB requires a plugin (§1.1) — so a future maintainer doesn't "simplify" by trying to force both through one package.
-- `cashout_repository.dart`'s `logCashout()` documents that it's the **only** authoritative write path to `cashout_logs`, and cross-references §3.2's reasoning for why interim prints don't call it.
-- `shift_report_template.dart` documents the LINE_WIDTH-vs-PaperSize-enum caveat from §2 so nobody "fixes" it back to the enum defaults later.
+
+- `refund_repository.dart` documents why both refund actions are transactional (line-item update / void flag + `order_refunds` insert + `audit_events` insert must all succeed together or none should) and cross-references the §2.1 decrease-only constraint so a future change doesn't accidentally allow refunds to increase a total.
+- Any query touched in §4 (Sales Log, dashboard totals, busiest-hours) gets a one-line comment noting it now excludes voided orders / nets out partial refunds, so the exclusion isn't silently reverted by an unrelated future edit.
+- `refund_action_sheet.dart` documents the desktop-dialog / mobile-bottom-sheet split so it's clear that's intentional responsive behavior, not two divergent implementations.
+
 ---
- 
+
 ## 8. Acceptance Checklist
- 
-- [ ] Network printer prints correctly over a raw TCP socket to port 9100 (test against the existing escpresso emulator, then a real network printer)
-- [ ] USB printer prints correctly via `flutter_pos_printer_platform_image_3` on Android
-- [ ] Switching printer connection type in admin settings actually changes which transport is used, without app restart
-- [ ] Kitchen ticket still prints at 55mm, client receipt and shift report both print at 88mm, with correctly measured (not guessed) `LINE_WIDTH` values
-- [ ] "Cash Out & Print Report": prompts for cash counted, writes exactly one `cashout_logs` row, closes the shift (derived status reflects this), prints the final report, then logs out
-- [ ] "Cash Out & Print Report" still completes the cashout and shift close even if the printer is unreachable, and surfaces a clear retry-print option
-- [ ] "Print Report": prints an interim report labeled as a preview, does **not** write to `cashout_logs`, does **not** close the shift, does **not** log out, and logs a `report_print` audit event
-- [ ] Admin Cashout Logs page shows exactly one row per finalized shift with the four requested columns, filterable by date and waiter
-- [ ] No raw printer/socket code exists outside `core/printing/` — all call sites go through `ReceiptPrinterService`
- 
+
+- [ ] Refund entry point appears on each Sales Log row, opens the correct shell (dialog on desktop, bottom sheet on mobile/tablet) based on live screen width, not device type
+- [ ] "Correct Order" can only reduce quantities or remove items — no path exists to increase a total through this feature
+- [ ] Partial refund updates `order_items`, writes one `order_refunds` row (`partial`), and logs `post_print_edit` in `audit_events`
+- [ ] Void sets `orders.is_voided = 1` without deleting the order or its items, writes one `order_refunds` row (`full`), and logs `void` in `audit_events`
+- [ ] Reason field is required and enforced before the confirm button is enabled, in both modes
+- [ ] Sales Log now shows a net total and a visible Refunded/Voided badge on affected rows
+- [ ] Dashboard summary cards and the busiest-hours heatmap exclude voided orders and net out partial refunds
+- [ ] Existing `cashout_logs` rows are never rewritten by a later refund — confirmed by refunding an order from an already-closed shift and checking the historical report is unchanged
+- [ ] Optional refund receipt prints at 88mm with the refunded amount shown as negative, only when explicitly requested via the print button
+- [ ] All refund writes go through `refund_repository.dart` — no ad hoc `order_items`/`orders` mutation elsewhere in the codebase for this feature
