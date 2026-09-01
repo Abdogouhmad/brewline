@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/dev/dummy_data_seeder.dart';
+import 'package:brewline/core/updates/update_provider.dart';
+import 'package:brewline/features/admin/settings/widgets/update_required_screen.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
@@ -118,7 +120,7 @@ class _ThemedApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _AppEntry();
+    return const UpdateAppGate(child: _AppEntry());
   }
 }
 
@@ -145,5 +147,56 @@ class _AppEntry extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final onboardingComplete = ref.watch(onboardingCompleteProvider);
     return onboardingComplete ? const LoginPage() : const OnboardingPage();
+  }
+}
+
+/// Wraps the app with the OTA update machinery:
+/// - triggers the background auto-check once at startup when enabled,
+/// - layers the non-dismissible [UpdateRequiredScreen] over everything when a
+///   **mandatory** update arrives.
+///
+/// The auto-check is fire-and-forget and never blocks startup; a failed check
+/// is silent. Only a mandatory result takes over the whole app.
+class UpdateAppGate extends ConsumerStatefulWidget {
+  const UpdateAppGate({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<UpdateAppGate> createState() => _UpdateAppGateState();
+}
+
+class _UpdateAppGateState extends ConsumerState<UpdateAppGate> {
+  bool _startedCheck = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_startedCheck) return;
+    _startedCheck = true;
+
+    // Kick off the background check without awaiting it — startup must never
+    // block on the network.
+    final autoCheck = ref.read(autoCheckUpdatesProvider);
+    if (autoCheck && !kIsWeb) {
+      Future<void>.microtask(() {
+        if (mounted) {
+          ref.read(updateProvider.notifier).checkForUpdates();
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final updater = ref.watch(updateProvider);
+
+    // Mandatory updates take over the whole app regardless of which screen
+    // (login, waiter home, admin dashboard) is showing.
+    if (updater.isMandatory) {
+      return const UpdateRequiredScreen();
+    }
+
+    return widget.child;
   }
 }

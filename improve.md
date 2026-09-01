@@ -1,172 +1,189 @@
 # OTA Update System — Implementation Plan (Brewline / Café POS)
 
 **Audience:** opencode coding agent
-**Stack:** Flutter, Riverpod, Android (phones + tablets)
-**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (Settings page already exists, hosts logout + printer settings — this adds one more section there).
-**Status:** Ready for Phase 1 implementation. Phase 2 is a real option, not a requirement — see §7 before building it.
+**Stack:** Flutter, Riverpod — targets **Android** (phones/tablets), **Linux**, and **Windows**
+**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (Settings page, responsive shell), `REFUND_SYSTEM_SPEC.md` §5 (the dialog/bottom-sheet responsive pattern reused here).
+**Status:** Ready for implementation. Revision of the earlier Android-only plan — now covers all three targets with one architecture. Read §0 for what changed and why.
 
 ---
 
-## 0. Why this shape
+## 0. What Changed From the Android-Only Version
 
-This app isn't distributed through the Play Store — it's sideloaded onto a small number of café-owned devices. That changes what "OTA update" should mean here versus a typical consumer app:
+The goal, restated precisely: **notify the admin inside the app when an update exists, and let them download + install it without leaving the app**, on Android, Linux, and Windows alike. That "stays inside the app, looks like the rest of the app" requirement is the deciding factor for every choice below — it rules out purely OS-driven update flows (Windows' native MSIX/App Installer auto-update, Linux's AppImageUpdate) as the *primary* mechanism, because those hand the UX over to the operating system's own dialog, not yours. They're mentioned as native alternatives where relevant, but not chosen as the default, for that reason.
 
-- No app-store review to route around, so there's no need for a Shorebird/CodePush-style tool as the *primary* mechanism — a plain, self-hosted "check → download → install new APK" flow does the whole job, costs nothing recurring, and you fully own it (consistent with this project's zero-recurring-cost, own-the-stack approach throughout).
-- It has to be honest about being offline-first: an update check must never block app startup or normal café operation, and a failed/absent check should be silent, not an error state the waiter or admin has to deal with mid-shift.
-- It lives in **Settings**, admin-facing only — waiters never see update UI.
+What stays the same as before: one JSON manifest, hosted free on GitHub, checked in the background without ever blocking startup, verified by checksum before anything is installed, and surfaced through the same responsive dialog/bottom-sheet shell already used for refunds.
 
-**Two phases:**
-1. **Phase 1 (this spec, build now):** full-APK OTA — check a small manifest, download the new APK, hand off to Android's installer. Covers every kind of change (Dart code, native plugins, schema migrations) because it's a real new build, not a patch.
-2. **Phase 2 (optional, later):** a fast "hot-patch" layer for small Dart-only fixes between full releases, so you're not rebuilding/re-signing/re-distributing a whole APK for a one-line bug fix. Two real candidates exist for this, compared in §7 — deliberately not chosen for you here, since it's an architecture decision worth making with eyes open rather than inheriting a default.
+What's new: a **platform handler abstraction** (the update-mechanics equivalent of the `PrinterTransport` interface from the cashout/printing spec — same pattern, same reasoning: one shared interface, one implementation per platform, callers never touch platform specifics directly), and real desktop-specific install mechanics for Windows and Linux.
 
 ---
 
-## 1. ⚠️ Read before building: the signing-key risk
+## 1. ⚠️ Read First: Platform-Specific Update Risks
 
-This is the one mistake that can silently destroy a café's data, so it goes first, not in a footnote.
+- **Android (unchanged, still the sharpest risk):** every release APK must be signed with the same stable release keystore, forever. A mismatched signature forces Android to uninstall before "updating," which wipes the local SQLite database. See the full explanation and backup checklist already written for this — don't skip it.
+- **Windows:** an unsigned `.exe` will trigger a Windows SmartScreen warning ("Windows protected your PC") on first run of *each new version*, since it has no code-signing certificate behind it. This is a friction/trust issue, not a data-loss issue — nothing gets wiped, the admin just has to click "More info → Run anyway" once per release. A paid code-signing certificate removes this, but isn't required to ship; treat it as a future nice-to-have, not a blocker (flagged again in §5.3).
+- **Linux:** no signature-matching or store gatekeeping to worry about, but the replacement binary needs its executable bit restored after download/extraction (`chmod +x`), or the app simply won't launch after an update — an easy thing to silently get wrong.
 
-**Every release APK must be signed with the same, stable release keystore, forever.** Android refuses to install an update over an existing app if the signature doesn't match the one already installed — it forces an *uninstall first*, which wipes the app's local SQLite database (all orders, products, shifts, everything, since this is offline-first local storage). If you ever lose the keystore or accidentally build a release with the debug key, the next "update" silently becomes a full data-loss event for whichever café is running it.
-
-Do this once, before Phase 1 ships to a real device:
-- Generate one release keystore (`keytool -genkey ...`), store it **outside the repo**, back it up in at least two places (e.g. a password manager + an encrypted offline copy).
-- Configure `android/app/build.gradle` to sign release builds with it via `key.properties` (kept out of version control, `.gitignore`'d).
-- Every future `flutter build apk --release` for distribution must use this same keystore. Document this loudly in the repo's README, not just here.
+None of the desktop risks are as severe as the Android keystore one, but all three are exactly the kind of thing that's invisible until the first real release goes out — worth testing deliberately, not just trusting the happy path.
 
 ---
 
-## 2. Update Manifest
+## 2. Unified Update Manifest
 
-A small JSON file, hosted for free on GitHub (a release asset or a raw file in the repo) — no server to run, no recurring cost.
+One JSON file, one hosting location, with a section per platform — the app only ever reads the section matching the device it's running on:
 
 ```json
 {
-  "latestVersionCode": 14,
-  "latestVersionName": "1.4.0",
-  "minSupportedVersionCode": 10,
-  "mandatory": false,
+  "android": {
+    "latestVersionCode": 14,
+    "latestVersionName": "1.4.0",
+    "minSupportedVersionCode": 10,
+    "mandatory": false,
+    "apkUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-v1.4.0.apk",
+    "sha256": "<sha256 of the apk>"
+  },
+  "windows": {
+    "latestVersion": "1.4.0",
+    "minSupportedVersion": "1.2.0",
+    "mandatory": false,
+    "archiveUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-windows-v1.4.0.zip",
+    "sha256": "<sha256 of the zip>"
+  },
+  "linux": {
+    "latestVersion": "1.4.0",
+    "minSupportedVersion": "1.2.0",
+    "mandatory": false,
+    "archiveUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-linux-v1.4.0.tar.gz",
+    "sha256": "<sha256 of the tar.gz>"
+  },
   "releaseNotes": "- Added refund system\n- Fixed cashout report totals",
-  "apkUrl": "https://github.com/Abdogouhmad/brewline/releases/download/v1.4.0/brewline-v1.4.0.apk",
-  "apkSha256": "<sha256 of that exact apk file>",
   "publishedAt": "2026-09-01T00:00:00Z"
 }
 ```
 
-- `latestVersionCode` — plain integer, compared against the installed app's Android version code (`PackageInfo.buildNumber`). Simple integer comparison, no semver parsing needed on-device.
-- `minSupportedVersionCode` — a safety valve: if the installed app is older than this, treat the update as **mandatory** even if `mandatory` is `false`, e.g. for a release that fixes a serious bug or incompatible data issue.
-- `apkSha256` — computed at build time, verified on-device after download, before install is ever offered. This matters more than usual here since there's no Play Store doing that verification for you.
-
-**Optional automation (not required for Phase 1):** a GitHub Actions workflow triggered on a version tag that runs `flutter build apk --release`, computes the SHA-256, creates a GitHub Release with the APK attached, and updates `update_manifest.json`. Worth doing once the manual flow is working and proven — don't build this before the manual version works.
+- `releaseNotes` and `publishedAt` are shared across platforms (same release, same notes) — no need to duplicate them per section.
+- Android keeps its integer `versionCode` comparison (matches `PackageInfo.buildNumber`). Windows/Linux compare semantic version strings (`pub_semver` package — already a transitive dependency of most Flutter tooling, safe to add directly) against `PackageInfo.version`.
+- Same `mandatory` / `minSupportedVersion(Code)` escape hatch on every platform, same meaning as before: forces the non-dismissible full-screen update-required flow.
 
 ---
 
-## 3. App-Side Flow
+## 3. Platform Handler Abstraction
 
-### 3.1 Package
-Use `ota_update` (or a current equivalent — check pub.dev for the latest maintained fork before locking it in, this space moves fast) for the actual download+verify+install mechanics: it streams download-progress events, verifies the `sha256checksum` you pass in, and hands off to Android's `PackageInstaller` — you don't hand-roll any of that.
-
-Android manifest additions:
-```xml
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 ```
-On first use, Android will prompt the user to grant "Install unknown apps" for this app if it isn't already — that's expected and only happens once per device.
+lib/core/updates/
+  update_manifest.dart          // model: parses the multi-platform JSON above
+  update_service.dart           // fetches manifest, picks the right platform section, compares versions
+  update_provider.dart          // Riverpod: idle / checking / available / downloading(progress) / readyToInstall / error
+  update_installer.dart         // abstract class UpdateInstaller { Future<void> download(...); Future<void> install(); }
+  android_update_installer.dart // implements UpdateInstaller via `ota_update` — unchanged from the Android-only plan
+  desktop_update_installer.dart // implements UpdateInstaller for Windows + Linux, see §4
+```
 
-### 3.2 Files
+`update_service.dart` picks the installer at runtime via `Platform.isAndroid` / `Platform.isWindows` / `Platform.isLinux` — every other file (the Settings UI, the action sheet) talks only to `UpdateInstaller`, never to `ota_update` or any desktop-specific package directly. This is the same shape as `ReceiptPrinterService` talking to `PrinterTransport` instead of USB/network specifics — keep that consistency deliberate, it's already this project's established pattern for exactly this kind of "one interface, swappable mechanics" problem.
+
+---
+
+## 4. Desktop Install Mechanics (Windows + Linux)
+
+### 4.1 Recommended approach: a pure-Dart cross-platform updater package
+Rather than hand-rolling the download → verify → extract → relaunch sequence twice (once per OS), use a pure-Dart package built for exactly this — no native code, genuinely cross-platform including Linux (unlike Sparkle/WinSparkle-based options, which are Windows+macOS only and would leave Linux with nothing). Look for a current, actively maintained package along these lines before locking in a specific one — the desktop-auto-update space for Flutter is young and still shifting, so verify recent commits/issues rather than trusting a name from this spec alone. What to look for specifically:
+- Verified releases (checksum, ideally SHA-256, checked before anything is installed).
+- Support for GitHub as a plain hosting provider (no need for a dedicated update server).
+- A built-in or themeable UI hook, so it can sit inside the same action-sheet UI from §5 rather than showing its own unrelated banner.
+
+### 4.2 What it does conceptually (useful even if you end up hand-rolling it)
+1. Download the platform's archive (`archiveUrl`) to a temp location.
+2. Verify its SHA-256 against the manifest before touching anything currently installed.
+3. Extract it to a fresh, versioned directory alongside the current install (not on top of it — never overwrite a running app's own files while it's running).
+4. On the admin's confirmation to finish, relaunch: spawn the new version's executable, then exit the current process. The next launch reads from the new versioned directory.
+5. Optionally prune old versioned directories after a successful relaunch, keeping the last one as a rollback fallback rather than deleting immediately.
+
+### 4.3 Windows specifics
+- Ship a `.zip` of the Flutter Windows build output (the whole `Release/` bundle — exe + required DLLs + data folder), not a bare `.exe` — Flutter Windows apps aren't single-file.
+- SmartScreen warning on first run of a new version — see §1. If this becomes a real problem for the café's day-to-day comfort, a code-signing certificate is the fix, but that's a paid, recurring cost, which cuts against this project's zero-recurring-cost pattern — worth weighing deliberately rather than defaulting into it.
+- **Native alternative, not chosen as default:** MSIX packaging + an `.appinstaller` manifest gets you OS-level, Store-quality auto-update (via Windows' built-in App Installer, checking on a schedule you configure) with no custom download/relaunch code to maintain at all. The trade-off is real: it's the operating system's own update UI, not something themed to match this app, and it needs a code-signing certificate (self-signed is workable for a handful of café-owned devices, but each device has to be told to trust it once). Worth reconsidering if the in-app requirement ever relaxes — flag it back rather than assuming.
+
+### 4.4 Linux specifics
+- Ship a `.tar.gz` of the Flutter Linux build bundle (`bundle/` — executable + `lib/` + `data/`).
+- Restore the executable bit after extraction (`chmod +x`) — a silent, easy-to-miss failure mode, called out in §1.
+- If a desktop entry (`.desktop` file / app menu shortcut) exists, make sure it points at a stable launcher path (e.g. a `current` symlink that gets repointed at the new versioned directory on relaunch) rather than a version-specific path that breaks every release.
+- **Native alternative, not chosen as default:** distributing as an AppImage with AppImageUpdate/zsync gives efficient, Linux-native delta updates, but again hands the update UX to an external tool rather than this app's own UI, and adds a packaging format decision (AppImage vs. plain tarball) this plan doesn't otherwise need to make.
+
+---
+
+## 5. Settings UI — Now Shared Across All Three Platforms
+
+The good news: very little new UI is actually needed. The responsive shell from the refund spec already splits on `ScreenSize`, not on platform — and a desktop window (Windows/Linux) naturally lands in the `expanded` breakpoint, an Android phone in `compact`/`medium`. So the exact same `update_action_sheet.dart` (dialog on expanded, bottom sheet on compact/medium) already does the right thing on every platform with no extra branching. Reuse it as-is rather than building a separate desktop update UI.
+
+```
+lib/features/settings/widgets/
+  update_section.dart          // unchanged in shape: current version, "Check for Updates", auto-check toggle, last-checked label
+  update_action_sheet.dart     // unchanged shell; content now driven by whichever UpdateInstaller is active
+  update_required_screen.dart  // unchanged: full-screen, non-dismissible, for mandatory updates on any platform
+```
+
+One addition worth making: show the platform name/icon next to the version number in `update_section.dart` ("Version 1.4.0 (Windows)" / "... (Android)") — small, but useful once the same admin might be looking at this screen across a phone and a front-counter desktop machine and wants to be sure which build they're looking at.
+
+---
+
+## 6. Version Comparison Logic
+
+- **Android:** integer `versionCode` comparison, unchanged from the original plan — simplest and matches Android convention.
+- **Windows/Linux:** semantic version string comparison via `pub_semver`'s `Version.parse(...)` and its built-in comparison operators — don't hand-roll string/number parsing for this, it's exactly what that package is for and it's already a common transitive dependency in the Flutter ecosystem.
+- Both paths funnel into the same `UpdateCheckResult` enum (`upToDate` / `updateAvailable` / `updateMandatory` / `checkFailed`) from the original plan — the comparison mechanics differ, the result shape and everything downstream of it doesn't.
+
+---
+
+## 7. File Structure (full picture, replacing the Android-only version)
+
 ```
 lib/
   core/
     updates/
-      update_manifest.dart     // model: UpdateManifest.fromJson(...)
-      update_service.dart      // fetchManifest(), compare vs PackageInfo, decide mandatory/optional/none
-      update_provider.dart     // Riverpod: idle / checking / available / downloading(progress) / readyToInstall / error
+      update_manifest.dart
+      update_service.dart
+      update_provider.dart
+      update_installer.dart
+      android_update_installer.dart
+      desktop_update_installer.dart
   features/
     settings/
       widgets/
-        update_section.dart          // "App Updates" block inside the existing Settings page
-        update_action_sheet.dart     // responsive: dialog (desktop) / bottom sheet (mobile+tablet) — release notes + download progress + install
-        update_required_screen.dart  // full-screen, non-dismissible — only shown for mandatory updates
+        update_section.dart
+        update_action_sheet.dart
+        update_required_screen.dart
 ```
 
-### 3.3 `update_service.dart`
-- `Future<UpdateCheckResult> checkForUpdate()`:
-  1. `GET` the manifest URL with a short timeout (~6s).
-  2. On any failure (offline, timeout, malformed JSON) — return a "check failed, stay quiet" result. **Never throw an error the user sees for a background check.** This app is offline-first; not being able to reach GitHub is a normal, unremarkable state, not a bug.
-  3. Compare `manifest.latestVersionCode` against the installed `PackageInfo.buildNumber`.
-  4. Return one of: `upToDate`, `updateAvailable(manifest)`, `updateMandatory(manifest)` (the last one if `mandatory == true` or installed version < `minSupportedVersionCode`), or `checkFailed`.
+---
 
-### 3.4 `update_section.dart` (in Settings)
-- Shows current version: `"Version 1.3.2 (build 13)"`.
-- "Check for Updates" button — manual trigger, shows a small spinner while checking.
-- Toggle: **"Check automatically on launch (Wi-Fi only)"** — off by default is a reasonable start; if on, use `connectivity_plus` to confirm Wi-Fi before checking, and run the check a few seconds *after* launch, never blocking startup.
-- "Last checked: 2 hours ago" — small, muted text, for transparency.
-- If a check finds an update: a small badge/dot on this section (and optionally on the Settings nav destination itself, if you want the nav shell from the admin dashboard spec to expose that — flagged as optional polish, not required).
+## 8. Documentation Requirements
 
-### 3.5 `update_action_sheet.dart`
-Same responsive pattern already established for the refund action UI (`REFUND_SYSTEM_SPEC.md` §5) — reuse that split, don't reinvent it:
-- **Desktop:** `showDialog`, fixed width (~480dp).
-- **Mobile/tablet:** `showModalBottomSheet`, rounded top corners (28dp), draggable.
-
-Content:
-1. "Update available — v1.4.0" header.
-2. Release notes rendered as a simple bulleted list (split the manifest's `releaseNotes` string on newlines/leading `-`).
-3. "Download & Install" button → starts `OtaUpdate().execute(...)`, button becomes a determinate progress bar (`colorScheme.primary`) with a percentage label as download events stream in.
-4. On checksum failure or network error mid-download: show a clear error and a "Retry" button — never leave the user staring at a stalled progress bar with no explanation.
-5. On success, the package hands off to Android's own install confirmation screen — that's a system UI, not something to theme; the app's job ends at handing off the verified APK.
-
-### 3.6 `update_required_screen.dart`
-Only shown when `checkForUpdate()` returns `updateMandatory`. Full-screen, no back button, no dismiss — just the release notes and a single "Download & Install" action. This should be rare (reserved for genuinely breaking changes) — don't set `mandatory: true` casually in the manifest, since it blocks the admin from using the app at all until they update.
+- `update_installer.dart` gets a file-level comment explaining the platform-handler pattern and pointing back at `PrinterTransport` as the precedent for this project's "one interface, per-platform implementation" convention — so it reads as consistent architecture, not a one-off.
+- `desktop_update_installer.dart` documents the "extract to a fresh versioned directory, never overwrite in place" rule from §4.2 step 3, and why (a partially-overwritten running app is a much worse failure mode than a failed download).
+- The repo README's Release Process section (already planned in the Android-only version) now documents building and hashing **three** artifacts per release — APK, Windows zip, Linux tar.gz — not just one, plus the Windows SmartScreen and Linux `chmod +x` notes from §1 so they don't get rediscovered the hard way on release day.
 
 ---
 
-## 4. State & Persistence
+## 9. Acceptance Checklist
 
-No new database table needed — this is small enough for `shared_preferences`:
-- `last_update_check_at` — timestamp, powers the "Last checked" label.
-- `auto_check_enabled` — the Settings toggle from §3.4.
-- `dismissed_version_code` — if the admin dismisses an *optional* update prompt, don't re-surface the same version automatically on every future auto-check; still show it if they manually tap "Check for Updates," and always re-surface for any *newer* version code.
+**Shared**
+- [ ] One manifest URL serves all three platform sections; each platform reads only its own section
+- [ ] A failed/offline check is silent on every platform — never blocks startup, never surfaces as an error for a routine background check
+- [ ] Mandatory-update screen works identically (non-dismissible, blocks app use) regardless of platform
+- [ ] The same `update_action_sheet.dart` renders correctly as a dialog on desktop and a bottom sheet on Android, with no platform-specific branching in that file
 
----
+**Android**
+- [ ] Release keystore requirement from the original plan still holds — re-verify it's actually wired into the build, not just documented
+- [ ] APK download, checksum verification, and install handoff work as originally spec'd
 
-## 5. Multi-Device Reality Check
+**Windows**
+- [ ] Downloaded zip is verified by checksum before extraction
+- [ ] New version extracts to its own versioned folder, app relaunches into it cleanly, old version is not deleted until the new one has launched successfully at least once
+- [ ] First run of a newly installed version is tested against a real (non-dev-machine) Windows install to confirm the SmartScreen prompt is expected/acceptable, not a silent block
 
-Each café device (phone/tablet) sideloads and updates independently — there's no fleet-push here without adding real infrastructure (MDM, etc.), which is out of scope for a single-café tool. Each device's admin needs to tap through the update flow once per device, per release. Worth knowing going in so it's not a surprise later: this is a "check per device" model, not a "push to everyone at once" model.
+**Linux**
+- [ ] Downloaded tar.gz is verified by checksum before extraction
+- [ ] Executable bit is confirmed present after extraction, on a clean test rather than a machine where it happened to already be set
+- [ ] Any desktop entry/launcher shortcut still resolves correctly after an update (i.e. it points at a stable path, not a version-specific one that just broke)
 
----
-
-## 6. Documentation Requirements
-
-- `update_service.dart` gets a file-level comment explaining the fail-silent behavior for background checks (§3.3 step 2) — so a future edit doesn't "helpfully" turn a failed background check into a visible error.
-- The repo's top-level README gets a **Release Process** section covering: the keystore requirement from §1, how to bump `latestVersionCode`/`latestVersionName`, how to compute and set `apkSha256`, and where the manifest is hosted. This is operational knowledge that needs to survive outside any one chat/spec.
-- `update_manifest.dart` documents each field's meaning, especially `minSupportedVersionCode` vs `mandatory` (they can both make an update mandatory, for different reasons).
-
----
-
-## 7. Phase 2 (optional, decide before building): fast Dart-only hotfixes
-
-Phase 1 covers every kind of update but always means a full APK download + Android's install prompt — fine for real releases, heavier than you'd want for a one-line bug fix. If that friction becomes annoying, there are two real options for a lighter "patch" layer. Not building either now — just laying out the trade-off so it's a deliberate choice later, not a default:
-
-| | **Shorebird Code Push** | **flutter_patcher** (self-hosted) |
-|---|---|---|
-| Hosting | Shorebird's cloud | Your own storage/CDN (e.g. same GitHub Releases setup as Phase 1) |
-| Cost | Free tier for small/hobbyist use, paid tiers beyond that | Free (MIT-licensed), you host it |
-| Maturity | Established, used in production by other teams | Very new — verify current state before relying on it |
-| Platforms | Android + iOS (+ desktop) | Android only |
-| What it patches | Dart code only, via a modified engine | Dart AOT code + assets |
-| Fits this project's "zero recurring cost, own the stack" pattern? | Partially — free tier works, but it's still a third-party cloud dependency | Very well in principle, but weigh that against its youth as a project |
-
-If/when you want this, it slots in cleanly alongside Phase 1: Phase 1 stays the mechanism for real releases (schema changes, new native deps, big features), and whichever Phase 2 tool you pick becomes the mechanism for small in-between fixes only. Flag it and this can become its own spec once you've decided which one.
-
----
-
-## 8. Acceptance Checklist
-
-- [ ] Release keystore exists, is backed up outside the repo, and `build.gradle` is configured to always sign release builds with it (§1)
-- [ ] `update_manifest.json` is reachable at a stable URL and matches the shape in §2
-- [ ] Manual "Check for Updates" in Settings correctly reports up-to-date / update-available / check-failed states
-- [ ] A failed/offline check never shows an error to the user and never blocks app usage
-- [ ] Optional auto-check (Wi-Fi only) runs a few seconds after launch, not during startup
-- [ ] Update dialog (desktop) / bottom sheet (mobile+tablet) shows release notes and a working download progress bar
-- [ ] Downloaded APK's SHA-256 is verified before Android's install prompt is triggered; mismatches show a retry, not a silent failure
-- [ ] Mandatory update screen (`minSupportedVersionCode` or `mandatory: true`) is non-dismissible and blocks normal app use until updated
-- [ ] Dismissing an optional update doesn't re-nag for the same version code on the next auto-check, but does surface again for a newer version
-- [ ] README's Release Process section is written and accurate (§6)
+**Docs**
+- [ ] README Release Process section covers all three artifacts, not just the Android one

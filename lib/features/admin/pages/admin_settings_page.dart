@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/admin/settings/widgets/printer_settings_section.dart';
+import 'package:brewline/features/admin/settings/widgets/update_section.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
@@ -31,9 +33,6 @@ class AdminSettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final language = ref.watch(languageControllerProvider);
-    final themePref = ref.watch(themeControllerProvider);
-
     return ListView(
       padding: EdgeInsets.symmetric(
         horizontal: MediaQuery.of(context).size.width < 600
@@ -45,41 +44,73 @@ class AdminSettingsPage extends ConsumerWidget {
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(
-              maxWidth: AppSizes.maxContentWidth / 2,
+              maxWidth: AppSizes.maxContentWidth,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const _ProfileHeader(),
                 SizedBox(height: Space.x2l),
-                SettingsSectionCard(
-                  icon: Icons.tune_rounded,
-                  title: 'General',
-                  subtitle: 'Language and appearance',
-                  children: [
-                    SettingsTile(
-                      icon: Icons.language_rounded,
-                      title: 'Language',
-                      subtitle: 'Interface language for this device',
-                      trailing: LanguageDropdown(
-                        value: language,
-                        onChanged: (value) => ref
-                            .read(languageControllerProvider.notifier)
-                            .setLanguage(value),
-                      ),
-                    ),
-                    ThemeSegmentedControl(
-                      themePref: themePref,
-                      onChanged: (value) => ref
-                          .read(themeControllerProvider.notifier)
-                          .setTheme(value),
-                    ),
-                  ],
+                // Section cards: a 2-column grid on desktop (≥ 905dp) so the
+                // settings use the wide screen without stretching a single
+                // stacked column; stacked single-column on phones/tablets.
+                // A `Wrap` (not GridView) lets cards of unequal height flow
+                // naturally into two equal-width columns without forcing a
+                // uniform row height.
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop =
+                        constraints.maxWidth >= Breakpoints.expanded;
+                    final gap = isDesktop ? Space.lg : 0.0;
+
+                    if (isDesktop) {
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          // General spans the whole first row on desktop so
+                          // the language + theme controls breathe.
+                          SizedBox(
+                            width: constraints.maxWidth,
+                            child: const _GeneralCard(),
+                          ),
+                          // Every remaining card is half the width, minus the
+                          // run gap, so they pair up two-per-row.
+                          SizedBox(
+                            width: _halfWidth(constraints.maxWidth, gap),
+                            child: const PrinterSettingsSection(),
+                          ),
+                          SizedBox(
+                            width: _halfWidth(constraints.maxWidth, gap),
+                            child: const UpdateSection(),
+                          ),
+                          SizedBox(
+                            width: _halfWidth(constraints.maxWidth, gap),
+                            child: _AccountCard(
+                              onReset: () => _confirmReset(context, ref),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    // Mobile / tablet: stacked single column.
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _GeneralCard(),
+                        SizedBox(height: Space.lg),
+                        const PrinterSettingsSection(),
+                        SizedBox(height: Space.lg),
+                        const UpdateSection(),
+                        SizedBox(height: Space.lg),
+                        _AccountCard(
+                          onReset: () => _confirmReset(context, ref),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                SizedBox(height: Space.lg),
-                const PrinterSettingsSection(),
-                SizedBox(height: Space.lg),
-                _AccountCard(onReset: () => _confirmReset(context, ref)),
                 SizedBox(height: Space.lg),
                 const SettingsFooter(),
               ],
@@ -89,6 +120,11 @@ class AdminSettingsPage extends ConsumerWidget {
       ],
     );
   }
+
+  /// Child width for a 2-up desktop grid: half the available width minus the
+  /// run gap so two cards plus the spacing exactly fill the row.
+  static double _halfWidth(double maxWidth, double gap) =>
+      (maxWidth - gap) / 2;
 
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
@@ -134,6 +170,40 @@ class AdminSettingsPage extends ConsumerWidget {
         (_) => false,
       );
     }
+  }
+}
+
+/// General card: language + theme controls.
+class _GeneralCard extends ConsumerWidget {
+  const _GeneralCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final language = ref.watch(languageControllerProvider);
+    final themePref = ref.watch(themeControllerProvider);
+
+    return SettingsSectionCard(
+      icon: Icons.tune_rounded,
+      title: 'General',
+      subtitle: 'Language and appearance',
+      children: [
+        SettingsTile(
+          icon: Icons.language_rounded,
+          title: 'Language',
+          subtitle: 'Interface language for this device',
+          trailing: LanguageDropdown(
+            value: language,
+            onChanged: (value) =>
+                ref.read(languageControllerProvider.notifier).setLanguage(value),
+          ),
+        ),
+        ThemeSegmentedControl(
+          themePref: themePref,
+          onChanged: (value) =>
+              ref.read(themeControllerProvider.notifier).setTheme(value),
+        ),
+      ],
+    );
   }
 }
 
