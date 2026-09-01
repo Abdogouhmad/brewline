@@ -169,22 +169,31 @@ class _StaffShiftRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final onShift = shift.onShift;
 
-    final (dotColor, statusText, detail) = onShift
-        ? (
-            Colors.green.shade600,
-            'On shift',
-            'Clocked in ${_formatTime(shift.checkIn)} · ${_elapsed(shift.checkIn)}',
-          )
-        : shift.checkIn != null
-        ? (
-            colorScheme.outlineVariant,
-            'Clocked out',
-            'Clocked in ${_formatTime(shift.checkIn)}'
-                '${shift.lastCashOut != null ? ' · Cashed out ${_formatTime(shift.lastCashOut)}' : ''}',
-          )
-        : (colorScheme.outlineVariant, 'No shift yet', 'Never logged in');
+    final (dotColor, statusText, detail) = switch (shift.state) {
+      ShiftState.active => (
+          Colors.green.shade600,
+          'Active',
+          'Logged in ${_formatTime(shift.checkIn)} · ${_elapsed(shift.checkIn)}',
+        ),
+      ShiftState.idle => (
+          colorScheme.tertiary,
+          'Idle',
+          'Logged out · last active ${_formatTime(shift.checkIn)}',
+        ),
+      ShiftState.cashedOut => (
+          colorScheme.outlineVariant,
+          'Cashed out',
+          'Logged in ${_formatTime(shift.checkIn)}'
+              '${shift.lastCashOut != null ? ' · Cashed out ${_formatTime(shift.lastCashOut)}' : ''}',
+        ),
+      ShiftState.never => (
+          colorScheme.outlineVariant,
+          'No shift yet',
+          'Never logged in',
+        ),
+    };
+    final active = shift.state == ShiftState.active;
 
     return Row(
       children: [
@@ -240,7 +249,7 @@ class _StaffShiftRow extends StatelessWidget {
                     statusText,
                     type: UiTextType.labelSmall,
                     fontWeight: FontWeight.w600,
-                    color: onShift
+                    color: active
                         ? Colors.green.shade700
                         : colorScheme.onSurfaceVariant,
                   ),

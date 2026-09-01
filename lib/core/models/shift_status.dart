@@ -1,9 +1,33 @@
-/// Per-waiter shift snapshot shown on the admin dashboard's shift status card.
+/// The live shift status of a waiter, shown on the admin dashboard's shift
+/// status card.
 ///
 /// Derived from the `audit_events` log — there is no `shifts` table, matching
-/// brewline's convention that shift state is derived, never stored. A waiter
-/// is considered **on shift** when their most recent shift-related event is a
-/// `login`, and their most recent `cashout` (if any) predates that login.
+/// brewline's convention that shift state is derived, never stored.
+enum ShiftState {
+  /// Logged in and working.
+  active,
+
+  /// Logged out mid-shift (e.g. on a break, went to the toilet) — can resume
+  /// by signing back in.
+  idle,
+
+  /// Shift closed out — the end of the shift, money counted and reported.
+  cashedOut,
+
+  /// No shift events recorded yet for this member.
+  never,
+}
+
+extension ShiftStateLabel on ShiftState {
+  String get label => switch (this) {
+        ShiftState.active => 'Active',
+        ShiftState.idle => 'Idle',
+        ShiftState.cashedOut => 'Cashed out',
+        ShiftState.never => 'No shift yet',
+      };
+}
+
+/// Per-waiter shift snapshot.
 class ShiftStatus {
   /// Display name of the staff member (`staff.name`).
   final String name;
@@ -18,14 +42,14 @@ class ShiftStatus {
   /// currently on shift (or have never closed a shift).
   final DateTime? lastCashOut;
 
-  /// Whether the member is currently on shift (latest event is a `login`).
-  final bool onShift;
+  /// The member's current shift state (see [ShiftState]).
+  final ShiftState state;
 
   const ShiftStatus({
     required this.name,
     required this.username,
     required this.checkIn,
     required this.lastCashOut,
-    required this.onShift,
+    required this.state,
   });
 }

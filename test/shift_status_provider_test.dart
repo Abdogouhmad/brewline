@@ -20,53 +20,65 @@ void main() {
 
   ShiftStatus derive(List<AuditEvent> events) => deriveShiftStatus(member, events);
 
-  test('cashout ends the shift despite an earlier login', () {
+  test('a login is active', () {
+    final s = derive([
+      ev('login', 3, DateTime(2026, 8, 29, 8)),
+      ev('cashout', 2, DateTime(2026, 8, 28, 18)),
+      ev('login', 1, DateTime(2026, 8, 28, 9)),
+    ]);
+    expect(s.state, ShiftState.active);
+    expect(s.checkIn, DateTime(2026, 8, 29, 8));
+    expect(s.lastCashOut, DateTime(2026, 8, 28, 18));
+  });
+
+  test('cashout reads as cashed out despite an earlier login', () {
     // Newest first in the database: cashout (id 2), login (id 1).
     final s = derive([
       ev('cashout', 2, DateTime(2026, 8, 29, 18)),
       ev('login', 1, DateTime(2026, 8, 29, 9)),
     ]);
-    expect(s.onShift, isFalse);
+    expect(s.state, ShiftState.cashedOut);
     expect(s.checkIn, DateTime(2026, 8, 29, 9));
     expect(s.lastCashOut, DateTime(2026, 8, 29, 18));
   });
 
-  test('logout after cashout still reads as end of shift', () {
+  test('logout after cashout reads as cashed out', () {
     // The real cashout flow writes cashout then logout — newest first by id.
     final s = derive([
       ev('logout', 3, DateTime(2026, 8, 29, 18, 5)),
       ev('cashout', 2, DateTime(2026, 8, 29, 18)),
       ev('login', 1, DateTime(2026, 8, 29, 9)),
     ]);
-    expect(s.onShift, isFalse);
+    expect(s.state, ShiftState.cashedOut);
     expect(s.checkIn, DateTime(2026, 8, 29, 9));
     expect(s.lastCashOut, DateTime(2026, 8, 29, 18));
   });
 
-  test('an ongoing login after a prior-day cashout is still on shift', () {
-    final s = derive([
-      ev('login', 3, DateTime(2026, 8, 29, 8)),
-      ev('cashout', 2, DateTime(2026, 8, 28, 18)),
-      ev('login', 1, DateTime(2026, 8, 28, 9)),
-    ]);
-    expect(s.onShift, isTrue);
-    expect(s.checkIn, DateTime(2026, 8, 29, 8));
-    expect(s.lastCashOut, DateTime(2026, 8, 28, 18));
-  });
-
-  test('plain logout without a cashout also ends the shift', () {
+  test('plain logout without a cashout is idle', () {
     final s = derive([
       ev('logout', 2, DateTime(2026, 8, 29, 12)),
       ev('login', 1, DateTime(2026, 8, 29, 9)),
     ]);
-    expect(s.onShift, isFalse);
+    expect(s.state, ShiftState.idle);
     expect(s.checkIn, DateTime(2026, 8, 29, 9));
     expect(s.lastCashOut, isNull);
   });
 
-  test('no recorded events is never on shift', () {
+  test('logout mid-shift is idle even with an older prior-day cashout', () {
+    final s = derive([
+      ev('logout', 4, DateTime(2026, 8, 29, 12)),
+      ev('login', 3, DateTime(2026, 8, 29, 9)),
+      ev('cashout', 2, DateTime(2026, 8, 28, 18)),
+      ev('login', 1, DateTime(2026, 8, 28, 9)),
+    ]);
+    expect(s.state, ShiftState.idle);
+    expect(s.checkIn, DateTime(2026, 8, 29, 9));
+    expect(s.lastCashOut, DateTime(2026, 8, 28, 18));
+  });
+
+  test('no recorded events is never', () {
     final s = derive([]);
-    expect(s.onShift, isFalse);
+    expect(s.state, ShiftState.never);
     expect(s.checkIn, isNull);
     expect(s.lastCashOut, isNull);
   });

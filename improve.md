@@ -1,144 +1,172 @@
-# Refund System — Implementation Spec (Brewline / Café POS)
+# OTA Update System — Implementation Plan (Brewline / Café POS)
 
 **Audience:** opencode coding agent
-**Stack:** Flutter, Riverpod, `sqflite_common_ffi`
-**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (Sales Log screen, repository pattern, `audit_events`), `CASHOUT_PRINTING_SPEC.md` (`ReceiptPrinterService`, receipt templates). Read those first.
-**Status:** Ready for implementation. Scope is deliberately narrowed to "fix a mistaken order," not general order editing — see §2.1.
+**Stack:** Flutter, Riverpod, Android (phones + tablets)
+**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (Settings page already exists, hosts logout + printer settings — this adds one more section there).
+**Status:** Ready for Phase 1 implementation. Phase 2 is a real option, not a requirement — see §7 before building it.
 
 ---
 
-## 0. Summary of Changes
+## 0. Why this shape
 
-1. A refund entry point inside the **Sales Log** row actions: admin can either **partially correct** (update) or **fully void** (delete/refund) a mistaken order.
-2. A new `order_refunds` table — a real table, not derived, because it needs to be queryable, filterable, and printable on its own.
-3. Reuses the fraud-detection `audit_events` signals that already exist for exactly this — `void` and `post_print_edit` — no new event types needed.
-4. A responsive action UI: **dialog on desktop, bottom sheet on mobile/tablet.**
-5. An optional refund receipt print showing the refunded amount as a negative figure.
+This app isn't distributed through the Play Store — it's sideloaded onto a small number of café-owned devices. That changes what "OTA update" should mean here versus a typical consumer app:
 
----
+- No app-store review to route around, so there's no need for a Shorebird/CodePush-style tool as the *primary* mechanism — a plain, self-hosted "check → download → install new APK" flow does the whole job, costs nothing recurring, and you fully own it (consistent with this project's zero-recurring-cost, own-the-stack approach throughout).
+- It has to be honest about being offline-first: an update check must never block app startup or normal café operation, and a failed/absent check should be silent, not an error state the waiter or admin has to deal with mid-shift.
+- It lives in **Settings**, admin-facing only — waiters never see update UI.
 
-## 1. Where This Lives
-
-Entry point: a row action (icon button or overflow menu item) on each row of the Sales Log screen (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §3) — "Refund." Tapping it opens the refund UI (§5) scoped to that one order.
+**Two phases:**
+1. **Phase 1 (this spec, build now):** full-APK OTA — check a small manifest, download the new APK, hand off to Android's installer. Covers every kind of change (Dart code, native plugins, schema migrations) because it's a real new build, not a patch.
+2. **Phase 2 (optional, later):** a fast "hot-patch" layer for small Dart-only fixes between full releases, so you're not rebuilding/re-signing/re-distributing a whole APK for a one-line bug fix. Two real candidates exist for this, compared in §7 — deliberately not chosen for you here, since it's an architecture decision worth making with eyes open rather than inheriting a default.
 
 ---
 
-## 2. Functionality
+## 1. ⚠️ Read before building: the signing-key risk
 
-### 2.1 Scope constraint (read this first)
-The request describes fixing a **mistaken order** — an overcharge or wrong item, not general order editing. To keep the feature from becoming an unaudited way to inflate revenue, both actions below can only ever **decrease** an order's total, never increase it:
-- "Update" may reduce a line item's quantity or remove a line item entirely. It cannot add new items or increase quantities.
-- If you actually want full bidirectional order editing (not just refund-oriented corrections), that's a bigger feature — flag it back rather than assuming this spec covers it.
+This is the one mistake that can silently destroy a café's data, so it goes first, not in a footnote.
 
-### 2.2 "Update sale order" (partial refund)
-- Admin opens the order's line items in edit mode, reduces a quantity or removes an item.
-- The new total is recomputed live as they edit; the **refund amount = old total − new total** (always ≥ 0, given the §2.1 constraint).
-- Reason field is **required** (short free text, e.g. "wrong item entered") — this is a financial adjustment, it needs a paper trail.
-- On confirm: `order_items` is updated to the corrected quantities (the order itself now reflects the corrected state — this is a genuine correction, not just an annotation), and one row is written to `order_refunds` (§3) with `refund_type = 'partial'` and the computed amount.
-- Logs an `audit_events` row with `event_type = 'post_print_edit'` (this signal already exists in the fraud-detection model — reuse it, don't add a new type) with metadata `{order_id, old_total, new_total, reason}`.
+**Every release APK must be signed with the same, stable release keystore, forever.** Android refuses to install an update over an existing app if the signature doesn't match the one already installed — it forces an *uninstall first*, which wipes the app's local SQLite database (all orders, products, shifts, everything, since this is offline-first local storage). If you ever lose the keystore or accidentally build a release with the debug key, the next "update" silently becomes a full data-loss event for whichever café is running it.
 
-### 2.3 "Delete sale order" (full refund / void)
-- Admin confirms voiding the entire order. Reason field required, same as above.
-- The order is **not hard-deleted** from the database — historical financial records must stay intact for reporting and audit (same principle already applied to product deletion → soft archive in the admin dashboard spec). Instead:
-  - `orders.is_voided` is set to `1` (new column, see §3).
-  - One row is written to `order_refunds` with `refund_type = 'full'` and `amount_cents` equal to the order's full total.
-- Logs an `audit_events` row with `event_type = 'void'` (also already an existing signal — reuse it) with metadata `{order_id, amount, reason}`.
-- A voided order's items are left untouched in `order_items` — the void is expressed entirely through `orders.is_voided` + the `order_refunds` row, not by deleting line items.
+Do this once, before Phase 1 ships to a real device:
+- Generate one release keystore (`keytool -genkey ...`), store it **outside the repo**, back it up in at least two places (e.g. a password manager + an encrypted offline copy).
+- Configure `android/app/build.gradle` to sign release builds with it via `key.properties` (kept out of version control, `.gitignore`'d).
+- Every future `flutter build apk --release` for distribution must use this same keystore. Document this loudly in the repo's README, not just here.
 
 ---
 
-## 3. Database
+## 2. Update Manifest
 
-```sql
-ALTER TABLE orders ADD COLUMN is_voided INTEGER NOT NULL DEFAULT 0;
+A small JSON file, hosted for free on GitHub (a release asset or a raw file in the repo) — no server to run, no recurring cost.
 
-CREATE TABLE IF NOT EXISTS order_refunds (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  order_id INTEGER NOT NULL REFERENCES orders(id),
-  admin_id INTEGER NOT NULL REFERENCES users(id),
-  refund_type TEXT NOT NULL CHECK (refund_type IN ('partial', 'full')),
-  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
-  reason TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_order_refunds_order_id ON order_refunds(order_id);
-CREATE INDEX IF NOT EXISTS idx_order_refunds_created_at ON order_refunds(created_at);
+```json
+{
+  "latestVersionCode": 14,
+  "latestVersionName": "1.4.0",
+  "minSupportedVersionCode": 10,
+  "mandatory": false,
+  "releaseNotes": "- Added refund system\n- Fixed cashout report totals",
+  "apkUrl": "https://github.com/Abdogouhmad/brewline/releases/download/v1.4.0/brewline-v1.4.0.apk",
+  "apkSha256": "<sha256 of that exact apk file>",
+  "publishedAt": "2026-09-01T00:00:00Z"
+}
 ```
 
-Why a dedicated table and not just an `audit_events` metadata blob: the same reasoning as `cashout_logs` — this needs to be summed, filtered by date, and displayed/printed as structured data (order id, amount, reason), not just counted as a fraud-signal flag. `audit_events` still gets its own row too (§2.2/§2.3) purely for the fraud-signal side — the two tables serve different purposes and neither substitutes for the other.
+- `latestVersionCode` — plain integer, compared against the installed app's Android version code (`PackageInfo.buildNumber`). Simple integer comparison, no semver parsing needed on-device.
+- `minSupportedVersionCode` — a safety valve: if the installed app is older than this, treat the update as **mandatory** even if `mandatory` is `false`, e.g. for a release that fixes a serious bug or incompatible data issue.
+- `apkSha256` — computed at build time, verified on-device after download, before install is ever offered. This matters more than usual here since there's no Play Store doing that verification for you.
 
-Repository: `lib/core/database/repositories/refund_repository.dart`
-- `applyPartialRefund({required int orderId, required List<OrderItemAdjustment> adjustments, required String reason, required int adminId})` — runs the `order_items` update + `order_refunds` insert + `audit_events` insert in **one transaction**.
-- `voidOrder({required int orderId, required String reason, required int adminId})` — same pattern: `orders.is_voided = 1` + `order_refunds` insert + `audit_events` insert, one transaction.
-- `getRefundsForOrder(int orderId)` — used to show refund history on an order if it's been partially refunded more than once.
-
----
-
-## 4. Cross-Cutting Impacts (don't skip this)
-
-Once refunds exist, every place that sums "total sales" needs to account for them, or your numbers will be wrong:
-
-- **Sales Log** (`sales_query_repository.dart`): join in refunded amounts per order (`LEFT JOIN` an aggregated `SUM(order_refunds.amount_cents) GROUP BY order_id`, using the index from §3) and display **net total** (original − refunded), plus a visible badge: "Refunded" (partial) or "Voided" (full) on affected rows. Excluded/adjusted consistently — don't just subtract silently with no visual indicator, the admin needs to see which rows were touched.
-- **Dashboard summary cards / busiest-hours heatmap** (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §6–7): these should reflect net revenue too — a voided order shouldn't count toward "today's sales" or inflate a busy-hour cell. Exclude `is_voided = 1` orders and subtract partial-refund amounts from whatever total-sales query currently powers them.
-- **Cashout logs are immutable snapshots — do not retroactively edit them.** If a refund happens *after* a shift has already been cashed out (`cashout_logs` row already written), that historical row stays exactly as printed/recorded at the time — don't rewrite `cashout_logs.total_sales_cents` after the fact. The refund still gets recorded in `order_refunds` with its own timestamp; it just won't retroactively change a shift report that was already finalized and printed. This is a known, acceptable gap (real-world equivalent: a paper correction after the till was already closed) — flag back if you'd rather have cashout reports auto-adjust, but that would mean a "final" report isn't actually final, which undermines the point of §3.1 in the cashout spec.
+**Optional automation (not required for Phase 1):** a GitHub Actions workflow triggered on a version tag that runs `flutter build apk --release`, computes the SHA-256, creates a GitHub Release with the APK attached, and updates `update_manifest.json`. Worth doing once the manual flow is working and proven — don't build this before the manual version works.
 
 ---
 
-## 5. UI — Responsive Refund Action
+## 3. App-Side Flow
 
-One shared widget picks its presentation by `ScreenSize` (`core/responsive/breakpoints.dart`, already established):
+### 3.1 Package
+Use `ota_update` (or a current equivalent — check pub.dev for the latest maintained fork before locking it in, this space moves fast) for the actual download+verify+install mechanics: it streams download-progress events, verifies the `sha256checksum` you pass in, and hands off to Android's `PackageInstaller` — you don't hand-roll any of that.
 
-- **Expanded (desktop):** `showDialog` — a fixed-width (~480dp) M3 dialog.
-- **Compact / Medium (mobile & tablet):** `showModalBottomSheet` — full-width, rounded top corners (28dp, consistent with the rest of the app's M3 Expressive corner radii), draggable to dismiss.
-
+Android manifest additions:
+```xml
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 ```
-lib/features/reports/widgets/
-  refund_action_sheet.dart   // picks Dialog vs BottomSheet by ScreenSize, hosts the shared form content
-  order_refund_form.dart     // the actual form: order summary + edit/void toggle + reason field + confirm button
+On first use, Android will prompt the user to grant "Install unknown apps" for this app if it isn't already — that's expected and only happens once per device.
+
+### 3.2 Files
+```
+lib/
+  core/
+    updates/
+      update_manifest.dart     // model: UpdateManifest.fromJson(...)
+      update_service.dart      // fetchManifest(), compare vs PackageInfo, decide mandatory/optional/none
+      update_provider.dart     // Riverpod: idle / checking / available / downloading(progress) / readyToInstall / error
+  features/
+    settings/
+      widgets/
+        update_section.dart          // "App Updates" block inside the existing Settings page
+        update_action_sheet.dart     // responsive: dialog (desktop) / bottom sheet (mobile+tablet) — release notes + download progress + install
+        update_required_screen.dart  // full-screen, non-dismissible — only shown for mandatory updates
 ```
 
-**`order_refund_form.dart` contents (same content, either shell):**
-1. Read-only order summary at the top: order #, waiter name, date/time, current line items and total.
-2. A segmented toggle: **"Correct Order"** (update) vs **"Void Order"** (full refund).
-   - Correct Order mode: each line item gets a quantity stepper (can only go down) and a remove (×) action; running total updates live; a computed "Refund amount: $X.XX" is shown once anything's been changed.
-   - Void Order mode: no line-item editing, just a summary confirming the full amount that will be refunded.
-3. Reason field (`AppTextField`, required, non-empty) — shared field regardless of mode.
-4. Confirm button label reflects the mode and amount: "Refund $X.XX" — disabled until the reason is filled and (in Correct Order mode) at least one change has been made.
-5. On success: close the sheet/dialog, show a brief success confirmation, and offer the optional print action (§6).
+### 3.3 `update_service.dart`
+- `Future<UpdateCheckResult> checkForUpdate()`:
+  1. `GET` the manifest URL with a short timeout (~6s).
+  2. On any failure (offline, timeout, malformed JSON) — return a "check failed, stay quiet" result. **Never throw an error the user sees for a background check.** This app is offline-first; not being able to reach GitHub is a normal, unremarkable state, not a bug.
+  3. Compare `manifest.latestVersionCode` against the installed `PackageInfo.buildNumber`.
+  4. Return one of: `upToDate`, `updateAvailable(manifest)`, `updateMandatory(manifest)` (the last one if `mandatory == true` or installed version < `minSupportedVersionCode`), or `checkFailed`.
+
+### 3.4 `update_section.dart` (in Settings)
+- Shows current version: `"Version 1.3.2 (build 13)"`.
+- "Check for Updates" button — manual trigger, shows a small spinner while checking.
+- Toggle: **"Check automatically on launch (Wi-Fi only)"** — off by default is a reasonable start; if on, use `connectivity_plus` to confirm Wi-Fi before checking, and run the check a few seconds *after* launch, never blocking startup.
+- "Last checked: 2 hours ago" — small, muted text, for transparency.
+- If a check finds an update: a small badge/dot on this section (and optionally on the Settings nav destination itself, if you want the nav shell from the admin dashboard spec to expose that — flagged as optional polish, not required).
+
+### 3.5 `update_action_sheet.dart`
+Same responsive pattern already established for the refund action UI (`REFUND_SYSTEM_SPEC.md` §5) — reuse that split, don't reinvent it:
+- **Desktop:** `showDialog`, fixed width (~480dp).
+- **Mobile/tablet:** `showModalBottomSheet`, rounded top corners (28dp), draggable.
+
+Content:
+1. "Update available — v1.4.0" header.
+2. Release notes rendered as a simple bulleted list (split the manifest's `releaseNotes` string on newlines/leading `-`).
+3. "Download & Install" button → starts `OtaUpdate().execute(...)`, button becomes a determinate progress bar (`colorScheme.primary`) with a percentage label as download events stream in.
+4. On checksum failure or network error mid-download: show a clear error and a "Retry" button — never leave the user staring at a stalled progress bar with no explanation.
+5. On success, the package hands off to Android's own install confirmation screen — that's a system UI, not something to theme; the app's job ends at handing off the verified APK.
+
+### 3.6 `update_required_screen.dart`
+Only shown when `checkForUpdate()` returns `updateMandatory`. Full-screen, no back button, no dismiss — just the release notes and a single "Download & Install" action. This should be rare (reserved for genuinely breaking changes) — don't set `mandatory: true` casually in the manifest, since it blocks the admin from using the app at all until they update.
 
 ---
 
-## 6. Refund Receipt (optional)
+## 4. State & Persistence
 
-If you want a printed record of the refund (the "-9" style report), add one more template reusing the existing printer plumbing from `CASHOUT_PRINTING_SPEC.md` — no new transport work needed.
-
-```
-lib/core/printing/receipt_templates/
-  refund_receipt_template.dart   // 88mm, same width as the client receipt/report
-```
-
-Content: header (café name, same as other receipts) → "REFUND" label, bold/centered → order # → original total → refunded amount shown as a **negative figure** (e.g. `-$9.00`) → reason → admin name → timestamp. Print is **not automatic** — after a successful refund, show a "Print Refund Receipt" button in the success state (§5 step 5); admin decides whether it's needed, since not every till correction needs a paper copy.
+No new database table needed — this is small enough for `shared_preferences`:
+- `last_update_check_at` — timestamp, powers the "Last checked" label.
+- `auto_check_enabled` — the Settings toggle from §3.4.
+- `dismissed_version_code` — if the admin dismisses an *optional* update prompt, don't re-surface the same version automatically on every future auto-check; still show it if they manually tap "Check for Updates," and always re-surface for any *newer* version code.
 
 ---
 
-## 7. Documentation Requirements
+## 5. Multi-Device Reality Check
 
-- `refund_repository.dart` documents why both refund actions are transactional (line-item update / void flag + `order_refunds` insert + `audit_events` insert must all succeed together or none should) and cross-references the §2.1 decrease-only constraint so a future change doesn't accidentally allow refunds to increase a total.
-- Any query touched in §4 (Sales Log, dashboard totals, busiest-hours) gets a one-line comment noting it now excludes voided orders / nets out partial refunds, so the exclusion isn't silently reverted by an unrelated future edit.
-- `refund_action_sheet.dart` documents the desktop-dialog / mobile-bottom-sheet split so it's clear that's intentional responsive behavior, not two divergent implementations.
+Each café device (phone/tablet) sideloads and updates independently — there's no fleet-push here without adding real infrastructure (MDM, etc.), which is out of scope for a single-café tool. Each device's admin needs to tap through the update flow once per device, per release. Worth knowing going in so it's not a surprise later: this is a "check per device" model, not a "push to everyone at once" model.
+
+---
+
+## 6. Documentation Requirements
+
+- `update_service.dart` gets a file-level comment explaining the fail-silent behavior for background checks (§3.3 step 2) — so a future edit doesn't "helpfully" turn a failed background check into a visible error.
+- The repo's top-level README gets a **Release Process** section covering: the keystore requirement from §1, how to bump `latestVersionCode`/`latestVersionName`, how to compute and set `apkSha256`, and where the manifest is hosted. This is operational knowledge that needs to survive outside any one chat/spec.
+- `update_manifest.dart` documents each field's meaning, especially `minSupportedVersionCode` vs `mandatory` (they can both make an update mandatory, for different reasons).
+
+---
+
+## 7. Phase 2 (optional, decide before building): fast Dart-only hotfixes
+
+Phase 1 covers every kind of update but always means a full APK download + Android's install prompt — fine for real releases, heavier than you'd want for a one-line bug fix. If that friction becomes annoying, there are two real options for a lighter "patch" layer. Not building either now — just laying out the trade-off so it's a deliberate choice later, not a default:
+
+| | **Shorebird Code Push** | **flutter_patcher** (self-hosted) |
+|---|---|---|
+| Hosting | Shorebird's cloud | Your own storage/CDN (e.g. same GitHub Releases setup as Phase 1) |
+| Cost | Free tier for small/hobbyist use, paid tiers beyond that | Free (MIT-licensed), you host it |
+| Maturity | Established, used in production by other teams | Very new — verify current state before relying on it |
+| Platforms | Android + iOS (+ desktop) | Android only |
+| What it patches | Dart code only, via a modified engine | Dart AOT code + assets |
+| Fits this project's "zero recurring cost, own the stack" pattern? | Partially — free tier works, but it's still a third-party cloud dependency | Very well in principle, but weigh that against its youth as a project |
+
+If/when you want this, it slots in cleanly alongside Phase 1: Phase 1 stays the mechanism for real releases (schema changes, new native deps, big features), and whichever Phase 2 tool you pick becomes the mechanism for small in-between fixes only. Flag it and this can become its own spec once you've decided which one.
 
 ---
 
 ## 8. Acceptance Checklist
 
-- [ ] Refund entry point appears on each Sales Log row, opens the correct shell (dialog on desktop, bottom sheet on mobile/tablet) based on live screen width, not device type
-- [ ] "Correct Order" can only reduce quantities or remove items — no path exists to increase a total through this feature
-- [ ] Partial refund updates `order_items`, writes one `order_refunds` row (`partial`), and logs `post_print_edit` in `audit_events`
-- [ ] Void sets `orders.is_voided = 1` without deleting the order or its items, writes one `order_refunds` row (`full`), and logs `void` in `audit_events`
-- [ ] Reason field is required and enforced before the confirm button is enabled, in both modes
-- [ ] Sales Log now shows a net total and a visible Refunded/Voided badge on affected rows
-- [ ] Dashboard summary cards and the busiest-hours heatmap exclude voided orders and net out partial refunds
-- [ ] Existing `cashout_logs` rows are never rewritten by a later refund — confirmed by refunding an order from an already-closed shift and checking the historical report is unchanged
-- [ ] Optional refund receipt prints at 88mm with the refunded amount shown as negative, only when explicitly requested via the print button
-- [ ] All refund writes go through `refund_repository.dart` — no ad hoc `order_items`/`orders` mutation elsewhere in the codebase for this feature
+- [ ] Release keystore exists, is backed up outside the repo, and `build.gradle` is configured to always sign release builds with it (§1)
+- [ ] `update_manifest.json` is reachable at a stable URL and matches the shape in §2
+- [ ] Manual "Check for Updates" in Settings correctly reports up-to-date / update-available / check-failed states
+- [ ] A failed/offline check never shows an error to the user and never blocks app usage
+- [ ] Optional auto-check (Wi-Fi only) runs a few seconds after launch, not during startup
+- [ ] Update dialog (desktop) / bottom sheet (mobile+tablet) shows release notes and a working download progress bar
+- [ ] Downloaded APK's SHA-256 is verified before Android's install prompt is triggered; mismatches show a retry, not a silent failure
+- [ ] Mandatory update screen (`minSupportedVersionCode` or `mandatory: true`) is non-dismissible and blocks normal app use until updated
+- [ ] Dismissing an optional update doesn't re-nag for the same version code on the next auto-check, but does surface again for a newer version
+- [ ] README's Release Process section is written and accurate (§6)
