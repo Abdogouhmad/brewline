@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
+import 'package:brewline/features/admin/settings/widgets/update_section.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
@@ -72,6 +73,7 @@ class _SettingsIcons {
 /// * **General** – language dropdown + theme segmented control
 /// * **Account profile** – change password, cashout & print report, logout
 /// * **Printing** – kitchen / client receipt switches
+/// * **Update** – OTA update card, shared with the admin settings
 ///
 /// Phone & tablet stack the cards; wide screens place General and
 /// Printing side by side with Account spanning full width. Content width
@@ -104,6 +106,7 @@ class SettingsPage extends ConsumerWidget {
                 general: _buildGeneralCard(ref),
                 printing: _buildPrintingCard(ref),
                 account: _buildAccountCard(context, ref),
+                update: const UpdateSection(),
               ),
               SizedBox(height: Space.x2l),
               const SettingsFooter(),
@@ -375,18 +378,21 @@ class _RoleBadge extends StatelessWidget {
 }
 
 /// Lays the section cards out: single column until [breakpoint], then
-/// General and Printing share the first row while Account spans full width.
+/// General and Printing share the first row while Account and Update each
+/// span full width.
 class _ResponsiveSections extends StatelessWidget {
   final double breakpoint;
   final Widget general;
   final Widget printing;
   final Widget account;
+  final Widget update;
 
   const _ResponsiveSections({
     required this.breakpoint,
     required this.general,
     required this.printing,
     required this.account,
+    required this.update,
   });
 
   @override
@@ -406,6 +412,7 @@ class _ResponsiveSections extends StatelessWidget {
             cell(general),
             cell(printing),
             SizedBox(width: width, child: account),
+            SizedBox(width: width, child: update),
           ],
         );
       },

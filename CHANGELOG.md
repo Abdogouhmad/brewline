@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Admin Settings → Update card** (`update_section.dart`): current version +
     platform label, "Check for updates", auto-check toggle and last-checked
     time.
+- **Waiter Settings → Update card** — the same OTA card is now a universal
+    feature, shown on both the admin and waiter settings pages.
+- **Admin Settings desktop grid** (`admin_settings_page.dart`) — the section
+    cards now lay out in a 2-column responsive grid on desktop (≥ 905dp);
+    General spans the full first row while Printer, Update and Account pair
+    two-per-row. Phones/tablets keep the stacked layout. Content cap widened
+    from 600 to 1200dp so wide screens use the space.
 - **Responsive update action sheet** (`update_action_sheet.dart`) — reuses the
     existing `showUiAdaptiveModal` shell, so it renders as a centred dialog on
     desktop and a bottom sheet on phones with no platform branching.
