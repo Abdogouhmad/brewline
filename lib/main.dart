@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:sqflite/sqflite.dart';
 
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/dev/dummy_data_seeder.dart';
@@ -18,8 +22,21 @@ import 'package:dynamic_color/dynamic_color.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  final db = await openAppDatabase();
+
+  // Wrap the entire startup in a guard so any unhandled exception (database,
+  // plugin, or platform API failure) surfaces as an actionable error screen
+  // instead of silently killing the process — especially important on Windows
+  // where a bare crash gives the user no feedback at all.
+  late final SharedPreferences prefs;
+  late final Database db;
+  try {
+    prefs = await SharedPreferences.getInstance();
+    db = await openAppDatabase();
+  } catch (e, st) {
+    developer.log('Fatal startup error: $e\n$st', name: 'brewline');
+    _runErrorApp(e);
+    return;
+  }
 
   // Debug-only dummy accounts + sample sales so the flows and dashboards are
   // testable before real data exists. Never runs in release builds.
@@ -34,6 +51,63 @@ Future<void> main() async {
         appDatabaseProvider.overrideWith((ref) async => db),
       ],
       child: const BrewlineApp(),
+    ),
+  );
+}
+
+/// Minimal error screen shown when the app fails to initialise.
+/// Replaces the usual widget tree so the user sees *something* instead of
+/// a blank / vanished window.
+void _runErrorApp(Object error) {
+  runApp(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF241B13),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    color: Colors.redAccent, size: 64),
+                const SizedBox(height: 24),
+                const Text(
+                  'brewline failed to start',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '$error',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                Builder(
+                  builder: (ctx) => TextButton.icon(
+                    onPressed: () {
+                      // Copy error to clipboard so the user can share it.
+                      final data = ClipboardData(text: '$error');
+                      Clipboard.setData(data);
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(content: Text('Error copied')),
+                      );
+                    },
+                    icon: const Icon(Icons.copy, color: Colors.white70),
+                    label: const Text('Copy error',
+                        style: TextStyle(color: Colors.white70)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     ),
   );
 }

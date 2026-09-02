@@ -36,6 +36,41 @@ jobs:
           channel: stable
           cache: true
 
+      # Provision the Android release keystore from GitHub secrets so the
+      # release APKs are signed with the SAME stable key as local builds.
+      # Without this both CI and local release builds would fall back to the
+      # debug keystore, and a debug-signed APK cannot be installed over a
+      # release-signed one (signature mismatch → INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+      # Configure these secrets in the repo settings:
+      #   BREWLINE_KEYSTORE_BASE64  = base64 of the brewline.jks keystore file
+      #   BREWLINE_KEYSTORE_PASSWORD
+      #   BREWLINE_KEY_ALIAS
+      #   BREWLINE_KEY_PASSWORD
+      - name: Provision Android release keystore
+        if: runner.os == 'Linux' && env.BREWLINE_KEYSTORE_BASE64 != ''
+        env:
+          BREWLINE_KEYSTORE_BASE64: ${{ secrets.BREWLINE_KEYSTORE_BASE64 }}
+          BREWLINE_KEYSTORE_PASSWORD: ${{ secrets.BREWLINE_KEYSTORE_PASSWORD }}
+          BREWLINE_KEY_ALIAS: ${{ secrets.BREWLINE_KEY_ALIAS }}
+          BREWLINE_KEY_PASSWORD: ${{ secrets.BREWLINE_KEY_PASSWORD }}
+        run: |
+          # Decode the keystore under android/app so Gradle's relative
+          # `file()` (resolved from the app module dir) can find it.
+          mkdir -p android/app/keystores
+          printf '%s' "$BREWLINE_KEYSTORE_BASE64" | base64 -d > android/app/keystores/brewline.jks
+          # Write the key.properties Gradle reads. storeFile is relative to the
+          # android/app/ project dir (where build.gradle.kts calls file()).
+          cat > android/key.properties <<EOF
+          storePassword=${BREWLINE_KEYSTORE_PASSWORD}
+          keyPassword=${BREWLINE_KEY_PASSWORD}
+          keyAlias=${BREWLINE_KEY_ALIAS}
+          storeFile=keystores/brewline.jks
+          EOF
+          # Verify the alias matches so a misconfigured keystore fails early.
+          keytool -keystore android/app/keystores/brewline.jks -list \
+            -storepass "${BREWLINE_KEYSTORE_PASSWORD}" \
+            -alias "${BREWLINE_KEY_ALIAS}" >/dev/null
+
       # The ubuntu runner needs GTK3 + friends to build the Linux desktop
       # target (these aren't preinstalled on the GitHub-hosted ubuntu image).
       - name: Install Linux desktop build deps
