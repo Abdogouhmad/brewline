@@ -1,200 +1,189 @@
-# Cashout & Report Printing — Implementation Spec (Brewline / Café POS)
- 
+# OTA Update System — Implementation Plan (Brewline / Café POS)
+
 **Audience:** opencode coding agent
-**Stack:** Flutter, Riverpod, `sqflite_common_ffi`, `esc_pos_utils_plus`
-**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (repository pattern, `audit_events` table, Sales Log screen pattern), `LOGIN_UI_SPEC.md` (`authProvider.logout()`). Read those first.
-**Status:** Ready for implementation. One deliberate deviation from the literal request is called out in §3 with reasoning — flag back if you'd rather I follow the literal version.
- 
+**Stack:** Flutter, Riverpod — targets **Android** (phones/tablets), **Linux**, and **Windows**
+**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (Settings page, responsive shell), `REFUND_SYSTEM_SPEC.md` §5 (the dialog/bottom-sheet responsive pattern reused here).
+**Status:** Ready for implementation. Revision of the earlier Android-only plan — now covers all three targets with one architecture. Read §0 for what changed and why.
+
 ---
- 
-## 0. Summary of Changes
- 
-1. A `cashout_logs` table — a real, dedicated table (not a query/view) recording every finalized shift close, because it captures a point-in-time snapshot (counted cash, variance) that can't be derived from `orders` alone.
-2. Waiter **Settings** page gets two actions: **"Cash Out & Print Report"** (closes the shift, logs waiter out) and **"Print Report"** (interim, no shift close, no logout).
-3. Admin gets a **Cashout Logs** page mirroring the Sales Log pattern: Date/Time, Orders Made, Waiter Name, Total Made.
-4. A printer transport layer supporting **both USB-cable and network (Ethernet/RJ45) printers** through one abstraction, plus three receipt templates at two paper widths (55mm kitchen, 88mm client/report).
+
+## 0. What Changed From the Android-Only Version
+
+The goal, restated precisely: **notify the admin inside the app when an update exists, and let them download + install it without leaving the app**, on Android, Linux, and Windows alike. That "stays inside the app, looks like the rest of the app" requirement is the deciding factor for every choice below — it rules out purely OS-driven update flows (Windows' native MSIX/App Installer auto-update, Linux's AppImageUpdate) as the *primary* mechanism, because those hand the UX over to the operating system's own dialog, not yours. They're mentioned as native alternatives where relevant, but not chosen as the default, for that reason.
+
+What stays the same as before: one JSON manifest, hosted free on GitHub, checked in the background without ever blocking startup, verified by checksum before anything is installed, and surfaced through the same responsive dialog/bottom-sheet shell already used for refunds.
+
+What's new: a **platform handler abstraction** (the update-mechanics equivalent of the `PrinterTransport` interface from the cashout/printing spec — same pattern, same reasoning: one shared interface, one implementation per platform, callers never touch platform specifics directly), and real desktop-specific install mechanics for Windows and Linux.
+
 ---
- 
-## 1. Printer Connectivity (USB + Network)
- 
-### 1.1 Recommended packages
-- **`esc_pos_utils_plus`** — already in the stack. Keep using it purely to *build* ESC/POS byte sequences (text, alignment, bold, cut, line feeds). It doesn't send anything over a wire; it just generates `List<int>` bytes.
-- **Network (RJ45/Ethernet) transport → plain Dart `Socket`, no extra package needed.** Thermal printers with an Ethernet port almost universally listen for raw ESC/POS bytes on **TCP port 9100** (RAW/JetDirect-style printing). Dart's built-in `dart:io` `Socket.connect(ip, 9100)` + `socket.add(bytes)` is enough — it's simpler and more reliable than any plugin for this case, and it works identically on Android and desktop with zero native code.
-- **USB transport → `flutter_pos_printer_platform_image_3`.** Unlike network printing, USB requires the Android USB Host API, which needs a native plugin — plain Dart sockets can't do this. This package already covers USB (and Bluetooth, unused here) through one plugin, so it's the right single dependency for the USB path. Drop `print_bluetooth_thermal` from the dependency list if it's still there — it only covers Bluetooth, which isn't needed for this feature, and having two overlapping printer plugins is exactly the kind of redundancy worth avoiding.
-### 1.2 Transport abstraction
-Keep printing transport-agnostic (matches this project's existing preference for transport-agnostic service interfaces) so receipt-building code never knows or cares whether it's USB or network:
- 
+
+## 1. ⚠️ Read First: Platform-Specific Update Risks
+
+- **Android (unchanged, still the sharpest risk):** every release APK must be signed with the same stable release keystore, forever. A mismatched signature forces Android to uninstall before "updating," which wipes the local SQLite database. See the full explanation and backup checklist already written for this — don't skip it.
+- **Windows:** an unsigned `.exe` will trigger a Windows SmartScreen warning ("Windows protected your PC") on first run of *each new version*, since it has no code-signing certificate behind it. This is a friction/trust issue, not a data-loss issue — nothing gets wiped, the admin just has to click "More info → Run anyway" once per release. A paid code-signing certificate removes this, but isn't required to ship; treat it as a future nice-to-have, not a blocker (flagged again in §5.3).
+- **Linux:** no signature-matching or store gatekeeping to worry about, but the replacement binary needs its executable bit restored after download/extraction (`chmod +x`), or the app simply won't launch after an update — an easy thing to silently get wrong.
+
+None of the desktop risks are as severe as the Android keystore one, but all three are exactly the kind of thing that's invisible until the first real release goes out — worth testing deliberately, not just trusting the happy path.
+
+---
+
+## 2. Unified Update Manifest
+
+One JSON file, one hosting location, with a section per platform — the app only ever reads the section matching the device it's running on:
+
+```json
+{
+  "android": {
+    "latestVersionCode": 14,
+    "latestVersionName": "1.4.0",
+    "minSupportedVersionCode": 10,
+    "mandatory": false,
+    "apkUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-v1.4.0.apk",
+    "sha256": "<sha256 of the apk>"
+  },
+  "windows": {
+    "latestVersion": "1.4.0",
+    "minSupportedVersion": "1.2.0",
+    "mandatory": false,
+    "archiveUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-windows-v1.4.0.zip",
+    "sha256": "<sha256 of the zip>"
+  },
+  "linux": {
+    "latestVersion": "1.4.0",
+    "minSupportedVersion": "1.2.0",
+    "mandatory": false,
+    "archiveUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-linux-v1.4.0.tar.gz",
+    "sha256": "<sha256 of the tar.gz>"
+  },
+  "releaseNotes": "- Added refund system\n- Fixed cashout report totals",
+  "publishedAt": "2026-09-01T00:00:00Z"
+}
 ```
-lib/core/printing/
-  printer_transport.dart            // abstract class PrinterTransport { Future<void> send(List<int> bytes); Future<bool> isConnected(); }
-  network_printer_transport.dart    // implements PrinterTransport via Socket.connect(ip, 9100)
-  usb_printer_transport.dart        // implements PrinterTransport via flutter_pos_printer_platform_image_3
-  receipt_printer_service.dart      // builds bytes with esc_pos_utils_plus, sends via the configured PrinterTransport
-```
-- `receipt_printer_service.dart` reads the active transport type from printer settings (§1.3) at call time — callers just do `receiptPrinterService.printKitchenTicket(order)` etc. and never touch USB/network details directly.
-- Wrap every `send()` call with a timeout (e.g. 5s) and a clear typed error (`PrinterOfflineException`, `PrinterTimeoutException`) so the UI can show "Printer not reachable" instead of hanging.
-### 1.3 Printer settings (admin-configurable)
-Add a small settings section (device-level, not per-waiter) since a printer is physically attached to one device:
-- Connection type: `usb` | `network` (radio/segmented choice)
-- If `network`: IP address field + port field (default `9100`, editable in case a printer uses a nonstandard port)
-- Location: `lib/features/admin/settings/widgets/printer_settings_section.dart`, added to the same Settings page that now hosts logout (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §5). Persist via a simple key-value settings table or `shared_preferences` — this is small enough that a new dedicated table isn't warranted.
-**Assumption:** one printer handles all three receipt types (kitchen, client, report) sequentially. If you actually have two physical printers (e.g. a kitchen printer and a front-counter printer), this needs a second transport config — flag that back rather than assuming.
- 
+
+- `releaseNotes` and `publishedAt` are shared across platforms (same release, same notes) — no need to duplicate them per section.
+- Android keeps its integer `versionCode` comparison (matches `PackageInfo.buildNumber`). Windows/Linux compare semantic version strings (`pub_semver` package — already a transitive dependency of most Flutter tooling, safe to add directly) against `PackageInfo.version`.
+- Same `mandatory` / `minSupportedVersion(Code)` escape hatch on every platform, same meaning as before: forces the non-dismissible full-screen update-required flow.
+
 ---
- 
-## 2. Receipt Widths & Templates
- 
-Three receipt types, two physical widths:
- 
-| Receipt | Width | Used for |
-|---|---|---|
-| Kitchen ticket | 55mm | Sent to kitchen on order creation (existing) |
-| Client receipt | 88mm | Given to the customer (existing) |
-| Shift report | 88mm | New — printed by both Settings buttons in §3 |
- 
-`esc_pos_utils_plus`'s built-in `PaperSize` enum only ships presets for **58mm** and **80mm** — there is no built-in 55mm/88mm preset. Since your rolls are 55mm and 88mm specifically, don't rely on the enum: set the `LINE_WIDTH` (characters-per-line) constant directly per template based on the *actual* printable character count for your printer/font combination, rather than assuming it matches the 58mm/80mm presets. This continues the plan already noted for this project (confirm paper width, adjust `LINE_WIDTH` accordingly) — verify the real character count against a physical test print before finalizing the constants; don't hardcode a guessed number.
- 
+
+## 3. Platform Handler Abstraction
+
 ```
-lib/core/printing/receipt_templates/
-  kitchen_ticket_template.dart   // 55mm — existing, unchanged by this spec
-  client_receipt_template.dart   // 88mm — existing, unchanged by this spec
-  shift_report_template.dart     // 88mm — NEW, see §2.1
+lib/core/updates/
+  update_manifest.dart          // model: parses the multi-platform JSON above
+  update_service.dart           // fetches manifest, picks the right platform section, compares versions
+  update_provider.dart          // Riverpod: idle / checking / available / downloading(progress) / readyToInstall / error
+  update_installer.dart         // abstract class UpdateInstaller { Future<void> download(...); Future<void> install(); }
+  android_update_installer.dart // implements UpdateInstaller via `ota_update` — unchanged from the Android-only plan
+  desktop_update_installer.dart // implements UpdateInstaller for Windows + Linux, see §4
 ```
- 
-### 2.1 Shift report template
-Content, top to bottom:
-1. Café name / header (reuse whatever header block the client receipt already uses, for visual consistency)
-2. "SHIFT REPORT" label, bold/centered
-3. Waiter name
-4. Shift start time → end time (end time = "now" if this is an interim print, see §3.2)
-5. Order count
-6. Total sales (formatted from integer cents)
-7. Cash counted (only on the final cash-out print, §3.1 — omit this line entirely on the interim print since there's nothing counted yet)
-8. Cash variance = counted − expected (only on the final print, same reason)
-9. Footer: print timestamp
-10. If this is the **interim** print (§3.2): a clearly visible **"PREVIEW — SHIFT NOT CLOSED"** line near the top, so nobody mistakes it for the final record.
-Build with the same single `.write()`-with-embedded-`\n` approach already established for receipt assembly on this project — not `.writeln()` — to avoid the ESC/POS collapse issue already documented.
- 
+
+`update_service.dart` picks the installer at runtime via `Platform.isAndroid` / `Platform.isWindows` / `Platform.isLinux` — every other file (the Settings UI, the action sheet) talks only to `UpdateInstaller`, never to `ota_update` or any desktop-specific package directly. This is the same shape as `ReceiptPrinterService` talking to `PrinterTransport` instead of USB/network specifics — keep that consistency deliberate, it's already this project's established pattern for exactly this kind of "one interface, swappable mechanics" problem.
+
 ---
- 
-## 3. Waiter Settings — Two Actions
- 
-### 3.1 "Cash Out & Print Report" (final, closes the shift)
-1. Confirm dialog first — this is irreversible for the shift: *"Cash out and print report? This will close your shift and log you out."* / Cancel / Confirm.
-2. Prompt for **cash counted** (a numeric entry — the physical cash counted in the drawer at end of shift).
-3. Compute the shift summary: order count + total sales for this shift (query via the existing order/shift relationship), variance = counted − expected.
-4. Write **one row** to `cashout_logs` (§4) — this is the authoritative, final record of the shift.
-5. Log an `audit_events` row with `event_type = 'cashout'` (per `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §4) with the same metadata.
-6. Mark the shift closed — following this project's existing convention that shift status is *derived*, this means setting whatever field the "closed" state is derived from (e.g. a `cashed_out_at` timestamp on the shift), not adding a separate status flag.
-7. Print the shift report (§2.1, final variant, includes cash-counted/variance lines).
-8. On print success, call `authProvider.logout()` (reuses the existing logout flow/confirm-free, since the user already confirmed the combined action in step 1 — don't double-confirm).
-9. If printing fails (printer offline/timeout): still complete steps 3–6 (don't lose the cashout because the printer was unreachable), show a clear "Report saved, but printing failed — check the printer" message, and offer a retry-print action before logging out. Never block the actual cashout on printer availability.
-### 3.2 "Print Report" (interim, no sign-out) — deviation from the literal request
-The original request said to also store this action's data in `cashout_logs`. I'm recommending against that, with reasoning:
- 
-- The shift is still **open** when this button is pressed — there's no final cash-counted or variance figure yet, and the order count/total could still change before the real cash-out.
-- Writing a row to `cashout_logs` every time a waiter previews the report would leave multiple rows per shift, only one of which (the final one) is actually authoritative — which would make the admin's Cashout Logs screen (§5) misleading (which row is the "real" total for that shift?).
-- This project already has a fraud-detection signal for **reprint frequency** — an interim/preview report print is exactly that kind of event. So: this button logs an `audit_events` row with `event_type = 'report_print'` (add this to the check constraint alongside `login`/`logout`/`cashout` from the previous spec) instead of writing to `cashout_logs`.
-If you actually want every preview print recorded in `cashout_logs` regardless, that's a one-line change (call the same `CashoutRepository.logCashout(...)` method here too) — just be aware it'll produce multiple rows per shift and the admin screen will need a way to tell "final" rows apart from "preview" ones (e.g. an `is_final` column) if you go that route.
- 
-Behavior:
-1. No confirm dialog needed — non-destructive, doesn't close anything.
-2. Compute the *current* shift summary the same way as §3.1 step 3, but there's no cash-counted input for this path.
-3. Print the shift report (§2.1, interim variant — "PREVIEW" label, no cash-counted/variance lines).
-4. Log the `audit_events` row (`report_print`) as described above.
-5. No navigation change — waiter stays on the Settings page.
+
+## 4. Desktop Install Mechanics (Windows + Linux)
+
+### 4.1 Recommended approach: a pure-Dart cross-platform updater package
+Rather than hand-rolling the download → verify → extract → relaunch sequence twice (once per OS), use a pure-Dart package built for exactly this — no native code, genuinely cross-platform including Linux (unlike Sparkle/WinSparkle-based options, which are Windows+macOS only and would leave Linux with nothing). Look for a current, actively maintained package along these lines before locking in a specific one — the desktop-auto-update space for Flutter is young and still shifting, so verify recent commits/issues rather than trusting a name from this spec alone. What to look for specifically:
+- Verified releases (checksum, ideally SHA-256, checked before anything is installed).
+- Support for GitHub as a plain hosting provider (no need for a dedicated update server).
+- A built-in or themeable UI hook, so it can sit inside the same action-sheet UI from §5 rather than showing its own unrelated banner.
+
+### 4.2 What it does conceptually (useful even if you end up hand-rolling it)
+1. Download the platform's archive (`archiveUrl`) to a temp location.
+2. Verify its SHA-256 against the manifest before touching anything currently installed.
+3. Extract it to a fresh, versioned directory alongside the current install (not on top of it — never overwrite a running app's own files while it's running).
+4. On the admin's confirmation to finish, relaunch: spawn the new version's executable, then exit the current process. The next launch reads from the new versioned directory.
+5. Optionally prune old versioned directories after a successful relaunch, keeping the last one as a rollback fallback rather than deleting immediately.
+
+### 4.3 Windows specifics
+- Ship a `.zip` of the Flutter Windows build output (the whole `Release/` bundle — exe + required DLLs + data folder), not a bare `.exe` — Flutter Windows apps aren't single-file.
+- SmartScreen warning on first run of a new version — see §1. If this becomes a real problem for the café's day-to-day comfort, a code-signing certificate is the fix, but that's a paid, recurring cost, which cuts against this project's zero-recurring-cost pattern — worth weighing deliberately rather than defaulting into it.
+- **Native alternative, not chosen as default:** MSIX packaging + an `.appinstaller` manifest gets you OS-level, Store-quality auto-update (via Windows' built-in App Installer, checking on a schedule you configure) with no custom download/relaunch code to maintain at all. The trade-off is real: it's the operating system's own update UI, not something themed to match this app, and it needs a code-signing certificate (self-signed is workable for a handful of café-owned devices, but each device has to be told to trust it once). Worth reconsidering if the in-app requirement ever relaxes — flag it back rather than assuming.
+
+### 4.4 Linux specifics
+- Ship a `.tar.gz` of the Flutter Linux build bundle (`bundle/` — executable + `lib/` + `data/`).
+- Restore the executable bit after extraction (`chmod +x`) — a silent, easy-to-miss failure mode, called out in §1.
+- If a desktop entry (`.desktop` file / app menu shortcut) exists, make sure it points at a stable launcher path (e.g. a `current` symlink that gets repointed at the new versioned directory on relaunch) rather than a version-specific path that breaks every release.
+- **Native alternative, not chosen as default:** distributing as an AppImage with AppImageUpdate/zsync gives efficient, Linux-native delta updates, but again hands the update UX to an external tool rather than this app's own UI, and adds a packaging format decision (AppImage vs. plain tarball) this plan doesn't otherwise need to make.
+
 ---
- 
-## 4. Database: `cashout_logs`
- 
-```sql
-CREATE TABLE IF NOT EXISTS cashout_logs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  waiter_id INTEGER NOT NULL REFERENCES users(id),
-  shift_id INTEGER NOT NULL REFERENCES shifts(id),
-  shift_start TEXT NOT NULL,
-  shift_end TEXT NOT NULL,
-  order_count INTEGER NOT NULL,
-  total_sales_cents INTEGER NOT NULL,
-  cash_counted_cents INTEGER NOT NULL,
-  cash_variance_cents INTEGER NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
- 
-CREATE INDEX IF NOT EXISTS idx_cashout_logs_waiter_id ON cashout_logs(waiter_id);
-CREATE INDEX IF NOT EXISTS idx_cashout_logs_created_at ON cashout_logs(created_at);
+
+## 5. Settings UI — Now Shared Across All Three Platforms
+
+The good news: very little new UI is actually needed. The responsive shell from the refund spec already splits on `ScreenSize`, not on platform — and a desktop window (Windows/Linux) naturally lands in the `expanded` breakpoint, an Android phone in `compact`/`medium`. So the exact same `update_action_sheet.dart` (dialog on expanded, bottom sheet on compact/medium) already does the right thing on every platform with no extra branching. Reuse it as-is rather than building a separate desktop update UI.
+
 ```
- 
-This is a genuine dedicated table, not a derived query — unlike the Sales Log (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §3), it stores `cash_counted_cents`, which is manually entered by the waiter and has no other source of truth in the schema.
- 
-Also extend the `audit_events.event_type` check constraint from the previous spec to add `report_print`:
-```sql
--- event_type now: 'void','discount','post_print_edit','cash_variance',
--- 'no_sale_open','reprint','off_hours','login','logout','cashout','report_print'
+lib/features/settings/widgets/
+  update_section.dart          // unchanged in shape: current version, "Check for Updates", auto-check toggle, last-checked label
+  update_action_sheet.dart     // unchanged shell; content now driven by whichever UpdateInstaller is active
+  update_required_screen.dart  // unchanged: full-screen, non-dismissible, for mandatory updates on any platform
 ```
- 
-Repository: `lib/core/database/repositories/cashout_repository.dart`
-- `logCashout(CashoutRecord record)` — the one write path for §3.1 step 4, inside a transaction alongside the shift-close update (step 6).
-- `getCashoutLogs({DateTimeRange? dateRange, int? waiterId, int limit = 100, int offset = 0})` — powers the admin screen in §5, indexed on `created_at`/`waiter_id`.
-- `getCurrentShiftSummary(int shiftId)` — read-only, used by both §3.1 and §3.2 to compute live order count/total without duplicating that query logic in two places.
+
+One addition worth making: show the platform name/icon next to the version number in `update_section.dart` ("Version 1.4.0 (Windows)" / "... (Android)") — small, but useful once the same admin might be looking at this screen across a phone and a front-counter desktop machine and wants to be sure which build they're looking at.
+
 ---
- 
-## 5. Admin: Cashout Logs Page
- 
-- Location: `lib/features/admin/reports/cashout_logs_page.dart`, reachable from admin navigation alongside the Sales Log page.
-- Same shape as the Sales Log screen (`ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` §3): filter controls (date range, waiter) above a `DataTable2` below.
-- Columns exactly as requested: **Date & Time, Orders Made, Waiter Name, Total Made.** (Cash-counted/variance are stored but not required as visible columns here — reasonable to add as an expandable row detail later if you want it, not required now.)
-- Backed by `CashoutRepository.getCashoutLogs(...)` — one row per finalized shift close.
-- *(Optional, not required for this pass):* a "reprint" action per row that re-runs the shift-report template against the stored row's data and sends it through `ReceiptPrinterService` — natural follow-on given the printer plumbing this spec already builds, but flagged as optional so it doesn't silently expand scope.
+
+## 6. Version Comparison Logic
+
+- **Android:** integer `versionCode` comparison, unchanged from the original plan — simplest and matches Android convention.
+- **Windows/Linux:** semantic version string comparison via `pub_semver`'s `Version.parse(...)` and its built-in comparison operators — don't hand-roll string/number parsing for this, it's exactly what that package is for and it's already a common transitive dependency in the Flutter ecosystem.
+- Both paths funnel into the same `UpdateCheckResult` enum (`upToDate` / `updateAvailable` / `updateMandatory` / `checkFailed`) from the original plan — the comparison mechanics differ, the result shape and everything downstream of it doesn't.
+
 ---
- 
-## 6. File Structure (new/changed files)
- 
+
+## 7. File Structure (full picture, replacing the Android-only version)
+
 ```
 lib/
   core/
-    printing/
-      printer_transport.dart
-      network_printer_transport.dart
-      usb_printer_transport.dart
-      receipt_printer_service.dart
-      receipt_templates/
-        shift_report_template.dart
-    database/
-      repositories/
-        cashout_repository.dart
+    updates/
+      update_manifest.dart
+      update_service.dart
+      update_provider.dart
+      update_installer.dart
+      android_update_installer.dart
+      desktop_update_installer.dart
   features/
-    waiter/
-      settings/
-        widgets/
-          cashout_button.dart
-          print_report_button.dart
-    admin/
-      settings/
-        widgets/
-          printer_settings_section.dart
-      reports/
-        cashout_logs_page.dart
+    settings/
+      widgets/
+        update_section.dart
+        update_action_sheet.dart
+        update_required_screen.dart
 ```
- 
+
 ---
- 
-## 7. Documentation Requirements
- 
-- `receipt_printer_service.dart` gets a file-level comment explaining the transport-agnostic design and why network printing uses a raw socket while USB requires a plugin (§1.1) — so a future maintainer doesn't "simplify" by trying to force both through one package.
-- `cashout_repository.dart`'s `logCashout()` documents that it's the **only** authoritative write path to `cashout_logs`, and cross-references §3.2's reasoning for why interim prints don't call it.
-- `shift_report_template.dart` documents the LINE_WIDTH-vs-PaperSize-enum caveat from §2 so nobody "fixes" it back to the enum defaults later.
+
+## 8. Documentation Requirements
+
+- `update_installer.dart` gets a file-level comment explaining the platform-handler pattern and pointing back at `PrinterTransport` as the precedent for this project's "one interface, per-platform implementation" convention — so it reads as consistent architecture, not a one-off.
+- `desktop_update_installer.dart` documents the "extract to a fresh versioned directory, never overwrite in place" rule from §4.2 step 3, and why (a partially-overwritten running app is a much worse failure mode than a failed download).
+- The repo README's Release Process section (already planned in the Android-only version) now documents building and hashing **three** artifacts per release — APK, Windows zip, Linux tar.gz — not just one, plus the Windows SmartScreen and Linux `chmod +x` notes from §1 so they don't get rediscovered the hard way on release day.
+
 ---
- 
-## 8. Acceptance Checklist
- 
-- [ ] Network printer prints correctly over a raw TCP socket to port 9100 (test against the existing escpresso emulator, then a real network printer)
-- [ ] USB printer prints correctly via `flutter_pos_printer_platform_image_3` on Android
-- [ ] Switching printer connection type in admin settings actually changes which transport is used, without app restart
-- [ ] Kitchen ticket still prints at 55mm, client receipt and shift report both print at 88mm, with correctly measured (not guessed) `LINE_WIDTH` values
-- [ ] "Cash Out & Print Report": prompts for cash counted, writes exactly one `cashout_logs` row, closes the shift (derived status reflects this), prints the final report, then logs out
-- [ ] "Cash Out & Print Report" still completes the cashout and shift close even if the printer is unreachable, and surfaces a clear retry-print option
-- [ ] "Print Report": prints an interim report labeled as a preview, does **not** write to `cashout_logs`, does **not** close the shift, does **not** log out, and logs a `report_print` audit event
-- [ ] Admin Cashout Logs page shows exactly one row per finalized shift with the four requested columns, filterable by date and waiter
-- [ ] No raw printer/socket code exists outside `core/printing/` — all call sites go through `ReceiptPrinterService`
- 
+
+## 9. Acceptance Checklist
+
+**Shared**
+- [ ] One manifest URL serves all three platform sections; each platform reads only its own section
+- [ ] A failed/offline check is silent on every platform — never blocks startup, never surfaces as an error for a routine background check
+- [ ] Mandatory-update screen works identically (non-dismissible, blocks app use) regardless of platform
+- [ ] The same `update_action_sheet.dart` renders correctly as a dialog on desktop and a bottom sheet on Android, with no platform-specific branching in that file
+
+**Android**
+- [ ] Release keystore requirement from the original plan still holds — re-verify it's actually wired into the build, not just documented
+- [ ] APK download, checksum verification, and install handoff work as originally spec'd
+
+**Windows**
+- [ ] Downloaded zip is verified by checksum before extraction
+- [ ] New version extracts to its own versioned folder, app relaunches into it cleanly, old version is not deleted until the new one has launched successfully at least once
+- [ ] First run of a newly installed version is tested against a real (non-dev-machine) Windows install to confirm the SmartScreen prompt is expected/acceptable, not a silent block
+
+**Linux**
+- [ ] Downloaded tar.gz is verified by checksum before extraction
+- [ ] Executable bit is confirmed present after extraction, on a clean test rather than a machine where it happened to already be set
+- [ ] Any desktop entry/launcher shortcut still resolves correctly after an update (i.e. it points at a stable path, not a version-specific one that just broke)
+
+**Docs**
+- [ ] README Release Process section covers all three artifacts, not just the Android one

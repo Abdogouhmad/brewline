@@ -63,16 +63,25 @@ void main() {
       );
 
   group('currentShiftSummary', () {
-    test('derives shift start from the latest login and counts its orders',
+    test('derives shift start from the latest cashout and counts its orders',
         () async {
-      await audit.logEvent(
-        eventType: 'login',
-        actor: 'john',
-        at: DateTime(2026, 8, 29, 8, 0),
+      await cashout.logCashout(
+        CashoutRecord(
+          waiterId: 's-1',
+          waiterUsername: 'john',
+          waiterName: 'John Doe',
+          shiftStart: DateTime(2026, 8, 29, 7, 0),
+          shiftEnd: DateTime(2026, 8, 29, 8, 0),
+          orderCount: 1,
+          totalSalesCents: 9900,
+          cashCountedCents: 9900,
+          cashVarianceCents: 0,
+          createdAt: DateTime(2026, 8, 29, 8, 0),
+        ),
       );
       await insertOrder(
         id: 1,
-        createdAt: DateTime(2026, 8, 29, 7, 0), // before shift → excluded
+        createdAt: DateTime(2026, 8, 29, 7, 0), // before cashout → excluded
         waiterUsername: 'john',
         total: 99,
       );
@@ -106,7 +115,43 @@ void main() {
       expect(summary.totalSalesCents, 1950); // 12.50 + 7.00
     });
 
-    test('falls back to the start of the day when no login is recorded',
+    test('includes orders across a logout-login cycle without a cashout',
+        () async {
+      // login at 8:00, logout at 11, re-login at 12 — no cashout in between.
+      await audit.logEvent(
+        eventType: 'login',
+        actor: 'john',
+        at: DateTime(2026, 8, 29, 8, 0),
+      );
+      await audit.logEvent(
+        eventType: 'login',
+        actor: 'john',
+        at: DateTime(2026, 8, 29, 12, 0),
+      );
+      await insertOrder(
+        id: 1,
+        createdAt: DateTime(2026, 8, 29, 9, 0), // before re-login
+        waiterUsername: 'john',
+        total: 12.5,
+      );
+      await insertOrder(
+        id: 2,
+        createdAt: DateTime(2026, 8, 29, 13, 0), // after re-login
+        waiterUsername: 'john',
+        total: 7.0,
+      );
+
+      final summary = await cashout.currentShiftSummary(
+        waiterUsername: 'john',
+        end: DateTime(2026, 8, 29, 14, 0),
+      );
+
+      expect(summary.shiftStart, DateTime(2026, 8, 29, 0, 0));
+      expect(summary.orderCount, 2);
+      expect(summary.totalSalesCents, 1950);
+    });
+
+    test('falls back to the start of the day when no cashout is recorded',
         () async {
       await insertOrder(
         id: 1,

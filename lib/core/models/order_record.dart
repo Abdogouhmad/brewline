@@ -20,6 +20,11 @@ class OrderRecord {
   final double total;
   final List<OrderLineItem> items;
 
+  /// True when the order has been fully voided (a full refund). The order and
+  /// its items are never hard-deleted; the void is expressed through this flag
+  /// and an `order_refunds` row so historical financial records stay intact.
+  final bool isVoided;
+
   const OrderRecord({
     required this.id,
     required this.createdAt,
@@ -27,6 +32,7 @@ class OrderRecord {
     this.waiterUsername,
     required this.total,
     required this.items,
+    this.isVoided = false,
   });
 
   OrderRecord copyWith({int? orderNumber}) => OrderRecord(
@@ -36,5 +42,6 @@ class OrderRecord {
     waiterUsername: waiterUsername,
     total: total,
     items: items,
+    isVoided: isVoided,
   );
 }

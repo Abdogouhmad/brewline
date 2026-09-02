@@ -11,6 +11,7 @@ import 'package:brewline/features/waiter/providers/price_format.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
+import 'package:brewline/widgets/shared/refund_action_sheet.dart';
 
 /// Admin "Sales Log": a filterable, paginated line-level history of every
 /// sale.
@@ -32,7 +33,7 @@ class SalesLogPage extends ConsumerStatefulWidget {
 class _SalesLogPageState extends ConsumerState<SalesLogPage> {
   static const int _pageSize = 100;
 
-  DateTimeRange? _range;
+  DateTimeRange? _range = _todayRange();
   String? _productId;
   String? _waiterUsername;
 
@@ -41,6 +42,14 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
   bool _hasMore = true;
   int _offset = 0;
   Object? _error;
+
+  /// Today's local date range (start-of-day to end-of-day).
+  static DateTimeRange _todayRange() {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    return DateTimeRange(start: start, end: end);
+  }
 
   @override
   void initState() {
@@ -111,6 +120,11 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
     _load(reset: true);
   }
 
+  void _showToday() {
+    setState(() => _range = _todayRange());
+    _load(reset: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -158,7 +172,10 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
           else if (_entries.isEmpty)
             _message(context, 'No sales match these filters.')
           else ...[
-            _SalesTable(entries: _entries),
+            _SalesTable(
+              entries: _entries,
+              onRefundDone: () => _load(reset: true),
+            ),
             if (_hasMore) ...[
               SizedBox(height: Space.lg),
               Center(
@@ -195,6 +212,7 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
               range: _range,
               onTap: _pickRange,
               onClear: _clearRange,
+              onToday: _showToday,
             ),
             _buildProductFilter(products.value),
             _buildWaiterFilter(staff.value),
@@ -327,11 +345,13 @@ class _DateFilterInput extends StatelessWidget {
   final DateTimeRange? range;
   final VoidCallback onTap;
   final VoidCallback onClear;
+  final VoidCallback onToday;
 
   const _DateFilterInput({
     required this.range,
     required this.onTap,
     required this.onClear,
+    required this.onToday,
   });
 
   @override
@@ -351,13 +371,22 @@ class _DateFilterInput extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: range == null
-            ? null
-            : IconButton(
-                tooltip: 'Clear dates',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (range == null)
+              TextButton(
+                onPressed: onToday,
+                child: const Text('Today'),
+              ),
+            if (range != null)
+              IconButton(
+                tooltip: 'Show all dates',
                 icon: const Icon(Icons.close_rounded, size: 18),
                 onPressed: onClear,
               ),
+          ],
+        ),
         onTap: onTap,
       ),
     );
@@ -369,49 +398,110 @@ class _DateFilterInput extends StatelessWidget {
 /// Horizontally scrollable data table of [SalesEntry] rows.
 class _SalesTable extends StatelessWidget {
   final List<SalesEntry> entries;
+  final VoidCallback? onRefundDone;
 
-  const _SalesTable({required this.entries});
+  const _SalesTable({required this.entries, this.onRefundDone});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final totalNet = entries.fold<double>(0, (sum, e) => sum + e.netTotal);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minWidth: constraints.maxWidth),
-            child: DataTable(
-              decoration: BoxDecoration(
-                border: Border.all(color: colorScheme.outline),
-                borderRadius: BorderRadius.circular(Rounded.md),
-              ),
-              columns: const [
-                DataColumn(label: Text('Date')),
-                DataColumn(label: Text('Order #')),
-                DataColumn(label: Text('Product')),
-                DataColumn(label: Text('Qty')),
-                DataColumn(label: Text('Waiter')),
-                DataColumn(label: Text('Total')),
-              ],
-              rows: [
-                for (final e in entries)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(_dateTime(e.createdAt))),
-                      DataCell(Text(_orderNumber(e))),
-                      DataCell(Text(e.productName)),
-                      DataCell(Text('${e.quantity}')),
-                      DataCell(Text(e.waiter)),
-                      DataCell(Text(formatPrice(e.lineTotal))),
-                    ],
+    return Column(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colorScheme.outline),
+                    borderRadius: BorderRadius.circular(Rounded.md),
                   ),
-              ],
+                  columns: const [
+                    DataColumn(label: Text('Date')),
+                    DataColumn(label: Text('Order #')),
+                    DataColumn(label: Text('Product')),
+                    DataColumn(label: Text('Qty')),
+                    DataColumn(label: Text('Waiter')),
+                    DataColumn(label: Text('Total')),
+                    DataColumn(label: Text('')),
+                  ],
+                  rows: [
+                    for (final e in entries)
+                      DataRow(
+                        cells: [
+                          DataCell(Text(_dateTime(e.createdAt))),
+                          DataCell(Text(_orderNumber(e))),
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(e.productName),
+                                if (e.refundState != SalesRefundState.none) ...[
+                                  SizedBox(width: Space.sm),
+                                  _RefundBadge(state: e.refundState),
+                                ],
+                              ],
+                            ),
+                          ),
+                          DataCell(Text('${e.quantity}')),
+                          DataCell(Text(e.waiter)),
+                          DataCell(Text(formatPrice(e.netTotal))),
+                          DataCell(
+                            IconButton(
+                              tooltip: 'Refund this order',
+                              icon: const Icon(Icons.currency_exchange_rounded),
+                              onPressed: () async {
+                                await showRefundActionSheet(
+                                  context,
+                                  orderId: e.orderId,
+                                );
+                                onRefundDone?.call();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: Space.lg,
+            vertical: Space.md,
+          ),
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(Rounded.md),
+              bottomRight: Radius.circular(Rounded.md),
             ),
           ),
-        );
-      },
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              UiText(
+                'Total: ',
+                type: UiTextType.bodyMedium,
+                fontWeight: FontWeight.w600,
+              ),
+              UiText(
+                formatPrice(totalNet),
+                type: UiTextType.titleMedium,
+                fontWeight: FontWeight.w800,
+                color: colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -423,6 +513,46 @@ class _SalesTable extends StatelessWidget {
   static String _dateTime(DateTime d) =>
       '${d.day} ${_months[d.month - 1]} ${d.year} · '
       '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+}
+
+/// Small visual badge showing which refund state a row is in, so a voided or
+/// partially refunded order is never silently subtracted — the admin sees it.
+class _RefundBadge extends StatelessWidget {
+  final SalesRefundState state;
+
+  const _RefundBadge({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (label, foreground, background) = switch (state) {
+      SalesRefundState.voided => (
+        'Voided',
+        colorScheme.onErrorContainer,
+        colorScheme.errorContainer,
+      ),
+      SalesRefundState.partial => (
+        'Refunded',
+        colorScheme.onTertiaryContainer,
+        colorScheme.tertiaryContainer,
+      ),
+      SalesRefundState.none => ('', colorScheme.onSurface, Colors.transparent),
+    };
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(Rounded.full),
+      ),
+      child: UiText(
+        label,
+        type: UiTextType.labelSmall,
+        fontWeight: FontWeight.w700,
+        color: foreground,
+      ),
+    );
+  }
 }
 
 const List<String> _months = [

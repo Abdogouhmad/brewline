@@ -17,7 +17,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   sqfliteFfiInit();
 
-  test('v1 database upgrades without losing data (ends at current schema v3)',
+  test('v1 database upgrades without losing data (ends at current schema v4)',
     () async {
     final dir = await Directory.systemTemp.createTemp('brewline_migrate_');
     final path = p.join(dir.path, 'brewline.db');
@@ -98,10 +98,12 @@ void main() {
     final db2 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db2.close());
 
-    expect(await db2.getVersion(), 3);
+    expect(await db2.getVersion(), 4);
     await db2.rawQuery('SELECT is_archived FROM products'); // column now exists
     await db2.rawQuery('SELECT order_number FROM orders'); // column now exists
     await db2.rawQuery('SELECT * FROM cashout_logs'); // table now exists
+    await db2.rawQuery('SELECT is_voided FROM orders'); // v4 column now exists
+    await db2.rawQuery('SELECT * FROM order_refunds'); // v4 table now exists
 
     // Existing rows were not touched by the upgrade.
     final products = ProductRepository(db2);
@@ -136,7 +138,8 @@ void main() {
     expect(await audit.recent(), hasLength(1));
   });
 
-  test('v2 database upgrades to v3: cashout_logs + widened audit CHECK', () async {
+  test('v2 database upgrades to v4: cashout_logs + widened audit CHECK + refunds',
+    () async {
     final dir = await Directory.systemTemp.createTemp('brewline_migrate_');
     final path = p.join(dir.path, 'brewline.db');
     addTearDown(() => dir.delete(recursive: true));
@@ -212,17 +215,18 @@ void main() {
     });
     await v2.close();
 
-    // --- reopen through the normal open path → triggers 2→3 upgrade ---
+    // --- reopen through the normal open path → triggers 2→4 upgrade ---
     final db3 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db3.close());
 
-    expect(await db3.getVersion(), 3);
+    expect(await db3.getVersion(), 4);
     await db3.rawQuery('SELECT * FROM cashout_logs'); // table now exists
+    await db3.rawQuery('SELECT * FROM order_refunds'); // v4 table now exists
 
-    // Existing audit rows survived the CHECK-constraint table rebuild.
+    // Existing audit rows survived both CHECK-constraint table rebuilds.
     expect(await db3.query('audit_events'), hasLength(1));
 
-    // The widened CHECK admits the new event types.
+    // The widened CHECK admits the newer event types (v3 additions).
     await db3.insert('audit_events', {
       'event_type': 'report_print',
       'actor': 'john',
@@ -232,6 +236,17 @@ void main() {
       'event_type': 'password_changed',
       'actor': 'john',
       'created_at': DateTime(2026, 8, 29, 23).millisecondsSinceEpoch,
+    });
+    // ...and the v4 refund signals.
+    await db3.insert('audit_events', {
+      'event_type': 'void',
+      'actor': 'john',
+      'created_at': DateTime(2026, 8, 29, 23, 5).millisecondsSinceEpoch,
+    });
+    await db3.insert('audit_events', {
+      'event_type': 'post_print_edit',
+      'actor': 'john',
+      'created_at': DateTime(2026, 8, 29, 23, 10).millisecondsSinceEpoch,
     });
     await db3.insert('cashout_logs', {
       'waiter_id': 's-1',
@@ -245,6 +260,6 @@ void main() {
       'cash_variance_cents': 250,
       'created_at': DateTime(2026, 8, 29, 21).millisecondsSinceEpoch,
     });
-    expect(await db3.query('audit_events'), hasLength(3));
+    expect(await db3.query('audit_events'), hasLength(5));
   });
 }

@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-01
+
+### Added (cross-platform OTA updates)
+
+- **In-app OTA update system** for Android, Windows and Linux (`core/updates/`):
+  - `UpdateService` fetches a single multi-platform JSON manifest
+    (`update.json`) hosted on GitHub and picks the section matching the
+    device — Android compares integer `versionCode`, Windows/Linux compare
+    semantic versions via `pub_semver`.
+  - `UpdateInstaller` abstraction (mirroring the existing `PrinterTransport`
+    pattern): one interface, one implementation per platform
+    (`AndroidUpdateInstaller` downloads + validates the APK then hands off to
+    the system package installer; `DesktopUpdateInstaller` downloads the
+    platform archive, verifies its SHA-256, extracts to a **fresh versioned
+    directory** — never overwriting the running app — and relaunches).
+  - `UpdateNotifier` Riverpod state machine:
+    `idle → checking → available / downloading(progress) → readyToInstall → error`,
+    plus an auto-check on launch (default on, toggleable in Settings) and a
+    persisted "last checked" timestamp.
+- **Admin Settings → Update card** (`update_section.dart`): current version +
+    platform label, "Check for updates", auto-check toggle and last-checked
+    time.
+- **Waiter Settings → Update card** — the same OTA card is now a universal
+    feature, shown on both the admin and waiter settings pages.
+- **Admin Settings desktop grid** (`admin_settings_page.dart`) — the section
+    cards now lay out in a 2-column responsive grid on desktop (≥ 905dp);
+    General spans the full first row while Printer, Update and Account pair
+    two-per-row. Phones/tablets keep the stacked layout. Content cap widened
+    from 600 to 1200dp so wide screens use the space.
+- **Responsive update action sheet** (`update_action_sheet.dart`) — reuses the
+    existing `showUiAdaptiveModal` shell, so it renders as a centred dialog on
+    desktop and a bottom sheet on phones with no platform branching.
+- **Mandatory-update takeover** (`update_required_screen.dart`): a
+    non-dismissible, full-screen gate (`UpdateAppGate` in `main.dart`) that
+    blocks the entire app until the mandatory update is installed, on every
+    platform.
+- **SHA-256 verification** before anything is installed — a mismatched
+    download is deleted and reported, never applied.
+- **CI manifest generation**: the `release` workflow now hashes all three
+    artifacts (APK, Windows zip, Linux tar.gz) and commits the updated
+    `update.json` back to `main` so the raw GitHub URL always serves the
+    current release.
+
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/Abdogouhmad/brewline/compare/1.2.1...1.3.0
+[1.2.1]: https://github.com/Abdogouhmad/brewline/compare/1.2.0...1.2.1
+
 ## [1.2.1] - 2026-08-30
 
 ### Fixed
