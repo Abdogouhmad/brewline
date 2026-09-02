@@ -162,6 +162,89 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      # Generate update.json — the OTA manifest the app fetches from
+      # raw.githubusercontent.com/Abdogouhmad/brewline/main/update.json.
+      # Each platform section carries the release asset URL and SHA-256 so the
+      # app can verify the download before installing.
+      - name: Generate update manifest
+        id: manifest
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.tag }}"
+          RELEASE_URL="https://github.com/Abdogouhmad/brewline/releases/download/$VERSION"
+          TIMESTAMP="${{ github.event.head_commit.timestamp }}"
+
+          ANDROID_APK="artifacts/app-release.apk"
+          LINUX_TGZ="artifacts/brewline-linux-x64.tar.gz"
+          WINDOWS_ZIP="artifacts/brewline-windows-x64.zip"
+
+          build_number() {
+            sed -nE 's/^version: *[^+]+\+([0-9]+).*/\1/p' pubspec.yaml | head -n1
+          }
+          BN="$(build_number)"
+          [ -n "$BN" ] || BN="1"
+
+          python3 - "$BN" "$VERSION" "$RELEASE_URL" "$TIMESTAMP" \
+                    "$ANDROID_APK" "$LINUX_TGZ" "$WINDOWS_ZIP" <<'PY'
+          import hashlib, json, os, sys
+          bn, version, release_url, timestamp = sys.argv[1:5]
+          apk, tgz, zip_ = sys.argv[5:8]
+
+          def sha256(path):
+              if not os.path.exists(path):
+                  return None
+              h = hashlib.sha256()
+              with open(path, 'rb') as f:
+                  for block in iter(lambda: f.read(65536), b''):
+                      h.update(block)
+              return h.hexdigest()
+
+          ZERO = "0000000000000000000000000000000000000000000000000000000000000000"
+          manifest = {
+              "android": {
+                  "latestVersionCode": int(bn),
+                  "latestVersionName": version,
+                  "minSupportedVersionCode": 1,
+                  "mandatory": False,
+                  "apkUrl": f"{release_url}/app-release.apk",
+                  "sha256": sha256(apk) or ZERO,
+              },
+              "windows": {
+                  "latestVersion": version,
+                  "minSupportedVersion": "1.0.0",
+                  "mandatory": False,
+                  "archiveUrl": f"{release_url}/brewline-windows-x64.zip",
+                  "sha256": sha256(zip_) or ZERO,
+              },
+              "linux": {
+                  "latestVersion": version,
+                  "minSupportedVersion": "1.0.0",
+                  "mandatory": False,
+                  "archiveUrl": f"{release_url}/brewline-linux-x64.tar.gz",
+                  "sha256": sha256(tgz) or ZERO,
+              },
+              "releaseNotes": "",
+              "publishedAt": timestamp,
+          }
+          with open('update.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+          PY
+
+      # Commit the updated manifest back to main so the raw URL always serves
+      # the latest release. Uses the workflows token; skips if unchanged.
+      - name: Commit update manifest
+        shell: bash
+        run: |
+          git config user.name "brewline CI"
+          git config user.email "ci@example.com"
+          if git diff --quiet update.json; then
+            echo "update.json unchanged — nothing to commit."
+          else
+            git add update.json
+            git commit -m "chore(ci): update OTA manifest for ${{ steps.version.outputs.tag }}"
+            git push origin HEAD:main
+          fi
+
       - name: Publish prerelease
         env:
           GH_TOKEN: ${{ github.token }}
