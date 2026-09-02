@@ -119,9 +119,17 @@ build_android_apk() {
 
 # One slim APK per CPU architecture (arm32, arm64, x64). Smaller installs
 # than the fat APK — pick the one matching the device's chip.
+#
+# `force-version-code-ignoring-abi` makes every split APK keep the SAME
+# versionCode as the universal APK (instead of Flutter's default 1000×ABI
+# offset). Without this, a split APK installs as e.g. versionCode 2007 while
+# the universal APK is 7 — the app's OTA checker then misreads it and, worse,
+# Android can treat a cross-flavour update as a downgrade. Sharing the code
+# keeps universal↔split OTA upgrades clean.
 build_android_abis() {
   info "Building Android split APKs (arm / arm64 / x64)..."
-  run flutter build apk --release --split-per-abi
+  run flutter build apk --release --split-per-abi \
+    -Pforce-version-code-ignoring-abi=true
   info "Done → build/app/outputs/flutter-apk/"
   ls -1 build/app/outputs/flutter-apk/*.apk 2>/dev/null | sed 's/^/    /'
 }

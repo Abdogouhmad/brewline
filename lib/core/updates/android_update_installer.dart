@@ -33,7 +33,15 @@ class AndroidUpdateInstaller implements UpdateInstaller {
     final info = manifest.android;
     if (info == null) return UpdateCheckResult.checkFailed;
 
-    final currentCode = int.tryParse(currentInfo.buildNumber) ?? 0;
+    // `PackageInfo.buildNumber` on Android is the installed APK's versionCode.
+    // Split-per-ABI APKs *without* `force-version-code-ignoring-abi` get an
+    // ABI offset baked in (e.g. 2006 for arm64 vs 6 for the universal APK), so
+    // normalise any offset away before comparing against the manifest's raw
+    // build number. This keeps an arm64 split APK from being misread as
+    // "newer than everything" and silently blocking OTA updates.
+    final rawCode = int.tryParse(currentInfo.buildNumber) ?? 0;
+    final currentCode = rawCode % 1000;
+
     if (currentCode >= info.latestVersionCode) {
       return UpdateCheckResult.upToDate;
     }

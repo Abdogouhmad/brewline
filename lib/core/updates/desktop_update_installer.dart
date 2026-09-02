@@ -135,6 +135,11 @@ class DesktopUpdateInstaller implements UpdateInstaller {
       throw UpdateInstallException('New executable not found at $exe');
     }
     await Process.start(exe, [], mode: ProcessStartMode.detached);
+
+    // Give spawned process a moment to take over, then exit.
+    // Using `exit()` here is intentional — we need to release file locks
+    // (especially on Windows) so the new process can start cleanly.
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     exit(0);
   }
 
@@ -192,41 +197,90 @@ class DesktopUpdateInstaller implements UpdateInstaller {
     }
   }
 
-  /// Re-points the stable `current` symlink (used by the launch shortcut) at
-  /// the new versioned directory, and prunes older versioned directories
-  /// keeping only the last one as a rollback fallback.
+  /// Updates the stable `current` pointer at the updates root so any launcher
+  /// shortcut resolves to the newest version after a relaunch.
+  ///
+  /// On **Linux** this is a symlink (`current` → `1725…/`), which is the
+  /// standard portable approach.  On **Windows** symlinks require either admin
+  /// privileges or Developer Mode — neither of which a normal user is expected
+  /// to have — so we **copy the versioned directory** to a well-known `current`
+  /// path instead.  The copy is safe because the running executable is never
+  /// overwritten (we launch the *new* copy and then exit).
   void _relaunchPlumbing(String versionDir) {
     final updatesRoot = p.dirname(versionDir);
-    final currentLink = p.join(updatesRoot, 'current');
+    final currentPath = p.join(updatesRoot, 'current');
 
-    // Remove any stale symlink (checks by filesystem type, since `Link` can
-    // report existence even for a dangling target).
-    if (FileSystemEntity.typeSync(currentLink, followLinks: false) ==
-        FileSystemEntityType.link) {
-      Link(currentLink).deleteSync();
-    } else if (Directory(currentLink).existsSync()) {
-      Directory(currentLink).deleteSync(recursive: true);
-    } else if (File(currentLink).existsSync()) {
-      File(currentLink).deleteSync();
+    if (Platform.isWindows) {
+      _repointCurrentWindows(versionDir, currentPath);
+    } else {
+      _repointCurrentUnix(versionDir, currentPath);
     }
-    Link(currentLink).createSync(p.basename(versionDir));
 
-    // Prune old directories, keeping only the one we just made (the rollback
-    // fallback) and removing everything before it.
+    // Prune old versioned directories, keeping only the one we just made
+    // (rollback fallback) and the `current` pointer.
     final dirs = Directory(updatesRoot)
         .listSync()
         .whereType<Directory>()
         .where((d) {
-          if (p.basename(d.path) == 'current') return false;
+          final base = p.basename(d.path);
+          if (base == 'current') return false;
+          // Skip the versioned dir we just installed.
+          if (d.path == versionDir) return false;
           return FileSystemEntity.typeSync(d.path, followLinks: false) !=
               FileSystemEntityType.link;
         })
         .map((d) => d.path)
         .toList()
       ..sort();
-    while (dirs.length > 1) {
-      final old = dirs.removeAt(0);
+    for (final old in dirs) {
       Directory(old).deleteSync(recursive: true);
+    }
+  }
+
+  /// Windows: copy the freshly-extracted version to a stable `current`
+  /// directory.  No symlink required — works without admin or Developer Mode.
+  void _repointCurrentWindows(String versionDir, String currentPath) {
+    // Remove any previous `current` directory.
+    if (Directory(currentPath).existsSync()) {
+      Directory(currentPath).deleteSync(recursive: true);
+    } else if (FileSystemEntity.typeSync(currentPath, followLinks: false) ==
+        FileSystemEntityType.link) {
+      Link(currentPath).deleteSync();
+    } else if (File(currentPath).existsSync()) {
+      File(currentPath).deleteSync();
+    }
+
+    // Recursive copy is the only fully-portable option that doesn't need
+    // elevated privileges.  The archive is small (Flutter release bundle)
+    // so this finishes in under a second.
+    _copyDirectorySync(Directory(versionDir), Directory(currentPath));
+  }
+
+  /// Linux/macOS: keep the traditional symlink approach.
+  void _repointCurrentUnix(String versionDir, String currentPath) {
+    if (FileSystemEntity.typeSync(currentPath, followLinks: false) ==
+        FileSystemEntityType.link) {
+      Link(currentPath).deleteSync();
+    } else if (Directory(currentPath).existsSync()) {
+      Directory(currentPath).deleteSync(recursive: true);
+    } else if (File(currentPath).existsSync()) {
+      File(currentPath).deleteSync();
+    }
+    Link(currentPath).createSync(p.basename(versionDir));
+  }
+
+  /// Recursively copies [src] into [dst], creating directories as needed.
+  static void _copyDirectorySync(Directory src, Directory dst) {
+    dst.createSync(recursive: true);
+    for (final entity in src.listSync()) {
+      final target = p.join(dst.path, p.basename(entity.path));
+      if (entity is Directory) {
+        _copyDirectorySync(entity, Directory(target));
+      } else if (entity is File) {
+        entity.copySync(target);
+      } else if (entity is Link) {
+        Link(target).createSync(entity.targetSync());
+      }
     }
   }
 

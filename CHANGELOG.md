@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-02
+
+### Fixed
+
+- **Windows 11 app fails to open or install** — the desktop OTA update installer
+  relied on symlink creation (`Link.createSync`) which requires either admin
+  privileges or Developer Mode on Windows. On a standard Windows 11 install
+  without either, the update flow threw `FileSystemException` and crashed.
+  Replaced the symlink with a recursive directory copy on Windows (Linux keeps
+  the symlink). No elevated privileges required.
+- **Startup crash with no feedback on Windows** — `main()` had no error
+  handling, so any initialization failure (database, plugin, or platform API)
+  silently killed the process. Added a guarded startup path that catches
+  unhandled exceptions and renders an actionable error screen with the message
+  and a "Copy error" button, so the user can share the failure instead of
+  seeing a vanished window.
+- **Abrupt process termination during OTA update** — `exit(0)` was called
+  immediately after spawning the new executable. Added a short delay so the
+  new process can acquire file locks before the old one releases them,
+  preventing race-condition crashes on Windows.
+- **Android per-ABI APK (e.g. `app-arm64-v8a-release.apk`) fails to install over
+  an existing version** — two root causes fixed:
+  - **Signing mismatch (primary cause).** All release builds were signed with
+    the debug keystore; the real `brewline.jks` release keystore existed in
+    `key.properties` but was never wired into Gradle. A `signingConfigs.release`
+    block now reads `key.properties`, so every release build signs with the
+    stable release key — matching the key of previously installed versions and
+    avoiding `INSTALL_FAILED_UPDATE_INCOMPATIBLE` (which would otherwise force
+    an uninstall that wipes the local SQLite database).
+  - **Split-APK versionCode offset.** Flutter adds `1000 × ABI` to a split
+    APK's versionCode (arm64 → `2000 + N`), so the OTA checker — which compares
+    the raw installed `buildNumber` — misread an installed split APK as
+    "newer than everything" and blocked updates, and Android could treat a
+    cross-flavour (universal ↔ split) update as a downgrade. `build.sh` now
+    builds split APKs with `-Pforce-version-code-ignoring-abi=true` so every
+    ABI shares the **same** versionCode as the universal APK, and the OTA check
+    normalises any legacy ABI offset away defensively.
+
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/Abdogouhmad/brewline/compare/1.3.0...1.3.1
+
 ## [1.3.0] - 2026-09-01
 
 ### Added (cross-platform OTA updates)
@@ -432,6 +473,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   icon, with proper spacing and a divider separating header from form.
 - PinKeypadField buttons tightened (68×48, 6px gaps) for better mobile fit.
 
-[Unreleased]: https://github.com/example/brewline/compare/1.2.0...HEAD
-[1.2.0]: https://github.com/example/brewline/compare/1.1.1...1.2.0
-[1.1.1]: https://github.com/example/brewline/compare/1.0.0...1.1.1
+[1.2.0]: https://github.com/Abdogouhmad/brewline/compare/1.1.1...1.2.0
+[1.1.1]: https://github.com/Abdogouhmad/brewline/compare/1.0.0...1.1.1
