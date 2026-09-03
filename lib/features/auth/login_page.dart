@@ -9,8 +9,8 @@ import 'package:brewline/widgets/shared/auth_screen_layout.dart';
 import 'providers/auth_provider.dart';
 import 'widgets/login_form.dart';
 
-/// Entry screen after onboarding: signs in the admin or a waiter, then routes
-/// to that role's dashboard.
+/// Entry screen after onboarding: PIN-only login that auto-routes to the
+/// matching dashboard (Admin or Waiter) based on which user the PIN belongs to.
 ///
 /// Reuses the shared [AuthScreenLayout] so it renders with the same branding
 /// as onboarding. Once [authProvider] holds a non-null session (a successful

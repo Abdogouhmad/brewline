@@ -3,8 +3,11 @@
 /// Use these instead of magic numbers so spacing/radius stay consistent.
 library;
 
-/// Number of digits in the admin PIN keypad.
+/// Number of digits in the PIN keypad (shared by admin and staff).
 const int kAdminPinLength = 4;
+
+/// Alias — prefer [kAdminPinLength] for new code; kept for backward compat.
+const int kStaffPinLength = kAdminPinLength;
 
 class Space {
   Space._();

@@ -1,189 +1,182 @@
-# OTA Update System — Implementation Plan (Brewline / Café POS)
+# Login — PIN-Only Identification (Brewline / Café POS)
 
 **Audience:** opencode coding agent
-**Stack:** Flutter, Riverpod — targets **Android** (phones/tablets), **Linux**, and **Windows**
-**Depends on:** `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (Settings page, responsive shell), `REFUND_SYSTEM_SPEC.md` §5 (the dialog/bottom-sheet responsive pattern reused here).
-**Status:** Ready for implementation. Revision of the earlier Android-only plan — now covers all three targets with one architecture. Read §0 for what changed and why.
+**Stack:** Flutter, Riverpod, `flutter_secure_storage`, `sqflite_common_ffi`, `dynamic_color`
+**Replaces:** the earlier username + PIN login spec. This is a full replacement, not a patch on top — read §1 first if the old version is already implemented.
+**Depends on:** `ONBOARDING_UI_SPEC.md` (`PinKeypadField`, `AppTextField`), `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (responsive shell pattern).
+**Status:** Ready for implementation.
 
 ---
 
-## 0. What Changed From the Android-Only Version
+## 0. What Changed and Why
 
-The goal, restated precisely: **notify the admin inside the app when an update exists, and let them download + install it without leaving the app**, on Android, Linux, and Windows alike. That "stays inside the app, looks like the rest of the app" requirement is the deciding factor for every choice below — it rules out purely OS-driven update flows (Windows' native MSIX/App Installer auto-update, Linux's AppImageUpdate) as the *primary* mechanism, because those hand the UX over to the operating system's own dialog, not yours. They're mentioned as native alternatives where relevant, but not chosen as the default, for that reason.
+Old approach: pick a role (Admin/Waiter), type a username, then enter a PIN.
+New approach: **enter a PIN, nothing else.** The system identifies who's logging in — and therefore which role/dashboard they land on — purely from the PIN. No role switch, no username field, no second identifying input at all.
 
-What stays the same as before: one JSON manifest, hosted free on GitHub, checked in the background without ever blocking startup, verified by checksum before anything is installed, and surfaced through the same responsive dialog/bottom-sheet shell already used for refunds.
-
-What's new: a **platform handler abstraction** (the update-mechanics equivalent of the `PrinterTransport` interface from the cashout/printing spec — same pattern, same reasoning: one shared interface, one implementation per platform, callers never touch platform specifics directly), and real desktop-specific install mechanics for Windows and Linux.
-
----
-
-## 1. ⚠️ Read First: Platform-Specific Update Risks
-
-- **Android (unchanged, still the sharpest risk):** every release APK must be signed with the same stable release keystore, forever. A mismatched signature forces Android to uninstall before "updating," which wipes the local SQLite database. See the full explanation and backup checklist already written for this — don't skip it.
-- **Windows:** an unsigned `.exe` will trigger a Windows SmartScreen warning ("Windows protected your PC") on first run of *each new version*, since it has no code-signing certificate behind it. This is a friction/trust issue, not a data-loss issue — nothing gets wiped, the admin just has to click "More info → Run anyway" once per release. A paid code-signing certificate removes this, but isn't required to ship; treat it as a future nice-to-have, not a blocker (flagged again in §5.3).
-- **Linux:** no signature-matching or store gatekeeping to worry about, but the replacement binary needs its executable bit restored after download/extraction (`chmod +x`), or the app simply won't launch after an update — an easy thing to silently get wrong.
-
-None of the desktop risks are as severe as the Android keystore one, but all three are exactly the kind of thing that's invisible until the first real release goes out — worth testing deliberately, not just trusting the happy path.
+This has one important consequence the request didn't spell out but the system has to handle correctly: **if the only thing you type is a PIN, every PIN in the system must be unique** — across the admin and every waiter, not just unique per role. §3 is entirely about getting that right, because the naive way to enforce it (a database `UNIQUE` constraint on the stored hash) doesn't actually work once PINs are hashed with per-user salts, which is what this project already does. Read that section before touching the database.
 
 ---
 
-## 2. Unified Update Manifest
+## 1. Migration Notes (if the old login screen is already built)
 
-One JSON file, one hosting location, with a section per platform — the app only ever reads the section matching the device it's running on:
+Remove:
+- `RoleSegmentedControl` widget and any `Role` enum branching in the login form — there's no role choice anymore, the system determines it.
+- The username `AppTextField` from the login form specifically (it stays in **onboarding** — the admin's display name is still useful elsewhere, see §5).
+- The "last used role" preference that used to default the segmented control — no longer meaningful, delete it rather than leaving dead code.
+- The "confirm PIN" step doesn't apply here — that was always onboarding-only, no change needed on that front.
 
-```json
-{
-  "android": {
-    "latestVersionCode": 14,
-    "latestVersionName": "1.4.0",
-    "minSupportedVersionCode": 10,
-    "mandatory": false,
-    "apkUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-v1.4.0.apk",
-    "sha256": "<sha256 of the apk>"
-  },
-  "windows": {
-    "latestVersion": "1.4.0",
-    "minSupportedVersion": "1.2.0",
-    "mandatory": false,
-    "archiveUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-windows-v1.4.0.zip",
-    "sha256": "<sha256 of the zip>"
-  },
-  "linux": {
-    "latestVersion": "1.4.0",
-    "minSupportedVersion": "1.2.0",
-    "mandatory": false,
-    "archiveUrl": "https://github.com/<you>/brewline/releases/download/v1.4.0/brewline-linux-v1.4.0.tar.gz",
-    "sha256": "<sha256 of the tar.gz>"
-  },
-  "releaseNotes": "- Added refund system\n- Fixed cashout report totals",
-  "publishedAt": "2026-09-01T00:00:00Z"
+Modify:
+- `authProvider.login(...)` — signature changes from `{role, username, pin}` to just `{pin}`. See §4.
+- `login_form_provider.dart` — drops `username` and `role` fields entirely, keeps only the in-progress PIN string.
+
+Add:
+- A shared PIN-uniqueness check (§3) that needs to be wired into **every** place a PIN gets set or changed — onboarding, waiter creation, waiter PIN reset, and any future admin PIN-change flow. Some of these screens may not have written specs yet in this project; wherever they exist or get built, this validator applies.
+
+---
+
+## 2. Functional Requirements
+
+- One input: a PIN, entered on the same `PinKeypadField` component already built for onboarding — no new keypad widget needed.
+- On completing all digits, the app looks up which user (if any) that PIN belongs to, and what role they have.
+- No match → generic error, same principle as before but simpler now that there's no username to also be wrong: just **"Incorrect PIN."**
+- Match → navigate straight to that user's dashboard (Admin or Waiter), exactly as before — the destination logic doesn't change, only how the app decides who's logging in.
+
+---
+
+## 3. PIN Uniqueness — the Part That Needs Care
+
+### 3.1 Why a `UNIQUE` database constraint doesn't work here
+PINs are (and should stay) hashed with a per-user random salt — that's already this project's convention for the admin PIN from onboarding, and it should extend to waiter PINs too. But a salted hash means **the same PIN produces a different stored hash for every user.** Two people who both pick `1234` end up with two completely different-looking hash strings in the database. A `UNIQUE` index on that column would never catch the collision — it would just let both rows exist, silently defeating the whole point of this requirement.
+
+### 3.2 What to do instead
+Enforce uniqueness in application code, by checking a *candidate* PIN against every existing user's hash at the moment it's being set — not by indexing the stored hash.
+
+```dart
+/// Returns true if [candidatePin] matches any existing active user's PIN.
+/// [excludingUserId] lets a user's own unchanged PIN pass during an edit
+/// (otherwise editing a waiter without changing their PIN would flag
+/// itself as a duplicate).
+Future<bool> isPinTaken(String candidatePin, {int? excludingUserId}) async {
+  final users = await userRepository.getAllActiveUsers(); // admin + waiters
+  for (final user in users) {
+    if (excludingUserId != null && user.id == excludingUserId) continue;
+    if (await PinHasher.verify(candidatePin, user.pinHash)) return true;
+  }
+  return false;
 }
 ```
 
-- `releaseNotes` and `publishedAt` are shared across platforms (same release, same notes) — no need to duplicate them per section.
-- Android keeps its integer `versionCode` comparison (matches `PackageInfo.buildNumber`). Windows/Linux compare semantic version strings (`pub_semver` package — already a transitive dependency of most Flutter tooling, safe to add directly) against `PackageInfo.version`.
-- Same `mandatory` / `minSupportedVersion(Code)` escape hatch on every platform, same meaning as before: forces the non-dismissible full-screen update-required flow.
+Call this **before** writing a new hash, everywhere a PIN is set:
+- Onboarding's PIN step (trivial the very first time — no other users exist yet — but wire it in now so the pattern is already correct if onboarding is ever re-run, e.g. a factory-reset flow).
+- Waiter creation.
+- Waiter PIN reset/edit.
+- Any future "change my PIN" flow in admin settings.
 
----
+If it returns `true`, surface a clear inline error at the point of entry ("That PIN is already in use — pick a different one") rather than a generic failure — this one specifically *should* say what's wrong, unlike login errors, because the person setting the PIN is authorized to know why it was rejected.
 
-## 3. Platform Handler Abstraction
+### 3.3 Login lookup uses the same scan
+Identifying who's logging in works the same way, in reverse — there's no username to look up a single row first, so the login check scans active users and verifies the entered PIN against each stored hash until one matches:
 
-```
-lib/core/updates/
-  update_manifest.dart          // model: parses the multi-platform JSON above
-  update_service.dart           // fetches manifest, picks the right platform section, compares versions
-  update_provider.dart          // Riverpod: idle / checking / available / downloading(progress) / readyToInstall / error
-  update_installer.dart         // abstract class UpdateInstaller { Future<void> download(...); Future<void> install(); }
-  android_update_installer.dart // implements UpdateInstaller via `ota_update` — unchanged from the Android-only plan
-  desktop_update_installer.dart // implements UpdateInstaller for Windows + Linux, see §4
-```
-
-`update_service.dart` picks the installer at runtime via `Platform.isAndroid` / `Platform.isWindows` / `Platform.isLinux` — every other file (the Settings UI, the action sheet) talks only to `UpdateInstaller`, never to `ota_update` or any desktop-specific package directly. This is the same shape as `ReceiptPrinterService` talking to `PrinterTransport` instead of USB/network specifics — keep that consistency deliberate, it's already this project's established pattern for exactly this kind of "one interface, swappable mechanics" problem.
-
----
-
-## 4. Desktop Install Mechanics (Windows + Linux)
-
-### 4.1 Recommended approach: a pure-Dart cross-platform updater package
-Rather than hand-rolling the download → verify → extract → relaunch sequence twice (once per OS), use a pure-Dart package built for exactly this — no native code, genuinely cross-platform including Linux (unlike Sparkle/WinSparkle-based options, which are Windows+macOS only and would leave Linux with nothing). Look for a current, actively maintained package along these lines before locking in a specific one — the desktop-auto-update space for Flutter is young and still shifting, so verify recent commits/issues rather than trusting a name from this spec alone. What to look for specifically:
-- Verified releases (checksum, ideally SHA-256, checked before anything is installed).
-- Support for GitHub as a plain hosting provider (no need for a dedicated update server).
-- A built-in or themeable UI hook, so it can sit inside the same action-sheet UI from §5 rather than showing its own unrelated banner.
-
-### 4.2 What it does conceptually (useful even if you end up hand-rolling it)
-1. Download the platform's archive (`archiveUrl`) to a temp location.
-2. Verify its SHA-256 against the manifest before touching anything currently installed.
-3. Extract it to a fresh, versioned directory alongside the current install (not on top of it — never overwrite a running app's own files while it's running).
-4. On the admin's confirmation to finish, relaunch: spawn the new version's executable, then exit the current process. The next launch reads from the new versioned directory.
-5. Optionally prune old versioned directories after a successful relaunch, keeping the last one as a rollback fallback rather than deleting immediately.
-
-### 4.3 Windows specifics
-- Ship a `.zip` of the Flutter Windows build output (the whole `Release/` bundle — exe + required DLLs + data folder), not a bare `.exe` — Flutter Windows apps aren't single-file.
-- SmartScreen warning on first run of a new version — see §1. If this becomes a real problem for the café's day-to-day comfort, a code-signing certificate is the fix, but that's a paid, recurring cost, which cuts against this project's zero-recurring-cost pattern — worth weighing deliberately rather than defaulting into it.
-- **Native alternative, not chosen as default:** MSIX packaging + an `.appinstaller` manifest gets you OS-level, Store-quality auto-update (via Windows' built-in App Installer, checking on a schedule you configure) with no custom download/relaunch code to maintain at all. The trade-off is real: it's the operating system's own update UI, not something themed to match this app, and it needs a code-signing certificate (self-signed is workable for a handful of café-owned devices, but each device has to be told to trust it once). Worth reconsidering if the in-app requirement ever relaxes — flag it back rather than assuming.
-
-### 4.4 Linux specifics
-- Ship a `.tar.gz` of the Flutter Linux build bundle (`bundle/` — executable + `lib/` + `data/`).
-- Restore the executable bit after extraction (`chmod +x`) — a silent, easy-to-miss failure mode, called out in §1.
-- If a desktop entry (`.desktop` file / app menu shortcut) exists, make sure it points at a stable launcher path (e.g. a `current` symlink that gets repointed at the new versioned directory on relaunch) rather than a version-specific path that breaks every release.
-- **Native alternative, not chosen as default:** distributing as an AppImage with AppImageUpdate/zsync gives efficient, Linux-native delta updates, but again hands the update UX to an external tool rather than this app's own UI, and adds a packaging format decision (AppImage vs. plain tarball) this plan doesn't otherwise need to make.
-
----
-
-## 5. Settings UI — Now Shared Across All Three Platforms
-
-The good news: very little new UI is actually needed. The responsive shell from the refund spec already splits on `ScreenSize`, not on platform — and a desktop window (Windows/Linux) naturally lands in the `expanded` breakpoint, an Android phone in `compact`/`medium`. So the exact same `update_action_sheet.dart` (dialog on expanded, bottom sheet on compact/medium) already does the right thing on every platform with no extra branching. Reuse it as-is rather than building a separate desktop update UI.
-
-```
-lib/features/settings/widgets/
-  update_section.dart          // unchanged in shape: current version, "Check for Updates", auto-check toggle, last-checked label
-  update_action_sheet.dart     // unchanged shell; content now driven by whichever UpdateInstaller is active
-  update_required_screen.dart  // unchanged: full-screen, non-dismissible, for mandatory updates on any platform
+```dart
+Future<User?> findUserByPin(String pin) async {
+  final users = await userRepository.getAllActiveUsers();
+  for (final user in users) {
+    if (await PinHasher.verify(pin, user.pinHash)) return user;
+  }
+  return null;
+}
 ```
 
-One addition worth making: show the platform name/icon next to the version number in `update_section.dart` ("Version 1.4.0 (Windows)" / "... (Android)") — small, but useful once the same admin might be looking at this screen across a phone and a front-counter desktop machine and wants to be sure which build they're looking at.
+Both `isPinTaken` and `findUserByPin` should live in one place (`lib/core/auth/pin_lookup.dart` or similar) and be the **only** code that ever scans+verifies PINs — don't duplicate this loop in the login provider and the waiter-form provider separately.
+
+### 3.4 Performance note — read before assuming this needs optimizing
+This scan runs the hash-verify function once per active user, which sounds worse than it is: for a café's actual staff size (a handful up to maybe 20), a handful to twenty argon2 verifies is comfortably sub-second — not something a real user will perceive as slow. If staff count ever grows into the dozens+, this cost scales linearly and is worth revisiting (e.g. a faster-but-still-salted hash tuned specifically for this lookup path), but don't pre-optimize for a scale this app isn't at. This is a deliberate simplicity-over-premature-optimization choice, not an oversight — a deterministic pepper-based lookup hash would make this an indexed O(1) lookup, but it adds a second hash column and a secret-management burden that isn't worth it at café scale, and doesn't meaningfully change the real security picture anyway (see §3.5).
+
+### 3.5 Honest note on what a 6-digit PIN actually protects against
+Worth being upfront about: a 6-digit PIN has exactly 1,000,000 possible values — trivially brute-forceable offline by anything faster than "a human tapping buttons," regardless of how strong the hashing algorithm is. The realistic threat model here isn't "attacker with the database file," it's "someone physically at the till trying PINs by hand" — which is what §6's optional throttle is actually defending against, not cryptographic strength. Keep the salted hashing (it's still correct practice and cheap to keep), just don't treat it as the main defense.
 
 ---
 
-## 6. Version Comparison Logic
+## 4. `authProvider` Changes
 
-- **Android:** integer `versionCode` comparison, unchanged from the original plan — simplest and matches Android convention.
-- **Windows/Linux:** semantic version string comparison via `pub_semver`'s `Version.parse(...)` and its built-in comparison operators — don't hand-roll string/number parsing for this, it's exactly what that package is for and it's already a common transitive dependency in the Flutter ecosystem.
-- Both paths funnel into the same `UpdateCheckResult` enum (`upToDate` / `updateAvailable` / `updateMandatory` / `checkFailed`) from the original plan — the comparison mechanics differ, the result shape and everything downstream of it doesn't.
+```dart
+Future<void> login({required String pin}) async {
+  final user = await pinLookup.findUserByPin(pin);
+  if (user == null) {
+    throw AuthException('Incorrect PIN'); // generic, same principle as before
+  }
+  state = AuthState(role: user.role, userId: user.id, username: user.displayName);
+}
+```
+
+Everything downstream — session state shape, `logout()`, no-persistence-across-restart behavior, the "last used role" removal aside — is unchanged from the original login spec.
 
 ---
 
-## 7. File Structure (full picture, replacing the Android-only version)
+## 5. What Happens to "Username"
+
+The username field is **not removed from the data model** — it's removed only from the *login* form. Keep it as each user's display name:
+- Shown in receipts ("Served by: Maria"), the Sales Log and Cashout Logs "Waiter" column, and anywhere else a human-readable name matters — all of that already depends on it existing.
+- Still collected in onboarding (admin's own display name) and in waiter creation (wherever that screen lives).
+- Cosmetic-only suggestion, not required: consider relabeling it "Name" instead of "Username" in UI copy wherever it's shown, since "username" now implies a login role it no longer has — but don't rename the underlying database column just for this, that's a migration for no functional gain.
+
+---
+
+## 6. Optional Hardening: Attempt Throttling
+
+Worth adding given §3.5 — not required, but cheap and meaningfully raises the bar against someone standing at the till trying PINs by hand:
+
+- Track consecutive failed attempts **in memory** (no database table needed — this resets naturally on app restart, which is fine for this threat model).
+- After 5 consecutive failures, disable the keypad for a short cooldown (e.g. 15–30 seconds) with a visible countdown, rather than silently rejecting input.
+- Reset the counter on any successful login.
+- This is a UX/deterrence measure, not a cryptographic one — keep the existing generic "Incorrect PIN" message throughout, don't let the lockout messaging reveal anything about which PINs are close to correct.
+
+---
+
+## 7. Files Changed
 
 ```
 lib/
   core/
-    updates/
-      update_manifest.dart
-      update_service.dart
-      update_provider.dart
-      update_installer.dart
-      android_update_installer.dart
-      desktop_update_installer.dart
+    auth/
+      pin_lookup.dart              // NEW — isPinTaken() + findUserByPin(), the only PIN-scan logic in the app
+    database/
+      repositories/
+        waiter_repository.dart     // MODIFIED — waiter create/edit now calls isPinTaken() before writing a hash
   features/
-    settings/
+    auth/
+      login_page.dart              // MODIFIED — no role toggle, single PinKeypadField, auto-submits on completion
+      providers/
+        auth_provider.dart         // MODIFIED — login({pin}) instead of login({role, username, pin})
+        login_form_provider.dart   // MODIFIED — drops username/role state
       widgets/
-        update_section.dart
-        update_action_sheet.dart
-        update_required_screen.dart
+        login_form.dart            // MODIFIED — role toggle and username field removed
+        role_segmented_control.dart  // DELETE — no longer used anywhere
+  features/
+    onboarding/
+      providers/
+        onboarding_provider.dart   // MODIFIED — PIN step now also calls isPinTaken() (see §3.2)
 ```
 
 ---
 
 ## 8. Documentation Requirements
 
-- `update_installer.dart` gets a file-level comment explaining the platform-handler pattern and pointing back at `PrinterTransport` as the precedent for this project's "one interface, per-platform implementation" convention — so it reads as consistent architecture, not a one-off.
-- `desktop_update_installer.dart` documents the "extract to a fresh versioned directory, never overwrite in place" rule from §4.2 step 3, and why (a partially-overwritten running app is a much worse failure mode than a failed download).
-- The repo README's Release Process section (already planned in the Android-only version) now documents building and hashing **three** artifacts per release — APK, Windows zip, Linux tar.gz — not just one, plus the Windows SmartScreen and Linux `chmod +x` notes from §1 so they don't get rediscovered the hard way on release day.
+- `pin_lookup.dart` gets a file-level comment explaining §3.1–§3.2 in full — specifically *why* there's no database `UNIQUE` constraint doing this work, so a future maintainer doesn't "helpfully" add one and assume it's covering a case it can't actually catch.
+- `auth_provider.dart`'s doc comment updates to reflect the simplified single-parameter `login()` — remove any stale reference to role-based lookup.
+- Any screen that sets or changes a PIN gets a one-line comment noting it calls `isPinTaken()` before persisting, so the requirement doesn't silently get skipped in a future waiter-management screen someone builds without re-reading this spec.
 
 ---
 
 ## 9. Acceptance Checklist
 
-**Shared**
-- [ ] One manifest URL serves all three platform sections; each platform reads only its own section
-- [ ] A failed/offline check is silent on every platform — never blocks startup, never surfaces as an error for a routine background check
-- [ ] Mandatory-update screen works identically (non-dismissible, blocks app use) regardless of platform
-- [ ] The same `update_action_sheet.dart` renders correctly as a dialog on desktop and a bottom sheet on Android, with no platform-specific branching in that file
-
-**Android**
-- [ ] Release keystore requirement from the original plan still holds — re-verify it's actually wired into the build, not just documented
-- [ ] APK download, checksum verification, and install handoff work as originally spec'd
-
-**Windows**
-- [ ] Downloaded zip is verified by checksum before extraction
-- [ ] New version extracts to its own versioned folder, app relaunches into it cleanly, old version is not deleted until the new one has launched successfully at least once
-- [ ] First run of a newly installed version is tested against a real (non-dev-machine) Windows install to confirm the SmartScreen prompt is expected/acceptable, not a silent block
-
-**Linux**
-- [ ] Downloaded tar.gz is verified by checksum before extraction
-- [ ] Executable bit is confirmed present after extraction, on a clean test rather than a machine where it happened to already be set
-- [ ] Any desktop entry/launcher shortcut still resolves correctly after an update (i.e. it points at a stable path, not a version-specific one that just broke)
-
-**Docs**
-- [ ] README Release Process section covers all three artifacts, not just the Android one
+- [ ] Login screen shows only a PIN keypad — no role toggle, no username field
+- [ ] Entering a full PIN auto-submits (no separate "Log in" button needed) and routes to the correct dashboard based on the matched user's role
+- [ ] Wrong/unrecognized PIN shows a generic "Incorrect PIN" message and shakes the dot row, same animation as before
+- [ ] Onboarding's admin PIN step calls `isPinTaken()` before writing the hash
+- [ ] Waiter creation/edit calls `isPinTaken()` before writing a hash, and correctly excludes the waiter's own current PIN when editing without changing it
+- [ ] Attempting to set a duplicate PIN anywhere shows a specific "That PIN is already in use" error, not a generic failure
+- [ ] No `UNIQUE` constraint was added on any PIN-hash database column — confirm the enforcement is application-level per §3.2
+- [ ] Display names (formerly "username") still show correctly on receipts, Sales Log, and Cashout Logs — confirming removal from the login form didn't remove the underlying data
+- [ ] `RoleSegmentedControl` and the "last used role" preference are fully deleted, not just unused
+- [ ] (If implemented) attempt throttling locks out input after 5 consecutive failures and recovers automatically after the cooldown

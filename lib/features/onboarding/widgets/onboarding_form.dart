@@ -92,6 +92,14 @@ class _OnboardingFormState extends ConsumerState<OnboardingForm> {
               textAlign: TextAlign.center,
             ),
           ],
+          if (state.pinTakenError != null) ...[
+            SizedBox(height: Space.sm),
+            Text(
+              state.pinTakenError!,
+              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
           SizedBox(height: Space.xl),
 
           // --- Submit ---

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:brewline/core/auth/pin_lookup.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
@@ -23,13 +24,12 @@ Future<void> showStaffFormSheet(BuildContext context, {StaffMember? member}) {
   );
 }
 
-/// PIN length used for staff accounts (same standard as the admin PIN).
-const int kStaffPinLength = 4;
-
 /// Form backing the bottom sheet: display name, unique username, PIN
 /// (create: required; edit: blank keeps the stored hash). Saves through
 /// [StaffRepository] and bumps [staffMutationProvider] so the roster + shift
 /// card refresh everywhere.
+///
+/// PIN uniqueness is enforced via `isPinTaken` before writing (§3.2).
 class _StaffFormSheet extends ConsumerStatefulWidget {
   final bool isEditing;
   final StaffMember? member;
@@ -47,6 +47,7 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
   late final TextEditingController _pin;
   bool _obscurePin = true;
   bool _saving = false;
+  String? _pinTakenError;
 
   @override
   void initState() {
@@ -68,17 +69,36 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _pinTakenError = null;
+    });
+
     final repo = await ref.read(staffRepositoryProvider.future);
     final member = widget.member;
+    final newPin = _pin.text;
 
-    // Existing member keeps its id and createdAt; a new one is minted here.
+    // Enforce PIN uniqueness before writing (§3.2).
+    if (newPin.isNotEmpty) {
+      final taken = await ref.read(isPinTakenProvider)(
+        newPin,
+        excludingUserId: member?.id,
+      );
+      if (taken && mounted) {
+        setState(() {
+          _saving = false;
+          _pinTakenError = 'That PIN is already in use — pick a different one';
+        });
+        return;
+      }
+    }
+
     final updated = StaffMember(
       id: member?.id ?? 'staff-${DateTime.now().millisecondsSinceEpoch}',
       username: _username.text.trim(),
-      pinHash: _pin.text.isEmpty
-          ? (member?.pinHash ?? hashPin(_pin.text))
-          : hashPin(_pin.text),
+      pinHash: newPin.isEmpty
+          ? (member?.pinHash ?? hashPin(newPin))
+          : hashPin(newPin),
       name: _name.text.trim(),
       active: member?.active ?? true,
       createdAt: member?.createdAt ?? DateTime.now(),
@@ -163,7 +183,7 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
               controller: _pin,
               keyboardType: TextInputType.number,
               obscureText: _obscurePin,
-              maxLength: kStaffPinLength,
+              maxLength: kAdminPinLength,
               decoration: InputDecoration(
                 labelText: widget.isEditing
                     ? 'New PIN (blank keeps current)'
@@ -182,12 +202,19 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
               validator: (value) {
                 final text = value ?? '';
                 if (widget.isEditing && text.isEmpty) return null;
-                if (text.length != kStaffPinLength) {
-                  return 'Use exactly $kStaffPinLength digits';
+                if (text.length != kAdminPinLength) {
+                  return 'Use exactly $kAdminPinLength digits';
                 }
                 return null;
               },
             ),
+            if (_pinTakenError != null) ...[
+              SizedBox(height: Space.sm),
+              Text(
+                _pinTakenError!,
+                style: TextStyle(color: colorScheme.error, fontSize: 12),
+              ),
+            ],
             SizedBox(height: Space.sm),
             if (widget.isEditing)
               Text(

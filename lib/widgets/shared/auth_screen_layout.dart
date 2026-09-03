@@ -210,7 +210,7 @@ class _ExpandedBody extends ConsumerWidget {
             child: SingleChildScrollView(
               padding: EdgeInsets.all(Space.xl),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
+                constraints: const BoxConstraints(maxWidth: 480),
                 child: form,
               ),
             ),

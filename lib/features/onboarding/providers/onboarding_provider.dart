@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:brewline/core/auth/pin_lookup.dart';
 import 'package:brewline/core/security/password_hash.dart';
 import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
@@ -24,6 +25,9 @@ final onboardingCompleteProvider = Provider<bool>((ref) {
 
 /// Notifier that drives the onboarding form: field updates, inline
 /// validation, and submit-to-storage.
+///
+/// The PIN step calls `isPinTaken` before writing the hash (§3.2 of the
+/// PIN-only login spec) to enforce global uniqueness from the start.
 class OnboardingNotifier extends Notifier<OnboardingState> {
   @override
   OnboardingState build() => const OnboardingState();
@@ -42,6 +46,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       pin: value,
       clearPinError: true,
       clearSubmitError: true,
+      clearPinTakenError: true,
     );
     state = state.validate();
   }
@@ -60,9 +65,17 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     state = state.copyWith(isSubmitting: true, clearSubmitError: true);
 
     try {
+      // Enforce global PIN uniqueness before persisting (§3.2).
+      final taken = await ref.read(isPinTakenProvider)(state.pin);
+      if (taken) {
+        state = state.copyWith(
+          isSubmitting: false,
+          pinTakenError: 'That PIN is already in use — pick a different one',
+        );
+        return;
+      }
+
       final prefs = ref.read(sharedPreferencesProvider);
-      // Persist the real admin credential so the login screen can validate
-      // against the account created here (needs to survive a restart).
       await prefs.setString(kAdminUsernameKey, state.username.trim());
       await prefs.setString(kAdminPinHashKey, hashPin(state.pin));
       await prefs.setBool(kOnboardingCompleteKey, true);

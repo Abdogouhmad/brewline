@@ -8,6 +8,7 @@ class OnboardingState {
   final String? usernameError;
   final String? pinError;
   final String? confirmError;
+  final String? pinTakenError;
   final bool isSubmitting;
   final String? submitError;
 
@@ -18,12 +19,11 @@ class OnboardingState {
     this.usernameError,
     this.pinError,
     this.confirmError,
+    this.pinTakenError,
     this.isSubmitting = false,
     this.submitError,
   });
 
-  /// Returns a copy with the given fields replaced. Pass [null] explicitly
-  /// to clear an error field (use [clearError] to clear all errors at once).
   OnboardingState copyWith({
     String? username,
     String? pin,
@@ -34,6 +34,8 @@ class OnboardingState {
     bool clearPinError = false,
     String? confirmError,
     bool clearConfirmError = false,
+    String? pinTakenError,
+    bool clearPinTakenError = false,
     bool? isSubmitting,
     String? submitError,
     bool clearSubmitError = false,
@@ -48,6 +50,9 @@ class OnboardingState {
     confirmError: clearConfirmError
         ? null
         : (confirmError ?? this.confirmError),
+    pinTakenError: clearPinTakenError
+        ? null
+        : (pinTakenError ?? this.pinTakenError),
     isSubmitting: isSubmitting ?? this.isSubmitting,
     submitError: clearSubmitError ? null : (submitError ?? this.submitError),
   );
