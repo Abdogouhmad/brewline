@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-09-03
+
+### Added
+
+- **Pre-release update opt-in** — a new "Pre-release updates" switch in the
+  Update settings card lets users opt in to checking the GitHub Releases API
+  for newer pre-release (beta) versions in addition to the stable manifest.
+  Defaults to off; toggling it immediately re-runs the update check.
+- **OTA update detection via GitHub Releases API** (`core/updates/update_service.dart`)
+  — when pre-release checking is enabled, the service queries
+  `api.github.com/.../releases/latest` and surfaces a newer pre-release as an
+  available update even if the static `update.json` manifest is stale. The
+  lookup is rate-limited to once per 6 hours (well within the unauthenticated
+  GitHub API limit, 60 req/h).
+
 ## [1.4.0] - 2026-09-03
 
 ### Changed (PIN-only login)
@@ -69,7 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Username-based lookup in `authProvider._authenticate()` — replaced by the
   shared PIN scan in `core/auth/pin_lookup.dart`.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.4.1...HEAD
+[1.4.1]: https://github.com/Abdogouhmad/brewline/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/Abdogouhmad/brewline/compare/1.3.1...1.4.0
 
 ## [1.3.1] - 2026-09-02

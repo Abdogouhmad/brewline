@@ -245,16 +245,22 @@ class UpdateService {
   }
 
   /// Performs a full update check: fetch manifest, choose the platform
-  /// installer, and compare versions. Also checks GitHub Releases for
-  /// newer pre-release versions that may not be in the manifest yet.
+  /// installer, and compare versions. When [checkPreReleases] is `true`,
+  /// also queries GitHub Releases for newer pre-release versions that may
+  /// not be in the manifest yet.
   ///
   /// Returns the manifest on success (for consumers that need the release
   /// notes / URLs) or `null` when the check failed.
-  Future<UpdateCheckOutcome> check({required AppInfoData currentInfo}) async {
+  Future<UpdateCheckOutcome> check({
+    required AppInfoData currentInfo,
+    bool checkPreReleases = false,
+  }) async {
     var manifest = await fetchManifest();
-    final githubManifest = await _fetchLatestGitHubRelease(manifest);
-    if (githubManifest != null) {
-      manifest = githubManifest;
+    if (checkPreReleases) {
+      final githubManifest = await _fetchLatestGitHubRelease(manifest);
+      if (githubManifest != null) {
+        manifest = githubManifest;
+      }
     }
 
     if (manifest == null) {

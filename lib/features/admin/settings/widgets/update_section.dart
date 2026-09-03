@@ -32,6 +32,7 @@ class UpdateSection extends ConsumerWidget {
     final appInfo = ref.watch(appInfoProvider);
     final updater = ref.watch(updateProvider);
     final autoCheck = ref.watch(autoCheckUpdatesProvider);
+    final usePreReleases = ref.watch(usePreReleasesProvider);
     final lastChecked = ref.watch(lastUpdateCheckProvider);
 
     final versionLabel = appInfo.maybeWhen(
@@ -97,6 +98,20 @@ class UpdateSection extends ConsumerWidget {
             value: autoCheck,
             onChanged: (value) =>
                 ref.read(autoCheckUpdatesProvider.notifier).setEnabled(value),
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.science_outlined,
+          title: 'Pre-release updates',
+          subtitle: 'Opt in to check for pre-release (beta) versions',
+          trailing: Switch(
+            value: usePreReleases,
+            onChanged: (value) async {
+              await ref
+                  .read(usePreReleasesProvider.notifier)
+                  .setEnabled(value);
+              ref.read(updateProvider.notifier).checkForUpdates();
+            },
           ),
         ),
       ],
