@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:brewline/core/auth/pin_lookup.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/models/user_role.dart';
@@ -24,18 +25,13 @@ import 'package:brewline/shared/ui/ui_text.dart';
 ///   SharedPreferences and replaces it with the new hash.
 /// * **Waiter** → verifies against their `staff` row and writes the new hash.
 ///
-/// ```dart
-/// await showChangePasswordDialog(context);
-/// ```
+/// PIN uniqueness is enforced via `isPinTaken` before writing (§3.2).
 Future<void> showChangePasswordDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => const _ChangePasswordDialog(),
   );
 }
-
-/// PIN length shared by admin and staff accounts.
-const int _pinLength = 4;
 
 class _ChangePasswordDialog extends ConsumerStatefulWidget {
   const _ChangePasswordDialog();
@@ -52,6 +48,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
   final _confirmController = TextEditingController();
   bool _obscure = true;
   bool _saving = false;
+  String? _pinTakenError;
 
   @override
   void dispose() {
@@ -63,7 +60,10 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _pinTakenError = null;
+    });
 
     final session = ref.read(authProvider).value;
     if (session == null) {
@@ -79,8 +79,25 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     if (!mounted) return;
 
     if (error != null) {
-      setState(() => _saving = false);
+      setState(() {
+        _saving = false;
+      });
       showUiSnackBar(context, error, type: UiSnackBarType.error);
+      return;
+    }
+
+    // Enforce PIN uniqueness before persisting (§3.2).
+    // Exclude the current user so their own unchanged PIN doesn't flag itself.
+    final excludingId = session.role == Role.admin ? 'admin' : session.userId;
+    final taken = await ref.read(isPinTakenProvider)(
+      next,
+      excludingUserId: excludingId,
+    );
+    if (taken && mounted) {
+      setState(() {
+        _saving = false;
+        _pinTakenError = 'That PIN is already in use — pick a different one';
+      });
       return;
     }
 
@@ -161,7 +178,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
               controller: _currentController,
               obscureText: _obscure,
               keyboardType: TextInputType.number,
-              maxLength: _pinLength,
+              maxLength: kAdminPinLength,
               decoration: const InputDecoration(
                 labelText: 'Current PIN',
                 counterText: '',
@@ -173,7 +190,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
               controller: _newController,
               obscureText: _obscure,
               keyboardType: TextInputType.number,
-              maxLength: _pinLength,
+              maxLength: kAdminPinLength,
               decoration: const InputDecoration(
                 labelText: 'New PIN',
                 counterText: '',
@@ -181,12 +198,19 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
               ),
               validator: _requiredPin,
             ),
+            if (_pinTakenError != null) ...[
+              SizedBox(height: Space.sm),
+              Text(
+                _pinTakenError!,
+                style: TextStyle(color: colorScheme.error, fontSize: 12),
+              ),
+            ],
             SizedBox(height: Space.lg),
             TextFormField(
               controller: _confirmController,
               obscureText: _obscure,
               keyboardType: TextInputType.number,
-              maxLength: _pinLength,
+              maxLength: kAdminPinLength,
               decoration: const InputDecoration(
                 labelText: 'Confirm new PIN',
                 counterText: '',
@@ -231,7 +255,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
 
   String? _requiredPin(String? value) {
     final text = value ?? '';
-    if (text.length != _pinLength) return 'Use exactly $_pinLength digits';
+    if (text.length != kAdminPinLength) return 'Use exactly $kAdminPinLength digits';
     return null;
   }
 }

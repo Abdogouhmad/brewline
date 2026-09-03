@@ -1,16 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 
 import 'auth_provider.dart';
 
+/// Maximum consecutive failed PIN attempts before the keypad is temporarily
+/// disabled. Resent in memory only — resets on app restart, which is the
+/// intended behaviour for a physical-device deterrent (§6 of the spec).
+const int _maxAttempts = 5;
+
+/// Cooldown duration after hitting the attempt limit.
+const Duration _cooldownDuration = Duration(seconds: 30);
+
 /// Local, screen-only state for the login form.
 ///
 /// Kept separate from the session ([authProvider]) so in-progress input —
-/// typed [username] and [pin] — never races with or clobbers the persisted
-/// session, mirroring the separation used in the onboarding form.
+/// typed PIN — never races with or clobbers the persisted session.
 class LoginFormState {
-  final String username;
   final String pin;
   final String? submitError;
   final bool isSubmitting;
@@ -22,58 +30,75 @@ class LoginFormState {
   /// losing the keypad instance (which would swallow the shake animation).
   final int resetSignal;
 
+  /// Consecutive failed attempts. When [_maxAttempts] is reached the keypad
+  /// is disabled for [_cooldownDuration].
+  final int failedAttempts;
+
+  /// Remaining cooldown seconds. Positive → keypad disabled.
+  final int cooldownRemaining;
+
   const LoginFormState({
-    this.username = '',
     this.pin = '',
     this.submitError,
     this.isSubmitting = false,
     this.hasError = false,
     this.resetSignal = 0,
+    this.failedAttempts = 0,
+    this.cooldownRemaining = 0,
   });
 
-  /// Submit is only allowed once a username and a full-length PIN are present.
-  /// The role is auto-detected from the username, so no role is tracked here.
+  /// Submit is allowed once a full-length PIN is present and we're not
+  /// rate-limited or already submitting.
   bool get canSubmit =>
-      username.trim().isNotEmpty && pin.length >= kAdminPinLength;
+      pin.length >= kAdminPinLength && !isThrottled && !isSubmitting;
+
+  /// Whether the keypad is currently locked out after too many failures.
+  bool get isThrottled => cooldownRemaining > 0;
 
   LoginFormState copyWith({
-    String? username,
     String? pin,
     String? submitError,
     bool clearSubmitError = false,
     bool? isSubmitting,
     bool? hasError,
     int? resetSignal,
+    int? failedAttempts,
+    int? cooldownRemaining,
   }) => LoginFormState(
-    username: username ?? this.username,
     pin: pin ?? this.pin,
     submitError: clearSubmitError ? null : (submitError ?? this.submitError),
     isSubmitting: isSubmitting ?? this.isSubmitting,
     hasError: hasError ?? this.hasError,
     resetSignal: resetSignal ?? this.resetSignal,
+    failedAttempts: failedAttempts ?? this.failedAttempts,
+    cooldownRemaining: cooldownRemaining ?? this.cooldownRemaining,
   );
 }
 
 class LoginFormNotifier extends Notifier<LoginFormState> {
-  @override
-  LoginFormState build() => const LoginFormState();
+  Timer? _cooldownTimer;
 
-  void setUsername(String value) {
-    state = state.copyWith(
-      username: value,
-      clearSubmitError: true,
-      // Bring the keypad out of the error state so the shake can re-trigger
-      // and the dots return to their normal color on the next attempt.
-      hasError: false,
-    );
+  @override
+  LoginFormState build() {
+    // Cancel any in-flight cooldown timer when this provider is destroyed.
+    ref.onDispose(() => _cooldownTimer?.cancel());
+    return const LoginFormState();
   }
 
   void setPin(String value) {
     state = state.copyWith(pin: value, clearSubmitError: true, hasError: false);
   }
 
+  /// Called by the UI when [PinKeypadField] completes all digits.
+  /// Auto-submits if throttling is not active.
+  void onPinCompleted(String value) {
+    if (state.canSubmit) {
+      submit();
+    }
+  }
+
   Future<void> submit() async {
-    if (!state.canSubmit || state.isSubmitting) return;
+    if (!state.canSubmit) return;
     state = state.copyWith(
       isSubmitting: true,
       clearSubmitError: true,
@@ -81,33 +106,54 @@ class LoginFormNotifier extends Notifier<LoginFormState> {
     );
 
     try {
-      await ref
-          .read(authProvider.notifier)
-          .login(username: state.username, pin: state.pin);
-      // On success the page navigates away and this autoDispose provider is
-      // disposed during the await above, so the ref may no longer be mounted.
+      await ref.read(authProvider.notifier).login(pin: state.pin);
       if (!ref.mounted) return;
       state = state.copyWith(isSubmitting: false);
     } catch (_) {
-      // Failure is surfaced generically (see authProvider); clear the PIN and
-      // shake the keypad, but keep the username so a typo is easy to fix. The
-      // pin is reset here (not via onChanged) so the error text survives.
       if (!ref.mounted) return;
+      final newFailed = state.failedAttempts + 1;
+      final shouldThrottle = newFailed >= _maxAttempts;
+
       state = state.copyWith(
         isSubmitting: false,
         pin: '',
-        submitError: 'Incorrect username or PIN',
+        submitError: 'Incorrect PIN',
         hasError: true,
         resetSignal: state.resetSignal + 1,
+        failedAttempts: newFailed,
       );
+
+      if (shouldThrottle) {
+        _startCooldown();
+      }
     }
+  }
+
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    state = state.copyWith(cooldownRemaining: _cooldownDuration.inSeconds);
+
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!ref.mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = state.cooldownRemaining - 1;
+      if (remaining <= 0) {
+        timer.cancel();
+        state = state.copyWith(
+          cooldownRemaining: 0,
+          failedAttempts: 0,
+          clearSubmitError: true,
+        );
+      } else {
+        state = state.copyWith(cooldownRemaining: remaining);
+      }
+    });
   }
 }
 
-/// Screen-local input + validation state for the login form.
-///
-/// Auto-disposed so it resets whenever `LoginPage` leaves the tree (e.g. after
-/// logout), so the next sign-in starts from a clean username/PIN.
+/// Screen-local input + validation state for the PIN-only login form.
 final loginFormProvider =
     NotifierProvider.autoDispose<LoginFormNotifier, LoginFormState>(
       LoginFormNotifier.new,

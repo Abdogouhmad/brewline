@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-03
+
+### Changed (PIN-only login)
+
+- **Login is now PIN-only** — the username field and role selector have been
+  removed from the login screen. Entering a full 4-digit PIN auto-submits and
+  routes to the correct dashboard (Admin or Waiter) based on which user the PIN
+  belongs to. No role choice, no second identifying input.
+- **`authProvider.login()`** signature simplified from `{username, pin}` to
+  just `{pin}`. The role is auto-detected by scanning all active users'
+  stored PIN hashes.
+- **`LoginFormState`** drops the `username` and `role` fields; only the in-
+  progress PIN string is tracked. Submission is triggered automatically on
+  PIN completion (manual "Log in" button kept as a fallback).
+
+### Added
+
+- **Central PIN lookup** (`core/auth/pin_lookup.dart`) — the single source of
+  truth for PIN scanning. Exposes `findUserByPin()` (login) and `isPinTaken()`
+  (uniqueness enforcement). Both scan all active users (admin in SharedPreferences
+  + staff in SQLite) and verify the candidate PIN against each stored hash.
+  Comprehensive doc comments explain why a database `UNIQUE` constraint cannot
+  enforce uniqueness when per-user salts are used (§3.1–§3.2 of the spec).
+- **Global PIN uniqueness enforcement** — every place a PIN is set or changed
+  (onboarding, waiter creation/edit, password change) now calls `isPinTaken()`
+  before writing the hash. Duplicate PINs are rejected with a clear
+  "That PIN is already in use" error.
+- **Attempt throttling** (optional hardening, §6) — after 5 consecutive failed
+  PIN attempts the keypad is disabled for 30 seconds with a visible countdown.
+  Throttle state is in-memory only (resets on app restart), matching the
+  physical-device threat model.
+- **`PinKeypadField.enabled`** parameter — dims and disables keypad buttons when
+  `false`, used for the throttling cooldown.
+- **Responsive keypad sizing** — the PIN keypad now scales with the device.
+  Since login no longer has a username field, there's room for larger keys on
+  bigger screens: buttons (68×48 → 84×60 tablet → 96×68 desktop), dots, gaps,
+  and digit/backspace icons all grow from ≥ 600dp and ≥ 905dp. The "Log in"
+  button height/font and the desktop auth form column width scale likewise, so
+  the desktop login reads comfortably instead of staying phone-sized.
+- **Centralized `kPinLength` constant** — `kStaffPinLength` alias added to
+  `app_sizes.dart` alongside `kAdminPinLength`; local duplicates in
+  `staff_form_sheet.dart` and `change_password_dialog.dart` removed.
+
+### Changed
+
+- Onboarding's PIN step now calls `isPinTaken()` before writing the admin hash,
+  so the pattern is wired in from the start (even though the very first run has
+  no other users — protects against re-run / factory-reset scenarios).
+- Staff creation/edit form calls `isPinTaken()` before persisting, correctly
+  excluding the waiter's own current PIN when editing without changing it.
+- Change-password dialog calls `isPinTaken()` before persisting, excluding the
+  current user's own PIN.
+- Login test suite (`login_flow_test.dart`) rewritten for PIN-only flow:
+  auto-submit on completion, "Incorrect PIN" error message, no username entry.
+
+### Removed
+
+- Username field from the login form (kept in onboarding and waiter creation
+  as a display name — the underlying `username` data model column is unchanged).
+- Username-based lookup in `authProvider._authenticate()` — replaced by the
+  shared PIN scan in `core/auth/pin_lookup.dart`.
+
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/Abdogouhmad/brewline/compare/1.3.1...1.4.0
+
 ## [1.3.1] - 2026-09-02
 
 ### Fixed
@@ -45,7 +110,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ABI shares the **same** versionCode as the universal APK, and the OTA check
     normalises any legacy ABI offset away defensively.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.3.1...HEAD
 [1.3.1]: https://github.com/Abdogouhmad/brewline/compare/1.3.0...1.3.1
 
 ## [1.3.0] - 2026-09-01

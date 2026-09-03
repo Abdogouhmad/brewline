@@ -69,49 +69,37 @@ Future<void> _enterPin(WidgetTester tester, String pin) async {
   }
 }
 
-/// Scrolls a widget into view and taps it (forms can overflow the short
-/// default test viewport). The tap and the following frames run inside
-/// `runAsync` so real SQLite futures (the login lookup, and the journal/catalog
-/// queries the next screen starts on its first frame) can complete under the
-/// real event loop; frames then settle outside where `pumpAndSettle` drives
-/// the UI reliably.
-Future<void> _scrollToAndTap(WidgetTester tester, Finder finder) async {
-  await tester.ensureVisible(finder);
-  await tester.pumpAndSettle();
+/// Drains real-async SQLite replies so the routed home settles deterministically.
+///
+/// The login lookup and the journal/catalog queries the next screen starts on
+/// its first frame run on the FFI isolate, whose replies only arrive on the
+/// real event loop — they don't complete under FakeAsync. Two delayed+pump
+/// cycles inside `runAsync` give those replies time to land.
+Future<void> _drainAsync(WidgetTester tester, [int ms = 400]) async {
   await tester.runAsync(() async {
-    await tester.tap(finder);
+    await Future<void>.delayed(Duration(milliseconds: ms));
     await tester.pump();
-    // Let the login resolve and the routed screen start its data providers.
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    await tester.pump();
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    await Future<void>.delayed(Duration(milliseconds: ms));
     await tester.pump();
   });
-  // Second drain: the routed home launches real SQLite queries while the first
-  // block is still running under FakeAsync. Their FFI isolate replies only
-  // arrive on the *real* event loop, so give that loop one more un-pumped
-  // window; otherwise their loading spinners tick forever and the settle below
-  // times out.
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 900)),
-  );
-  await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('renders username field, PIN keypad and login button', (
+  testWidgets('renders PIN keypad and login button, no username field', (
     tester,
   ) async {
     await _seedCredentials(tester);
     await _pumpLogin(tester);
 
     expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Username'), findsOneWidget);
 
-    // No role toggle — the account type is derived from the username.
+    // No username field — PIN-only login.
+    expect(find.byType(TextFormField), findsNothing);
+
+    // No role toggle.
     expect(find.byType(SegmentedButton), findsNothing);
 
-    // Button starts disabled until a username + full PIN are entered.
+    // Button starts disabled until a full PIN is entered.
     final button = tester.widget<FilledButton>(
       find.widgetWithText(FilledButton, 'Log in'),
     );
@@ -119,61 +107,57 @@ void main() {
   });
 
   testWidgets(
-    'admin login succeeds with the real credential and routes to admin',
+    'admin login succeeds with the PIN and routes to admin',
     (tester) async {
       await _seedCredentials(tester);
       await _pumpLogin(tester);
 
-      await tester.enterText(find.byType(TextFormField), 'admin');
-      await tester.pump();
       await _enterPin(tester, '1234');
       await tester.pump();
 
-      await _scrollToAndTap(tester, find.text('Log in'));
+      // Auto-submit fires on completion; drain async so the routed screen
+      // settles deterministically.
+      await _drainLogin(tester);
 
       expect(find.byType(AdminHomePage), findsOneWidget);
     },
   );
 
-  testWidgets('waiter login succeeds without any role selection', (
+  testWidgets('waiter login succeeds with the PIN and routes to waiter', (
     tester,
   ) async {
     await _seedCredentials(tester);
     await _pumpLogin(tester);
 
-    await tester.enterText(find.byType(TextFormField), 'waiter1');
-    await tester.pump();
     await _enterPin(tester, '1111');
     await tester.pump();
 
-    await _scrollToAndTap(tester, find.text('Log in'));
+    // Auto-submit fires on completion.
+    await _drainLogin(tester);
 
     expect(find.byType(WaiterHomePage), findsOneWidget);
 
     // The top-bar profile chip shows the database user (the `staff` row's
     // display name), not a hard-coded placeholder.
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 200)),
-    );
+    await _drainAsync(tester, 200);
     await tester.pumpAndSettle();
     expect(find.text('Waiter One'), findsOneWidget);
   });
 
   testWidgets(
-    'wrong PIN shows a generic error, clears the PIN, keeps the username',
+    'wrong PIN shows a generic error and clears the PIN',
     (tester) async {
       await _seedCredentials(tester);
       await _pumpLogin(tester);
 
-      await tester.enterText(find.byType(TextFormField), 'admin');
-      await tester.pump();
-      await _enterPin(tester, '000000');
+      // Entering a full PIN auto-submits.
+      await _enterPin(tester, '0000');
       await tester.pump();
 
-      await _scrollToAndTap(tester, find.text('Log in'));
+      await _drainAsync(tester);
+      await tester.pumpAndSettle();
 
-      expect(find.text('Incorrect username or PIN'), findsOneWidget);
-      expect(find.text('admin'), findsOneWidget);
+      expect(find.text('Incorrect PIN'), findsOneWidget);
 
       // No navigation happened.
       expect(find.byType(AdminHomePage), findsNothing);
@@ -236,10 +220,19 @@ LoginFormState? _providerState(WidgetTester tester) {
 
 /// Signs in as the seeded dummy waiter (`waiter1` / `1111`).
 Future<void> _loginAsWaiter(WidgetTester tester) async {
-  await tester.enterText(find.byType(TextFormField), 'waiter1');
-  await tester.pump();
   await _enterPin(tester, '1111');
   await tester.pump();
 
-  await _scrollToAndTap(tester, find.text('Log in'));
+  // Auto-submit fires on completion; drain so the waiter dashboard settles.
+  await _drainLogin(tester);
+}
+
+/// Drains async work after submitting a PIN so the routed home settles
+/// deterministically (see [_drainAsync]).
+Future<void> _drainLogin(WidgetTester tester) async {
+  await _drainAsync(tester);
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 900)),
+  );
+  await tester.pumpAndSettle();
 }
