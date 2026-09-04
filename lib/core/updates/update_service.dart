@@ -272,6 +272,8 @@ class UpdateService {
   }
 }
 
+// Dummy edit — test pre-release OTA detection.
+
 /// Result of a version check, wrapping the manifest (if fetched) with the
 /// comparison result.
 class UpdateCheckOutcome {
