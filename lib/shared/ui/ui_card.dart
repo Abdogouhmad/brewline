@@ -106,6 +106,8 @@ class UiCard extends StatelessWidget {
                           type: UiTextType.titleMedium,
                           fontWeight: FontWeight.w600,
                           color: titleColor,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (subtitle != null && subtitle!.isNotEmpty) ...[
                           SizedBox(height: Space.xs),

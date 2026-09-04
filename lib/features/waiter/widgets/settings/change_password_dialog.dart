@@ -171,69 +171,74 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
       content: Form(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _currentController,
-              obscureText: _obscure,
-              keyboardType: TextInputType.number,
-              maxLength: kAdminPinLength,
-              decoration: const InputDecoration(
-                labelText: 'Current PIN',
-                counterText: '',
+        child: SingleChildScrollView(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _currentController,
+                obscureText: _obscure,
+                keyboardType: TextInputType.number,
+                maxLength: kAdminPinLength,
+                decoration: const InputDecoration(
+                  labelText: 'Current PIN',
+                  counterText: '',
+                ),
+                validator: _requiredPin,
               ),
-              validator: _requiredPin,
-            ),
-            SizedBox(height: Space.lg),
-            TextFormField(
-              controller: _newController,
-              obscureText: _obscure,
-              keyboardType: TextInputType.number,
-              maxLength: kAdminPinLength,
-              decoration: const InputDecoration(
-                labelText: 'New PIN',
-                counterText: '',
-                helperText: '4 digits, keeps hashed at rest',
+              SizedBox(height: Space.lg),
+              TextFormField(
+                controller: _newController,
+                obscureText: _obscure,
+                keyboardType: TextInputType.number,
+                maxLength: kAdminPinLength,
+                decoration: const InputDecoration(
+                  labelText: 'New PIN',
+                  counterText: '',
+                  helperText: '4 digits, keeps hashed at rest',
+                ),
+                validator: _requiredPin,
               ),
-              validator: _requiredPin,
-            ),
-            if (_pinTakenError != null) ...[
+              if (_pinTakenError != null) ...[
+                SizedBox(height: Space.sm),
+                Text(
+                  _pinTakenError!,
+                  style: TextStyle(color: colorScheme.error, fontSize: 12),
+                ),
+              ],
+              SizedBox(height: Space.lg),
+              TextFormField(
+                controller: _confirmController,
+                obscureText: _obscure,
+                keyboardType: TextInputType.number,
+                maxLength: kAdminPinLength,
+                decoration: const InputDecoration(
+                  labelText: 'Confirm new PIN',
+                  counterText: '',
+                ),
+                validator: (value) => value != _newController.text
+                    ? 'PINs do not match'
+                    : _requiredPin(value),
+              ),
               SizedBox(height: Space.sm),
-              Text(
-                _pinTakenError!,
-                style: TextStyle(color: colorScheme.error, fontSize: 12),
+              // One eye toggle drives all three fields for brevity.
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                  icon: Icon(
+                    _obscure
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_rounded,
+                  ),
+                  label: Text(_obscure ? 'Show' : 'Hide'),
+                ),
               ),
             ],
-            SizedBox(height: Space.lg),
-            TextFormField(
-              controller: _confirmController,
-              obscureText: _obscure,
-              keyboardType: TextInputType.number,
-              maxLength: kAdminPinLength,
-              decoration: const InputDecoration(
-                labelText: 'Confirm new PIN',
-                counterText: '',
-              ),
-              validator: (value) => value != _newController.text
-                  ? 'PINs do not match'
-                  : _requiredPin(value),
-            ),
-            SizedBox(height: Space.sm),
-            // One eye toggle drives all three fields for brevity.
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => setState(() => _obscure = !_obscure),
-                icon: Icon(
-                  _obscure
-                      ? Icons.visibility_rounded
-                      : Icons.visibility_off_rounded,
-                ),
-                label: Text(_obscure ? 'Show' : 'Hide'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
       actions: [
@@ -255,7 +260,9 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
 
   String? _requiredPin(String? value) {
     final text = value ?? '';
-    if (text.length != kAdminPinLength) return 'Use exactly $kAdminPinLength digits';
+    if (text.length != kAdminPinLength) {
+      return 'Use exactly $kAdminPinLength digits';
+    }
     return null;
   }
 }

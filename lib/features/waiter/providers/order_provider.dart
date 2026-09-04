@@ -10,6 +10,7 @@ import 'package:brewline/core/printing/printer_transport.dart';
 import 'package:brewline/core/printing/receipt_printer_service.dart';
 import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
+import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/waiter/providers/price_format.dart';
 import 'package:brewline/features/waiter/providers/printing_preferences_provider.dart';
@@ -115,6 +116,10 @@ class OrderController extends Notifier<List<OrderItem>> {
 
     ref.read(journalMutationProvider.notifier).bump();
     ref.read(productMutationProvider.notifier).bump();
+    // The sale deducted ingredient stock inside addOrder; bump the mutation
+    // counter so every ingredient-backed reader (Inventory, the admin stock
+    // overview, product table) recomputes instead of showing stale stock.
+    ref.read(ingredientMutationProvider.notifier).bump();
     ref.read(orderNumberProvider.notifier).set(saved.orderNumber + 1);
 
     _log(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/admin/widgets/product_form_sheet.dart';
 import 'package:brewline/features/admin/widgets/product_table.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
@@ -17,43 +18,69 @@ class MenuProductsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final compact = Breakpoints.of(context) == ScreenSize.compact;
+
     return ListView(
       padding: EdgeInsets.symmetric(
-        horizontal: MediaQuery.of(context).size.width < 600
-            ? Space.lg
-            : Space.full,
+        horizontal: compact ? Space.lg : Space.full,
         vertical: Space.lg,
       ),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  UiText(
-                    'Catalog',
-                    type: UiTextType.headlineSmall,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  SizedBox(height: Space.xs),
-                  UiText(
-                    'Manage prices, stock and availability across the menu.',
-                    type: UiTextType.bodyMedium,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ],
+        if (compact)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              UiText(
+                'Catalog',
+                type: UiTextType.headlineSmall,
+                fontWeight: FontWeight.w800,
               ),
-            ),
-            UiButton(
-              'Add product',
-              icon: Icons.add_box_rounded,
-              variant: UiButtonVariant.filled,
-              onPressed: () => showProductFormSheet(context),
-            ),
-          ],
-        ),
+              SizedBox(height: Space.xs),
+              UiText(
+                'Manage prices, stock and availability across the menu.',
+                type: UiTextType.bodyMedium,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              SizedBox(height: Space.md),
+              UiButton(
+                'Add product',
+                icon: Icons.add_box_rounded,
+                variant: UiButtonVariant.filled,
+                onPressed: () => showProductFormSheet(context),
+              ),
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    UiText(
+                      'Catalog',
+                      type: UiTextType.headlineSmall,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    SizedBox(height: Space.xs),
+                    UiText(
+                      'Manage prices, stock and availability across the menu.',
+                      type: UiTextType.bodyMedium,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+              UiButton(
+                'Add product',
+                icon: Icons.add_box_rounded,
+                variant: UiButtonVariant.filled,
+                onPressed: () => showProductFormSheet(context),
+              ),
+            ],
+          ),
         SizedBox(height: Space.xl),
         const ProductTable(),
       ],

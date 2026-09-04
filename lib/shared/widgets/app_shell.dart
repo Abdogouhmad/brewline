@@ -12,7 +12,11 @@ class AppDestination {
   /// Falls back to a centered [label] placeholder if omitted.
   final Widget? page;
 
-  const AppDestination(this.label, this.icon, {this.page});
+  /// Optional count rendered as a small badge on the nav item (e.g. low-stock
+  /// items on the Inventory destination). `null`/`0` hides it.
+  final int? badgeCount;
+
+  const AppDestination(this.label, this.icon, {this.page, this.badgeCount});
 }
 
 /// Responsive navigation shell shared by the admin and waiter profiles,
@@ -96,6 +100,13 @@ class _AppShellState extends State<AppShell> {
 
   String _titleOf(int index) => widget.destinations[index].label;
 
+  /// Icon with an M3 count badge when the destination reports a count.
+  Widget _navIcon(BuildContext context, AppDestination d) {
+    final count = d.badgeCount;
+    if (count == null || count <= 0) return Icon(d.icon);
+    return Badge.count(count: count, child: Icon(d.icon));
+  }
+
   Widget _bodyOf(int index) =>
       widget.destinations[index].page ?? _placeholder(index);
 
@@ -132,7 +143,7 @@ class _AppShellState extends State<AppShell> {
         destinations: [
           for (var i = 0; i < primaryCount; i++)
             NavigationDestination(
-              icon: Icon(dests[i].icon),
+              icon: _navIcon(context, dests[i]),
               label: dests[i].label,
             ),
           if (folded)
@@ -202,7 +213,7 @@ class _AppShellState extends State<AppShell> {
             destinations: [
               for (final d in dests)
                 NavigationRailDestination(
-                  icon: Icon(d.icon),
+                  icon: _navIcon(context, d),
                   label: Text(d.label),
                 ),
             ],
@@ -247,6 +258,7 @@ class _AppShellState extends State<AppShell> {
                         _DrawerNavItem(
                           icon: dests[i].icon,
                           label: dests[i].label,
+                          badgeCount: dests[i].badgeCount,
                           selected: i == index,
                           onTap: () => _index.value = i,
                         ),
@@ -310,12 +322,14 @@ class _AppShellState extends State<AppShell> {
 class _DrawerNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final int? badgeCount;
   final bool selected;
   final VoidCallback onTap;
 
   const _DrawerNavItem({
     required this.icon,
     required this.label,
+    this.badgeCount,
     required this.selected,
     required this.onTap,
   });
@@ -326,6 +340,15 @@ class _DrawerNavItem extends StatelessWidget {
     final foreground = selected
         ? colorScheme.onSecondaryContainer
         : colorScheme.onSurface;
+
+    final Widget iconWidget = Icon(
+      icon,
+      size: AppSizes.iconMd + 2,
+      color: selected ? foreground : colorScheme.onSurfaceVariant,
+    );
+    final Widget leading = badgeCount == null || badgeCount! <= 0
+        ? iconWidget
+        : Badge.count(count: badgeCount!, child: iconWidget);
 
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 2),
@@ -342,11 +365,7 @@ class _DrawerNavItem extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: AppSizes.iconMd + 2,
-                  color: selected ? foreground : colorScheme.onSurfaceVariant,
-                ),
+                leading,
                 SizedBox(width: Space.lg),
                 UiText(
                   label,

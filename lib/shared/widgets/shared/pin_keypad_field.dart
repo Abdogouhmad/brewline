@@ -51,44 +51,24 @@ class _PinKeypadFieldState extends State<PinKeypadField>
   late Animation<double> _shakeAnimation;
 
   /// Diagonal size of a keypad button, scaling by device type.
-  double get _buttonSize => responsiveValue(
-    context,
-    mobile: 68,
-    tablet: 84,
-    desktop: 96,
-  );
+  double get _buttonSize =>
+      responsiveValue(context, mobile: 68, tablet: 84, desktop: 96);
 
   /// Height of a keypad button, scaling by device type.
-  double get _buttonHeight => responsiveValue(
-    context,
-    mobile: 48,
-    tablet: 60,
-    desktop: 68,
-  );
+  double get _buttonHeight =>
+      responsiveValue(context, mobile: 48, tablet: 60, desktop: 68);
 
   /// Dot indicator size, scaling by device type.
-  double get _dotSize => responsiveValue(
-    context,
-    mobile: 14,
-    tablet: 18,
-    desktop: 20,
-  );
+  double get _dotSize =>
+      responsiveValue(context, mobile: 14, tablet: 18, desktop: 20);
 
   /// Gap between keypad rows, scaling by device type.
-  double get _rowGap => responsiveValue(
-    context,
-    mobile: 6,
-    tablet: 10,
-    desktop: 12,
-  );
+  double get _rowGap =>
+      responsiveValue(context, mobile: 6, tablet: 10, desktop: 12);
 
   /// Horizontal padding around each key, scaling by device type.
-  double get _keyPadding => responsiveValue(
-    context,
-    mobile: 6,
-    tablet: 8,
-    desktop: 10,
-  );
+  double get _keyPadding =>
+      responsiveValue(context, mobile: 6, tablet: 8, desktop: 10);
 
   @override
   void initState() {
@@ -177,19 +157,39 @@ class _PinKeypadFieldState extends State<PinKeypadField>
           ),
         ),
         SizedBox(height: _rowGap + Space.sm),
-        // Numeric keypad
+        // Numeric keypad — fills the available width up to a per-device cap,
+        // and shrinks on very narrow screens instead of overflowing.
         Opacity(
           opacity: widget.enabled ? 1.0 : 0.35,
           child: IgnorePointer(
             ignoring: !widget.enabled,
-            child: _NumericKeypad(
-              onKeyTap: _onKeyTap,
-              onBackspace: _onBackspace,
-              colorScheme: colorScheme,
-              buttonSize: _buttonSize,
-              buttonHeight: _buttonHeight,
-              rowGap: _rowGap,
-              keyPadding: _keyPadding,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final keyPadding = _keyPadding;
+                    final baseSize = _buttonSize;
+                    // Three keys per row; each key occupies
+                    // `buttonSize + 2 * keyPadding` of width.
+                    final fillSize =
+                        (constraints.maxWidth - 2 * keyPadding * 3) / 3;
+                    final buttonSize = fillSize.clamp(52.0, baseSize);
+                    // Scale height along with width so keys keep their shape.
+                    final buttonHeight =
+                        _buttonHeight * (buttonSize / baseSize);
+                    return _NumericKeypad(
+                      onKeyTap: _onKeyTap,
+                      onBackspace: _onBackspace,
+                      colorScheme: colorScheme,
+                      buttonSize: buttonSize,
+                      buttonHeight: buttonHeight,
+                      rowGap: _rowGap,
+                      keyPadding: keyPadding,
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),
@@ -389,4 +389,3 @@ class _KeypadButtonState extends State<_KeypadButton> {
     );
   }
 }
-

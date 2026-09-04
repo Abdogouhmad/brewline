@@ -94,8 +94,8 @@ class KpiCard extends StatelessWidget {
               fontWeight: FontWeight.w800,
               fontSize: size == ScreenSize.expanded
                   ? context.responsiveFontSize(26)
-                  : context.responsiveFontSize(22),
-              maxLines: 1,
+                  : context.responsiveFontSize(18),
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ],

@@ -19,6 +19,10 @@
 ///   report_print, password_changed, void, post_print_edit).
 /// * `cashout_logs` — one row per *finalized* shift close, snapshotting the
 ///   counted cash + variance that can't be derived from `orders` alone.
+/// * `ingredients` — raw stock items (beans, milk, cups…) with a live
+///   quantity in a fixed smallest unit. `product_recipes` maps each product
+///   to the ingredients it consumes per unit sold; `stock_movements` is the
+///   append-only ledger explaining how each live quantity got there.
 ///
 /// Small app preferences (auth, theme, onboarding) stay in SharedPreferences;
 /// business data lives here.
@@ -68,7 +72,7 @@ Future<Database> openAppDatabase({
     options: OpenDatabaseOptions(
       // Bump this when a schema change lands and add the matching
       // step to [kMigrations]. See the migration history below.
-      version: 4,
+      version: 5,
       onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -94,6 +98,10 @@ Future<Database> openAppDatabase({
 ///            `audit_events.event_type` CHECK widened with `void` and
 ///            `post_print_edit` (the refund fraud signals) by table rebuild,
 ///            data preserved. |
+/// | 5       | Ingredient-level stock (§ stock.md): `ingredients` (live
+///            quantities in a fixed smallest unit), `product_recipes` (per
+///            product ingredient→quantity mapping), `stock_movements` (the
+///            append-only ledger explaining how each live quantity got there). |
 ///
 /// Keep this table up to date — it is the traceable record of every schema
 /// change for `openAppDatabase()` callers (migration tests, feature dev).
@@ -188,6 +196,49 @@ const Map<int, List<String>> kMigrations = {
     'DROP TABLE audit_events',
     'ALTER TABLE audit_events_new RENAME TO audit_events',
   ],
+  // 5 adds ingredient-level stock management. Quantities are stored as
+  // integers in the ingredient's smallest unit (grams/ml/whole units) to avoid
+  // floating-point drift, mirroring how money is stored as integer cents.
+  // `current_stock` is a live, incrementally-updated value read on every sale;
+  // `stock_movements` is the append-only ledger (in the same transaction) that
+  // explains it — see stock.md §1.
+  5: [
+    'CREATE TABLE IF NOT EXISTS ingredients ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        'name TEXT NOT NULL,'
+        "unit TEXT NOT NULL CHECK (unit IN ('g', 'ml', 'unit')),"
+        'current_stock INTEGER NOT NULL DEFAULT 0,'
+        'reorder_threshold INTEGER NOT NULL DEFAULT 0,'
+        'is_archived INTEGER NOT NULL DEFAULT 0,'
+        'created_at INTEGER NOT NULL'
+        ')',
+    'CREATE TABLE IF NOT EXISTS product_recipes ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        'product_id TEXT NOT NULL REFERENCES products(id),'
+        'ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),'
+        'quantity_per_unit INTEGER NOT NULL CHECK (quantity_per_unit > 0),'
+        'UNIQUE(product_id, ingredient_id)'
+        ')',
+    'CREATE TABLE IF NOT EXISTS stock_movements ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        'ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),'
+        'change_amount INTEGER NOT NULL,'
+        "reason TEXT NOT NULL CHECK (reason IN "
+        "('sale', 'refund_restock', 'restock', 'manual_adjustment', 'waste')),"
+        'order_id INTEGER REFERENCES orders(id),'
+        'admin_id TEXT,'
+        'note TEXT,'
+        'created_at INTEGER NOT NULL'
+        ')',
+    'CREATE INDEX IF NOT EXISTS idx_stock_movements_ingredient_id '
+        'ON stock_movements(ingredient_id)',
+    'CREATE INDEX IF NOT EXISTS idx_stock_movements_order_id '
+        'ON stock_movements(order_id)',
+    'CREATE INDEX IF NOT EXISTS idx_stock_movements_created_at '
+        'ON stock_movements(created_at)',
+    'CREATE INDEX IF NOT EXISTS idx_product_recipes_product_id '
+        'ON product_recipes(product_id)',
+  ],
 };
 
 /// Every lookup the dashboards actually run, indexed so the fast paths in
@@ -211,6 +262,14 @@ const List<String> _kIndexes = [
       'ON order_refunds(order_id)',
   'CREATE INDEX IF NOT EXISTS idx_order_refunds_created_at '
       'ON order_refunds(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_stock_movements_ingredient_id '
+      'ON stock_movements(ingredient_id)',
+  'CREATE INDEX IF NOT EXISTS idx_stock_movements_order_id '
+      'ON stock_movements(order_id)',
+  'CREATE INDEX IF NOT EXISTS idx_stock_movements_created_at '
+      'ON stock_movements(created_at)',
+  'CREATE INDEX IF NOT EXISTS idx_product_recipes_product_id '
+      'ON product_recipes(product_id)',
 ];
 
 /// A *brand-new* database is created straight at the current schema (v3) via
@@ -220,7 +279,8 @@ const List<String> _kIndexes = [
 Future<void> _onCreate(Database db, int version) async {
   await _createSchema(db);
   await _createIndexes(db);
-  await seedDefaultProducts(db);
+  // No default catalog is seeded — a fresh install starts empty so the admin
+  // enters their real products from zero.
 }
 
 Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -329,6 +389,42 @@ Future<void> _createSchema(Database db) async {
       created_at INTEGER NOT NULL
     )
   ''');
+  // Ingredient-level stock, mirroring money-in-cents: `current_stock` is the
+  // live quantity stored as an integer in the ingredient's smallest unit; the
+  // audit trail that explains it lives in `stock_movements`. Both are written
+  // together, in the same transaction (stock.md §1.2).
+  await db.execute('''
+    CREATE TABLE ingredients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      unit TEXT NOT NULL CHECK (unit IN ('g', 'ml', 'unit')),
+      current_stock INTEGER NOT NULL DEFAULT 0,
+      reorder_threshold INTEGER NOT NULL DEFAULT 0,
+      is_archived INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE product_recipes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      product_id TEXT NOT NULL REFERENCES products(id),
+      ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),
+      quantity_per_unit INTEGER NOT NULL CHECK (quantity_per_unit > 0),
+      UNIQUE(product_id, ingredient_id)
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE stock_movements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ingredient_id INTEGER NOT NULL REFERENCES ingredients(id),
+      change_amount INTEGER NOT NULL,
+      reason TEXT NOT NULL CHECK (reason IN ('sale', 'refund_restock', 'restock', 'manual_adjustment', 'waste')),
+      order_id INTEGER REFERENCES orders(id),
+      admin_id TEXT,
+      note TEXT,
+      created_at INTEGER NOT NULL
+    )
+  ''');
 }
 
 Future<void> _createIndexes(Database db) async {
@@ -337,9 +433,11 @@ Future<void> _createIndexes(Database db) async {
   }
 }
 
-/// The starter catalog, inserted when the `products` table is first created.
-/// Mirrors the previous hard-coded dummy list so the waiter menu works on a
-/// fresh install; the admin can edit it afterwards.
+/// A starter catalog used by [seedDefaultProducts].
+///
+/// Not auto-inserted into the app anymore (the app starts empty; see
+/// [_onCreate]) but kept so the repository tests can seed a known catalog
+/// deterministically.
 const List<Product> _defaultProducts = [
   Product(
     id: 'p-001',
@@ -380,8 +478,8 @@ const List<Product> _defaultProducts = [
 
 /// Inserts [_defaultProducts] only when the `products` table is empty.
 ///
-/// Safe to call after a full wipe ([deleteAllData]) so a reset starts from a
-/// usable menu again.
+/// Test-only helper: production startup and [deleteAllData] no longer seed any
+/// catalog, but the stock repository tests rely on a known default menu.
 Future<void> seedDefaultProducts(Database db) async {
   final count =
       Sqflite.firstIntValue(
@@ -397,9 +495,12 @@ Future<void> seedDefaultProducts(Database db) async {
   await batch.commit(noResult: true);
 }
 
-/// Wipes all business rows (used by "Reset onboarding" and tests), then
-/// re-seeds the default catalog so a fresh setup is immediately usable.
+/// Wipes all business rows (used by "Reset onboarding" and tests), leaving a
+/// truly empty database so the admin can set everything up from zero again.
 Future<void> deleteAllData(Database db) async {
+  await db.delete('stock_movements');
+  await db.delete('product_recipes');
+  await db.delete('ingredients');
   await db.delete('order_refunds');
   await db.delete('order_items');
   await db.delete('orders');
@@ -408,5 +509,4 @@ Future<void> deleteAllData(Database db) async {
   await db.delete('cashout_logs');
   await db.delete('staff');
   await db.delete('products');
-  await seedDefaultProducts(db);
 }

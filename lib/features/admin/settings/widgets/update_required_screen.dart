@@ -87,16 +87,34 @@ class UpdateRequiredScreen extends ConsumerWidget {
       case UpdateStatus.downloading:
         final progress = (updater.progress ?? 0) * 100;
         return [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(Rounded.full),
-            child: LinearProgressIndicator(
-              value: updater.progress ?? 0,
-              minHeight: 8,
+          SizedBox(
+            width: AppSizes.iconLg * 2,
+            height: AppSizes.iconLg * 2,
+            child: Stack(
+              fit: StackFit.expand,
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: updater.progress ?? 0,
+                  strokeWidth: 8,
+                  backgroundColor: colorScheme.surfaceContainerHighest,
+                  color: colorScheme.primary,
+                  strokeCap: StrokeCap.round,
+                ),
+                Center(
+                  child: UiText(
+                    '${progress.toStringAsFixed(0)}%',
+                    type: UiTextType.titleSmall,
+                    fontWeight: FontWeight.w800,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: Space.md),
           UiText(
-            'Downloading… ${progress.toStringAsFixed(0)}%',
+            'Downloading…',
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Space.md),
@@ -124,24 +142,41 @@ class UpdateRequiredScreen extends ConsumerWidget {
 
       case UpdateStatus.error:
         return [
-          UiText(
-            updater.error ?? 'The update could not be downloaded.',
-            type: UiTextType.bodyMedium,
-            color: colorScheme.error,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: Space.md),
-          UiText(
-            'Check your internet connection and try again.',
-            type: UiTextType.bodySmall,
-            color: colorScheme.onSurfaceVariant,
-            textAlign: TextAlign.center,
+          Container(
+            padding: EdgeInsets.all(Space.lg),
+            decoration: BoxDecoration(
+              color: colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(Rounded.lg),
+            ),
+            child: Column(
+              children: [
+                UiText(
+                  updater.error ?? 'The update could not be downloaded.',
+                  type: UiTextType.bodyMedium,
+                  color: colorScheme.onErrorContainer,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: Space.sm),
+                UiText(
+                  'Check your internet connection and try again.',
+                  type: UiTextType.bodySmall,
+                  color: colorScheme.onSurfaceVariant,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ];
 
       case UpdateStatus.available:
       case UpdateStatus.idle:
         final notes = updater.manifest?.releaseNotes ?? '';
+        final lines =
+            notes
+                .split('\n')
+                .map((l) => l.trim())
+                .where((l) => l.isNotEmpty)
+                .toList();
         return [
           if (notes.isNotEmpty) ...[
             UiText(
@@ -150,14 +185,45 @@ class UpdateRequiredScreen extends ConsumerWidget {
               fontWeight: FontWeight.w700,
             ),
             const SizedBox(height: Space.sm),
-            UiText(
-              notes,
-              type: UiTextType.bodyMedium,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            for (final line in lines)
+              Padding(
+                padding: EdgeInsets.only(bottom: Space.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(top: Space.xs),
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: Space.md),
+                    Expanded(
+                      child: UiText(
+                        _stripBullet(line),
+                        type: UiTextType.bodyMedium,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ];
     }
+  }
+
+  static String _stripBullet(String line) {
+    final trimmed = line.trimLeft();
+    if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      return trimmed.substring(2);
+    }
+    return line;
   }
 
   Widget _downloadButton(BuildContext context, WidgetRef ref, UpdateState updater) {

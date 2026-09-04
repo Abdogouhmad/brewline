@@ -96,6 +96,8 @@ class _ProductRank extends StatelessWidget {
                   sold.name,
                   type: UiTextType.titleSmall,
                   fontWeight: FontWeight.w600,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               UiText(

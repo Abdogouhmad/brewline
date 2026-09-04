@@ -1,8 +1,10 @@
+import 'package:brewline/core/models/ingredient.dart';
 import 'package:brewline/core/models/product.dart';
 import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/core/repositories/sales_query_repository.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
+import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/features/admin/pages/sales_log_page.dart';
 import 'package:brewline/features/admin/widgets/product_form_sheet.dart';
 import 'package:flutter/material.dart';
@@ -156,13 +158,21 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => Center(
-                child: FilledButton(
-                  onPressed: () => showProductFormSheet(context),
-                  child: const Text('open'),
+        ProviderScope(
+          // The product form now embeds the ingredient-based RecipeEditor,
+          // which watches `allIngredientsProvider`. Override it with an empty
+          // catalog so this layout-only test renders without a real database.
+          overrides: [
+            allIngredientsProvider.overrideWith((ref) async => <Ingredient>[]),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => Center(
+                  child: FilledButton(
+                    onPressed: () => showProductFormSheet(context),
+                    child: const Text('open'),
+                  ),
                 ),
               ),
             ),

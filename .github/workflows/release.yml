@@ -197,11 +197,14 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      # Generate update.json — the OTA manifest the app fetches from
-      # raw.githubusercontent.com/Abdogouhmad/brewline/main/update.json.
-      # Each platform section carries the release asset URL and SHA-256 so the
-      # app can verify the download before installing.
-      - name: Generate update manifest
+      # Generate update_manifest_beta.json — the OTA manifest the app fetches
+      # from raw.githubusercontent.com/Abdogouhmad/brewline/main/. Because this
+      # workflow publishes a GitHub **prerelease**, its manifest is the `beta`
+      # channel file; production/stable devices read a separately-curated
+      # `update_manifest.json` so they can never pick up a pre-release. Each
+      # platform section carries the release asset URL and SHA-256 so the app
+      # can verify the download before installing.
+      - name: Generate beta update manifest
         id: manifest
         shell: bash
         run: |
@@ -236,6 +239,7 @@ jobs:
 
           ZERO = "0000000000000000000000000000000000000000000000000000000000000000"
           manifest = {
+              "channel": "beta",
               "android": {
                   "latestVersionCode": int(bn),
                   "latestVersionName": version,
@@ -261,22 +265,23 @@ jobs:
               "releaseNotes": "",
               "publishedAt": timestamp,
           }
-          with open('update.json', 'w') as f:
+          with open('update_manifest_beta.json', 'w') as f:
               json.dump(manifest, f, indent=2)
           PY
 
-      # Commit the updated manifest back to main so the raw URL always serves
-      # the latest release. Uses the workflows token; skips if unchanged.
-      - name: Commit update manifest
+      # Commit the updated beta manifest back to main so the raw URL always
+      # serves the latest pre-release build. Uses the workflows token; skips if
+      # unchanged.
+      - name: Commit beta update manifest
         shell: bash
         run: |
           git config user.name "brewline CI"
           git config user.email "ci@example.com"
-          if git diff --quiet update.json; then
-            echo "update.json unchanged — nothing to commit."
+          if git diff --quiet update_manifest_beta.json; then
+            echo "update_manifest_beta.json unchanged — nothing to commit."
           else
-            git add update.json
-            git commit -m "chore(ci): update OTA manifest for ${{ steps.version.outputs.tag }}"
+            git add update_manifest_beta.json
+            git commit -m "chore(ci): update beta OTA manifest for ${{ steps.version.outputs.tag }}"
             git push origin HEAD:main
           fi
 

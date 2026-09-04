@@ -60,8 +60,11 @@ class TeamPerformance extends ConsumerWidget {
                               _displayName(item.username),
                               type: UiTextType.titleSmall,
                               fontWeight: FontWeight.w600,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          SizedBox(width: Space.md),
                           UiText(
                             '${item.orderCount} orders',
                             type: UiTextType.bodySmall,

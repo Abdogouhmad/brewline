@@ -13,17 +13,26 @@ import 'menu_page.dart';
 import 'orders_page.dart';
 
 /// Waiter profile home.
-/// Mobile/tablet: bottom nav shell. Desktop: split view (orders | menu)
-/// with a custom app bar — no side menu.
+/// Mobile/tablet: bottom nav shell. Desktop (wide ≥ [_splitWidth]): split
+/// view (orders | menu) with a custom app bar — no side menu. Between the
+/// 905dp expanded breakpoint and the split width, the Orders pane would be
+/// squeezed to ~250dp, so we stay on the drawer nav shell until the split
+/// actually has room for a usable order rail.
 class WaiterHomePage extends StatelessWidget {
   const WaiterHomePage({super.key});
 
+  /// Minimum width for the two-pane orders/menu split.
+  static const double _splitWidth = 1200;
+
   @override
   Widget build(BuildContext context) {
-    return ResponsiveLayout(
-      mobile: _buildNavShell(),
-      tablet: _buildNavShell(),
-      desktop: const _DesktopWaiterHome(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _splitWidth) {
+          return const _DesktopWaiterHome();
+        }
+        return _buildNavShell();
+      },
     );
   }
 
@@ -40,7 +49,7 @@ class WaiterHomePage extends StatelessWidget {
         AppDestination(
           'Settings',
           Icons.settings_outlined,
-          page: SettingsPage(),
+          page: SettingsPage(embedded: true),
         ),
       ],
     );

@@ -8,6 +8,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/product.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/core/services/product_image_store.dart';
+import 'package:brewline/features/admin/widgets/recipe_editor.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -48,11 +49,10 @@ class _ProductFormSheet extends ConsumerStatefulWidget {
 
 class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   final _formKey = GlobalKey<FormState>();
+  final _recipeKey = GlobalKey<RecipeEditorState>();
   late final TextEditingController _name;
   late final TextEditingController _price;
   late final TextEditingController _category;
-  late final TextEditingController _stock;
-  late final TextEditingController _threshold;
   late bool _available;
   late String _imagePath;
 
@@ -71,14 +71,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       text: product == null ? '' : product.price.toString(),
     );
     _category = TextEditingController(text: product?.category ?? '');
-    _stock = TextEditingController(
-      text: product == null || product.stockQuantity == 0
-          ? ''
-          : '${product.stockQuantity}',
-    );
-    _threshold = TextEditingController(
-      text: product == null ? '' : '${product.lowStockThreshold}',
-    );
     _available = product?.available ?? true;
     _imagePath = product?.imagePath ?? '';
   }
@@ -88,8 +80,6 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     _name.dispose();
     _price.dispose();
     _category.dispose();
-    _stock.dispose();
-    _threshold.dispose();
     super.dispose();
   }
 
@@ -119,11 +109,19 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       imagePath: imagePath,
       category: _category.text.trim(),
       available: _available,
-      stockQuantity: int.tryParse(_stock.text.trim()) ?? 0,
-      lowStockThreshold: int.tryParse(_threshold.text.trim()) ?? 0,
+      // Stock is managed at the ingredient level (Inventory / stock management).
+      // `stock_quantity`/`low_stock_threshold` are legacy product autocl columns
+      // left at 0 ("untracked") so they stay disconnected from the ingredient
+      // alerts.
+      stockQuantity: 0,
+      lowStockThreshold: 0,
     );
 
     await ref.read(productMutationProvider.notifier).upsert(updated);
+
+    // Persist the recipe (which ingredients this product consumes per unit).
+    // Runs after the product exists so the FK onto products(id) is satisfied.
+    await _recipeKey.currentState?.save(id);
 
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -167,152 +165,121 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     return Form(
       key: _formKey,
       autovalidateMode: AutovalidateMode.onUserInteraction,
-      child: Padding(
-        padding: adaptiveModalPadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  widget.isEditing ? Icons.edit_rounded : Icons.add_box_rounded,
-                  color: colorScheme.primary,
-                ),
-                SizedBox(width: Space.md),
-                UiText(
-                  widget.isEditing ? 'Edit product' : 'Add product',
-                  type: UiTextType.titleLarge,
-                  fontWeight: FontWeight.w700,
-                ),
-              ],
-            ),
-            SizedBox(height: Space.xl),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    controller: _name,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Product name',
-                      prefixIcon: Icon(Icons.local_cafe_rounded),
-                    ),
-                    validator: (value) =>
-                        (value == null || value.trim().isEmpty)
-                        ? 'Enter a name'
-                        : null,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: adaptiveModalPadding(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    widget.isEditing
+                        ? Icons.edit_rounded
+                        : Icons.add_box_rounded,
+                    color: colorScheme.primary,
                   ),
-                ),
-                SizedBox(width: Space.lg),
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _price,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Price (DH)',
-                      prefixIcon: Icon(Icons.payments_outlined),
-                    ),
-                    validator: (value) =>
-                        double.tryParse((value ?? '').trim()) == null
-                        ? 'Enter a price'
-                        : (double.parse(value!.trim()) <= 0
-                              ? 'Must be positive'
-                              : null),
+                  SizedBox(width: Space.md),
+                  UiText(
+                    widget.isEditing ? 'Edit product' : 'Add product',
+                    type: UiTextType.titleLarge,
+                    fontWeight: FontWeight.w700,
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: Space.lg),
-            TextFormField(
-              controller: _category,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                hintText: 'e.g. Coffee, Soft drinks',
-                prefixIcon: Icon(Icons.label_outline_rounded),
+                ],
               ),
-            ),
-            SizedBox(height: Space.lg),
-            _ImagePicker(
-              selected: _imagePath,
-              onSelected: (path) => setState(() {
-                _imagePath = path;
-                _pendingPicked =
-                    null; // switching back to an asset clears gallery pick
-              }),
-              onPickGallery: _pickFromGallery,
-            ),
-            SizedBox(height: Space.lg),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _stock,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Stock on hand',
-                      helperText: '0 = not tracked',
-                      prefixIcon: Icon(Icons.inventory_2_outlined),
+              SizedBox(height: Space.xl),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextFormField(
+                      controller: _name,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Product name',
+                        prefixIcon: Icon(Icons.local_cafe_rounded),
+                      ),
+                      validator: (value) =>
+                          (value == null || value.trim().isEmpty)
+                          ? 'Enter a name'
+                          : null,
                     ),
-                    validator: _nonNegativeInt,
                   ),
-                ),
-                SizedBox(width: Space.lg),
-                Expanded(
-                  child: TextFormField(
-                    controller: _threshold,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Low-stock alert below',
-                      prefixIcon: Icon(Icons.notifications_active_outlined),
+                  SizedBox(width: Space.lg),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _price,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Price (DH)',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                      ),
+                      validator: (value) =>
+                          double.tryParse((value ?? '').trim()) == null
+                          ? 'Enter a price'
+                          : (double.parse(value!.trim()) <= 0
+                                ? 'Must be positive'
+                                : null),
                     ),
-                    validator: _nonNegativeInt,
                   ),
+                ],
+              ),
+              SizedBox(height: Space.lg),
+              TextFormField(
+                controller: _category,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  hintText: 'e.g. Coffee, Soft drinks',
+                  prefixIcon: Icon(Icons.label_outline_rounded),
                 ),
-              ],
-            ),
-            SizedBox(height: Space.lg),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _available,
-              onChanged: (value) => setState(() => _available = value),
-              title: const UiText(
-                'Available on the menu',
-                type: UiTextType.titleSmall,
-                fontWeight: FontWeight.w600,
               ),
-              subtitle: UiText(
-                'Hides the product from waiters when off',
-                type: UiTextType.bodySmall,
-                color: colorScheme.onSurfaceVariant,
+              SizedBox(height: Space.lg),
+              _ImagePicker(
+                selected: _imagePath,
+                onSelected: (path) => setState(() {
+                  _imagePath = path;
+                  _pendingPicked =
+                      null; // switching back to an asset clears gallery pick
+                }),
+                onPickGallery: _pickFromGallery,
               ),
-            ),
-            SizedBox(height: Space.xl),
-            UiButton(
-              _saving
-                  ? 'Saving…'
-                  : (widget.isEditing ? 'Save changes' : 'Add to menu'),
-              icon: Icons.check_rounded,
-              expand: true,
-              onPressed: _saving ? null : _submit,
-            ),
-          ],
+              SizedBox(height: Space.lg),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _available,
+                onChanged: (value) => setState(() => _available = value),
+                title: const UiText(
+                  'Available on the menu',
+                  type: UiTextType.titleSmall,
+                  fontWeight: FontWeight.w600,
+                ),
+                subtitle: UiText(
+                  'Hides the product from waiters when off',
+                  type: UiTextType.bodySmall,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              SizedBox(height: Space.xl),
+              RecipeEditor(key: _recipeKey, productId: widget.product?.id),
+              SizedBox(height: Space.lg),
+              UiButton(
+                _saving
+                    ? 'Saving…'
+                    : (widget.isEditing ? 'Save changes' : 'Add to menu'),
+                icon: Icons.check_rounded,
+                expand: true,
+                onPressed: _saving ? null : _submit,
+              ),
+            ],
+          ),
         ),
       ),
     );
-  }
-
-  String? _nonNegativeInt(String? value) {
-    final text = (value ?? '').trim();
-    if (text.isEmpty) return null;
-    final parsed = int.tryParse(text);
-    if (parsed == null || parsed < 0) return 'Whole number, 0 or more';
-    return null;
   }
 }
 
