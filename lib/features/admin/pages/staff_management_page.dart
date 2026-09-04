@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/admin/widgets/staff_form_sheet.dart';
 import 'package:brewline/features/admin/widgets/staff_table.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
@@ -19,39 +20,60 @@ class StaffManagementPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final compact = Breakpoints.of(context) == ScreenSize.compact;
+
     return ListView(
       padding: EdgeInsets.symmetric(
-        horizontal: MediaQuery.of(context).size.width < 600
-            ? Space.lg
-            : Space.full,
+        horizontal: compact ? Space.lg : Space.full,
         vertical: Space.lg,
       ),
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  UiText(
-                    'Team',
-                    type: UiTextType.headlineSmall,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  SizedBox(height: Space.xs),
-                  const _TeamSummary(),
-                ],
+        if (compact)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              UiText(
+                'Team',
+                type: UiTextType.headlineSmall,
+                fontWeight: FontWeight.w800,
               ),
-            ),
-            UiButton(
-              'Add staff',
-              icon: Icons.person_add_alt_1_rounded,
-              variant: UiButtonVariant.filled,
-              onPressed: () => showStaffFormSheet(context),
-            ),
-          ],
-        ),
+              SizedBox(height: Space.xs),
+              const _TeamSummary(),
+              SizedBox(height: Space.md),
+              UiButton(
+                'Add staff',
+                icon: Icons.person_add_alt_1_rounded,
+                variant: UiButtonVariant.filled,
+                onPressed: () => showStaffFormSheet(context),
+              ),
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    UiText(
+                      'Team',
+                      type: UiTextType.headlineSmall,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    SizedBox(height: Space.xs),
+                    const _TeamSummary(),
+                  ],
+                ),
+              ),
+              UiButton(
+                'Add staff',
+                icon: Icons.person_add_alt_1_rounded,
+                variant: UiButtonVariant.filled,
+                onPressed: () => showStaffFormSheet(context),
+              ),
+            ],
+          ),
         SizedBox(height: Space.xl),
         const StaffTable(),
       ],

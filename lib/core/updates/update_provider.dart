@@ -21,7 +21,6 @@ import 'package:brewline/core/updates/update_service.dart';
 /// SharedPreferences keys for the update settings.
 const String kAutoCheckUpdatesKey = 'auto_check_updates';
 const String kLastUpdateCheckKey = 'last_update_check_ms';
-const String kUsePreReleasesKey = 'use_pre_releases';
 
 /// Whether the app auto-checks for updates in the background on launch and on
 /// entering the admin/waiter home. Defaults to `true` — a POS should surface
@@ -67,29 +66,6 @@ class LastUpdateCheckNotifier extends Notifier<DateTime?> {
     await ref
         .read(sharedPreferencesProvider)
         .setInt(kLastUpdateCheckKey, now.millisecondsSinceEpoch);
-  }
-}
-
-/// Whether the user has opted into pre-release updates. When enabled, the
-/// update checker queries the GitHub Releases API in addition to the static
-/// manifest, so pre-release versions are surfaced as available updates.
-final usePreReleasesProvider =
-    NotifierProvider<UsePreReleasesNotifier, bool>(
-      UsePreReleasesNotifier.new,
-    );
-
-class UsePreReleasesNotifier extends Notifier<bool> {
-  @override
-  bool build() {
-    final prefs = ref.watch(sharedPreferencesProvider);
-    return prefs.getBool(kUsePreReleasesKey) ?? false;
-  }
-
-  Future<void> setEnabled(bool enabled) async {
-    state = enabled;
-    await ref
-        .read(sharedPreferencesProvider)
-        .setBool(kUsePreReleasesKey, enabled);
   }
 }
 
@@ -163,10 +139,8 @@ class UpdateNotifier extends Notifier<UpdateState> {
       return;
     }
 
-    final checkPreReleases = ref.read(usePreReleasesProvider);
     final outcome = await ref.read(updateServiceProvider).check(
       currentInfo: appInfo,
-      checkPreReleases: checkPreReleases,
     );
     if (outcome.result == UpdateCheckResult.checkFailed) {
       state = state.copyWith(
@@ -199,8 +173,8 @@ class UpdateNotifier extends Notifier<UpdateState> {
     final installer = ref.read(updateInstallerProvider);
 
     // Resolve the download URL for the current platform.
-    final url = _urlFor(manifest, installer);
-    final sha = _shaFor(manifest, installer);
+    final url = _urlFor(manifest);
+    final sha = _shaFor(manifest);
     if (url == null || sha == null) {
       state = state.copyWith(
         status: UpdateStatus.error,
@@ -231,14 +205,14 @@ class UpdateNotifier extends Notifier<UpdateState> {
     }
   }
 
-  String? _urlFor(UpdateManifest manifest, UpdateInstaller installer) {
+  String? _urlFor(UpdateManifest manifest) {
     if (Platform.isAndroid) return manifest.android?.apkUrl;
     if (Platform.isWindows) return manifest.windows?.archiveUrl;
     if (Platform.isLinux) return manifest.linux?.archiveUrl;
     return null;
   }
 
-  String? _shaFor(UpdateManifest manifest, UpdateInstaller installer) {
+  String? _shaFor(UpdateManifest manifest) {
     if (Platform.isAndroid) return manifest.android?.sha256;
     if (Platform.isWindows) return manifest.windows?.sha256;
     if (Platform.isLinux) return manifest.linux?.sha256;

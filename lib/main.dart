@@ -10,7 +10,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'package:brewline/core/db/app_database.dart';
-import 'package:brewline/core/dev/dummy_data_seeder.dart';
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/features/admin/settings/widgets/update_required_screen.dart';
 import 'package:brewline/features/auth/login_page.dart';
@@ -38,11 +37,8 @@ Future<void> main() async {
     return;
   }
 
-  // Debug-only dummy accounts + sample sales so the flows and dashboards are
-  // testable before real data exists. Never runs in release builds.
-  if (kDebugMode) {
-    await seedDummyAccounts(prefs, db);
-  }
+  // No dummy data is seeded at startup — the app starts completely empty and
+  // the admin enters real products, ingredients and staff from zero.
 
   runApp(
     ProviderScope(

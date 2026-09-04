@@ -7,6 +7,7 @@ import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/features/admin/widgets/availability_toggle.dart';
 import 'package:brewline/features/admin/widgets/product_form_sheet.dart';
 import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/features/waiter/providers/stock_status_provider.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/product_image.dart';
@@ -161,26 +162,33 @@ class _Thumb extends StatelessWidget {
   }
 }
 
-class _StockLine extends StatelessWidget {
+/// Stock status per product, derived from the ingredient binding + the live
+/// ingredient stock (the same source as the waiter badges, stock.md §3.2) —
+/// NOT the legacy per-product `stock_quantity`, which is no longer entered in
+/// the product form.
+class _StockLine extends ConsumerWidget {
   final Product product;
 
   const _StockLine({required this.product});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final stock = ref.watch(productStockProvider).value;
+    final info = stock?[product.id];
 
-    final (Color color, String text) = !product.available
-        ? (colorScheme.outline, 'Sold out')
-        : product.stockQuantity <= 0
-        ? (colorScheme.onSurfaceVariant, 'Stock not tracked')
-        : product.isLowStock
-        ? (
-            colorScheme.error,
-            '${product.stockQuantity} left'
-                ' (alerts below ${product.lowStockThreshold})',
-          )
-        : (colorScheme.tertiary, '${product.stockQuantity} in stock');
+    final (Color color, String text) =
+        !product.available
+            ? (colorScheme.outline, 'Sold out')
+        : info == null
+            ? (colorScheme.onSurfaceVariant, 'Stock not tracked yet')
+        : info.status == ProductStockStatus.out
+            ? (colorScheme.error, 'Out of stock — restock')
+        : info.status == ProductStockStatus.low
+            ? (colorScheme.error, 'Low · ~${info.servingsLeft} left')
+        : info.servingsLeft <= 0
+            ? (colorScheme.error, 'Out of stock — restock')
+            : (colorScheme.tertiary, '~${info.servingsLeft} servings left');
 
     return Row(
       children: [

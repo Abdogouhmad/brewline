@@ -7,6 +7,8 @@ import 'package:brewline/core/models/order_line_item.dart';
 import 'package:brewline/core/models/order_record.dart';
 import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/core/repositories/refund_repository.dart';
+import 'package:brewline/core/repositories/stock_movement_repository.dart';
+import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/features/waiter/providers/price_format.dart';
 import 'package:brewline/shared/widgets/shared/app_text_field.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
@@ -93,13 +95,13 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
         setState(() => _loadError = 'Order not found');
         return;
       }
-      final original = {
-        for (final item in order.items) item.id: item.quantity,
-      };
+      final original = {for (final item in order.items) item.id: item.quantity};
       setState(() {
         _order = order;
         _originalQty = original;
-        _qty..clear()..addAll(original);
+        _qty
+          ..clear()
+          ..addAll(original);
       });
     } catch (e) {
       if (mounted) setState(() => _loadError = e);
@@ -111,7 +113,10 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
 
   /// Sum of the current (edited) line totals.
   double get _currentTotal =>
-      _order?.items.fold<double>(0, (sum, i) => sum + (_qty[i.id] ?? 0) * i.unitPrice) ??
+      _order?.items.fold<double>(
+        0,
+        (sum, i) => sum + (_qty[i.id] ?? 0) * i.unitPrice,
+      ) ??
       0;
 
   /// Refund amount in correct mode: original total minus current total.
@@ -124,9 +129,8 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
       false;
 
   /// Target refund amount for the confirm label.
-  double get _refundAmount => _mode == _RefundMode.voidOrder
-      ? _order?.total ?? 0
-      : _correctRefund;
+  double get _refundAmount =>
+      _mode == _RefundMode.voidOrder ? _order?.total ?? 0 : _correctRefund;
 
   /// Confirm is enabled only when there's a non-empty reason and, in correct
   /// mode, at least one real reduction has been made.
@@ -169,6 +173,9 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
       }
       if (!mounted) return;
       ref.read(journalMutationProvider.notifier).bump();
+      // The refund/void restored ingredient stock; bump so ingredient-backed
+      // readers (Inventory, low-stock card, waiter badges) refresh.
+      ref.read(ingredientMutationProvider.notifier).bump();
       final onDone = widget.onDone;
       if (onDone != null) {
         onDone(result);
@@ -188,9 +195,12 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: adaptiveModalPadding(context),
-      child: _buildBody(context),
+    return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Padding(
+        padding: adaptiveModalPadding(context),
+        child: _buildBody(context),
+      ),
     );
   }
 
@@ -260,22 +270,22 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
   }
 
   Widget _modeToggle(ColorScheme colorScheme) {
+    final mobile = Responsive.isMobile(context);
     return SegmentedButton<_RefundMode>(
-      segments: const [
+      segments: [
         ButtonSegment(
           value: _RefundMode.correct,
-          label: Text('Correct Order'),
-          icon: Icon(Icons.edit_rounded),
+          label: const Text('Correct Order'),
+          icon: mobile ? null : const Icon(Icons.edit_rounded),
         ),
         ButtonSegment(
           value: _RefundMode.voidOrder,
-          label: Text('Void Order'),
-          icon: Icon(Icons.delete_outline_rounded),
+          label: const Text('Void Order'),
+          icon: mobile ? null : const Icon(Icons.delete_outline_rounded),
         ),
       ],
       selected: {_mode},
-      onSelectionChanged: (set) =>
-          setState(() => _mode = set.first),
+      onSelectionChanged: (set) => setState(() => _mode = set.first),
     );
   }
 
@@ -410,7 +420,8 @@ class _OrderSummary extends StatelessWidget {
 
     return UiCard(
       title: 'Order $orderNumber',
-      subtitle: '${order.waiterUsername ?? '—'} · ${_dateTime(order.createdAt)}',
+      subtitle:
+          '${order.waiterUsername ?? '—'} · ${_dateTime(order.createdAt)}',
       compact: true,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,7 +526,9 @@ class _LineRow extends StatelessWidget {
                   ? colorScheme.outlineVariant
                   : colorScheme.error,
             ),
-            onPressed: quantity == 0 || onDecrement == null ? null : onDecrement,
+            onPressed: quantity == 0 || onDecrement == null
+                ? null
+                : onDecrement,
           ),
           SizedBox(
             width: 40,

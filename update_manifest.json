@@ -1,4 +1,5 @@
 {
+  "channel": "stable",
   "android": {
     "latestVersionCode": 10,
     "latestVersionName": "1.4.2",

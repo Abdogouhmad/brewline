@@ -17,7 +17,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   sqfliteFfiInit();
 
-  test('v1 database upgrades without losing data (ends at current schema v4)',
+  test('v1 database upgrades without losing data (ends at current schema v5)',
     () async {
     final dir = await Directory.systemTemp.createTemp('brewline_migrate_');
     final path = p.join(dir.path, 'brewline.db');
@@ -98,12 +98,15 @@ void main() {
     final db2 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db2.close());
 
-    expect(await db2.getVersion(), 4);
+    expect(await db2.getVersion(), 5);
     await db2.rawQuery('SELECT is_archived FROM products'); // column now exists
     await db2.rawQuery('SELECT order_number FROM orders'); // column now exists
     await db2.rawQuery('SELECT * FROM cashout_logs'); // table now exists
     await db2.rawQuery('SELECT is_voided FROM orders'); // v4 column now exists
     await db2.rawQuery('SELECT * FROM order_refunds'); // v4 table now exists
+    await db2.rawQuery('SELECT * FROM ingredients'); // v5 table now exists
+    await db2.rawQuery('SELECT * FROM product_recipes'); // v5 table now exists
+    await db2.rawQuery('SELECT * FROM stock_movements'); // v5 table now exists
 
     // Existing rows were not touched by the upgrade.
     final products = ProductRepository(db2);
@@ -138,7 +141,7 @@ void main() {
     expect(await audit.recent(), hasLength(1));
   });
 
-  test('v2 database upgrades to v4: cashout_logs + widened audit CHECK + refunds',
+  test('v2 database upgrades to v5: cashout_logs + widened audit CHECK + refunds + stock',
     () async {
     final dir = await Directory.systemTemp.createTemp('brewline_migrate_');
     final path = p.join(dir.path, 'brewline.db');
@@ -219,9 +222,12 @@ void main() {
     final db3 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db3.close());
 
-    expect(await db3.getVersion(), 4);
+    expect(await db3.getVersion(), 5);
     await db3.rawQuery('SELECT * FROM cashout_logs'); // table now exists
     await db3.rawQuery('SELECT * FROM order_refunds'); // v4 table now exists
+    await db3.rawQuery('SELECT * FROM ingredients'); // v5 table now exists
+    await db3.rawQuery('SELECT * FROM product_recipes'); // v5 table now exists
+    await db3.rawQuery('SELECT * FROM stock_movements'); // v5 table now exists
 
     // Existing audit rows survived both CHECK-constraint table rebuilds.
     expect(await db3.query('audit_events'), hasLength(1));

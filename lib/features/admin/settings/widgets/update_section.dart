@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/services/app_info.dart';
+import 'package:brewline/core/updates/update_manifest.dart';
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/features/admin/settings/widgets/update_action_sheet.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
+import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Human-readable label for the current platform, shown next to the version
 /// so an admin can tell whether they're looking at the phone or the
@@ -32,7 +34,6 @@ class UpdateSection extends ConsumerWidget {
     final appInfo = ref.watch(appInfoProvider);
     final updater = ref.watch(updateProvider);
     final autoCheck = ref.watch(autoCheckUpdatesProvider);
-    final usePreReleases = ref.watch(usePreReleasesProvider);
     final lastChecked = ref.watch(lastUpdateCheckProvider);
 
     final versionLabel = appInfo.maybeWhen(
@@ -44,7 +45,7 @@ class UpdateSection extends ConsumerWidget {
       UpdateStatus.checking => 'Checking for updates…',
       UpdateStatus.available when updater.hasUpdate => updater.isMandatory
           ? 'A mandatory update is available'
-          : 'An update is available',
+          : 'An update is available ($_channelName)',
       UpdateStatus.downloading => 'Downloading…',
       UpdateStatus.readyToInstall => 'Ready to install',
       UpdateStatus.error => 'Update check failed',
@@ -54,6 +55,8 @@ class UpdateSection extends ConsumerWidget {
     final lastCheckedText = lastChecked == null
         ? 'Never checked'
         : 'Last checked ${_friendlyTime(lastChecked)}';
+
+    final showBetaBadge = kUpdateChannel == UpdateChannel.beta;
 
     return SettingsSectionCard(
       icon: Icons.system_update_alt_rounded,
@@ -65,6 +68,9 @@ class UpdateSection extends ConsumerWidget {
           icon: Icons.info_outline_rounded,
           title: 'Version',
           subtitle: '$versionLabel · $lastCheckedText',
+          trailing: showBetaBadge
+              ? _BetaBadge(colorScheme: colorScheme)
+              : null,
           onTap: () => showUpdateActionSheet(context),
         ),
         SettingsTile(
@@ -100,23 +106,13 @@ class UpdateSection extends ConsumerWidget {
                 ref.read(autoCheckUpdatesProvider.notifier).setEnabled(value),
           ),
         ),
-        SettingsTile(
-          icon: Icons.science_outlined,
-          title: 'Pre-release updates',
-          subtitle: 'Opt in to check for pre-release (beta) versions',
-          trailing: Switch(
-            value: usePreReleases,
-            onChanged: (value) async {
-              await ref
-                  .read(usePreReleasesProvider.notifier)
-                  .setEnabled(value);
-              ref.read(updateProvider.notifier).checkForUpdates();
-            },
-          ),
-        ),
       ],
     );
   }
+
+  /// Human-readable channel name shown in the status line.
+  static String get _channelName =>
+      kUpdateChannel == UpdateChannel.beta ? 'beta' : 'stable';
 
   /// Compact relative/"HH:MM" label for the last-checked timestamp.
   static String _friendlyTime(DateTime t) {
@@ -126,5 +122,30 @@ class UpdateSection extends ConsumerWidget {
     if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
     if (diff.inHours < 24) return '${diff.inHours} h ago';
     return '${t.day}/${t.month}';
+  }
+}
+
+/// Small "Beta" chip shown on beta-channel builds so it's never ambiguous
+/// which kind of build someone is looking at from the settings screen.
+class _BetaBadge extends StatelessWidget {
+  final ColorScheme colorScheme;
+
+  const _BetaBadge({required this.colorScheme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
+      decoration: BoxDecoration(
+        color: colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(Rounded.full),
+      ),
+      child: UiText(
+        'Beta',
+        type: UiTextType.labelMedium,
+        fontWeight: FontWeight.w700,
+        color: colorScheme.onTertiaryContainer,
+      ),
+    );
   }
 }

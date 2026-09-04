@@ -166,41 +166,63 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
 
     return UiCard(
       title: 'Filters',
-      leading: Icon(Icons.filter_list_rounded, color: Theme.of(context).colorScheme.primary),
+      leading: Icon(
+        Icons.filter_list_rounded,
+        color: Theme.of(context).colorScheme.primary,
+      ),
       compact: true,
-      content: Row(
-        children: [
-          Expanded(
-            child: _DateFilterInput(
-              range: _range,
-              onTap: _pickRange,
-              onClear: clearRange,
+      content: LayoutBuilder(
+        builder: (context, constraints) {
+          final spacing = Space.xl;
+          // Same single-line rule as the sales log filters: side by side only
+          // when each filter keeps a usable width, stacked on phones.
+          const minFilterWidth = 190.0;
+          final fitsPair = constraints.maxWidth >= 2 * minFilterWidth + spacing;
+
+          final date = _DateFilterInput(
+            range: _range,
+            onTap: _pickRange,
+            onClear: clearRange,
+          );
+          final waiter = DropdownButtonFormField<String?>(
+            initialValue: _waiterUsername,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Waiter',
+              prefixIcon: Icon(Icons.person_outline_rounded),
             ),
-          ),
-          SizedBox(width: Space.xl),
-          Expanded(
-            child: DropdownButtonFormField<String?>(
-              initialValue: _waiterUsername,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Waiter',
-                prefixIcon: Icon(Icons.person_outline_rounded),
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('All waiters')),
-                for (final s in staff.value ?? [])
-                  DropdownMenuItem(
-                    value: s.username,
-                    child: Text(s.name.isEmpty ? s.username : s.name),
-                  ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('All waiters')),
+              for (final s in staff.value ?? [])
+                DropdownMenuItem(
+                  value: s.username,
+                  child: Text(s.name.isEmpty ? s.username : s.name),
+                ),
+            ],
+            onChanged: (value) {
+              setState(() => _waiterUsername = value);
+              _load(reset: true);
+            },
+          );
+
+          if (fitsPair) {
+            return Row(
+              children: [
+                Expanded(child: date),
+                SizedBox(width: spacing),
+                Expanded(child: waiter),
               ],
-              onChanged: (value) {
-                setState(() => _waiterUsername = value);
-                _load(reset: true);
-              },
-            ),
-          ),
-        ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              date,
+              SizedBox(height: spacing),
+              waiter,
+            ],
+          );
+        },
       ),
     );
   }
@@ -297,13 +319,19 @@ class _CashoutTable extends StatelessWidget {
                     cells: [
                       DataCell(Text(_dateTime(r.createdAt))),
                       DataCell(Text('${r.orderCount}')),
-                      DataCell(Text(r.waiterName.isEmpty
-                          ? r.waiterUsername
-                          : r.waiterName)),
-                      DataCell(Text(
-                        formatPrice(r.totalSalesCents / 100),
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      )),
+                      DataCell(
+                        Text(
+                          r.waiterName.isEmpty
+                              ? r.waiterUsername
+                              : r.waiterName,
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          formatPrice(r.totalSalesCents / 100),
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     ],
                   ),
               ],
@@ -320,8 +348,18 @@ class _CashoutTable extends StatelessWidget {
 }
 
 const List<String> _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 class _Loader extends StatelessWidget {

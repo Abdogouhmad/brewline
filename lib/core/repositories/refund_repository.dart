@@ -30,6 +30,9 @@ import 'package:brewline/core/models/order_item_adjustment.dart';
 import 'package:brewline/core/models/order_line_item.dart';
 import 'package:brewline/core/models/order_record.dart';
 import 'package:brewline/core/models/order_refund.dart';
+import 'package:brewline/core/models/stock_movement.dart';
+import 'package:brewline/core/repositories/recipe_repository.dart';
+import 'package:brewline/core/repositories/stock_movement_repository.dart';
 
 /// The end state of a successfully processed refund — enough for the UI to
 /// confirm and offer a receipt print (§6).
@@ -122,14 +125,22 @@ class RefundRepository {
 
     return _db.transaction((txn) async {
       final originalTotal = await _orderTotal(txn, orderId);
+
+      // Ingredient stock restoration (stock.md §3.3): the recipe system shares
+      // this same transaction so restored quantity and ledger can't drift.
+      final recipeRepo = RecipeRepository(_db);
+      final stockRepo = StockMovementRepository(_db);
+      final refundAt = DateTime.now();
+
       var refundedCents = 0;
 
       for (final adjustment in adjustments) {
-        final current = await _lineQuantity(txn, adjustment.orderItemId);
-        if (current == null) {
+        final line = await _line(txn, adjustment.orderItemId);
+        if (line == null) {
           throw StateError('Line item ${adjustment.orderItemId} not found');
         }
-        if (adjustment.newQuantity >= adjustment.originalQuantity) {
+        final current = line['quantity'] as int;
+        if (adjustment.newQuantity >= current) {
           throw StateError(
             'Refund correction must reduce quantity '
             '(line ${adjustment.orderItemId})',
@@ -153,6 +164,25 @@ class RefundRepository {
             whereArgs: [adjustment.orderItemId],
           );
         }
+
+        // Restore exactly the ingredient quantity corresponding to the removed
+        // units (`reduced`), not the whole order. Untracked products (no
+        // recipe) are skipped silently (stock.md §3.3/§3.4).
+        final productId = line['product_id'] as String;
+        final recipe = await recipeRepo.getRecipeForProduct(
+          productId,
+          txn: txn,
+        );
+        for (final entry in recipe) {
+          await stockRepo.logMovement(
+            txn: txn,
+            ingredientId: entry.ingredientId,
+            changeAmount: entry.quantityPerUnit * reduced,
+            reason: StockMovementReason.refundRestock,
+            orderId: orderId,
+            createdAt: refundAt,
+          );
+        }
       }
 
       if (refundedCents <= 0) {
@@ -166,14 +196,13 @@ class RefundRepository {
       // `order_refunds` row, so the dashboard net and the Sales Log (which
       // reads the corrected lines) agree without double-subtracting.
 
-      final createdAt = DateTime.now();
       final refundId = await txn.insert('order_refunds', {
         'order_id': orderId,
         'admin_id': adminId,
         'refund_type': 'partial',
         'amount_cents': refundedCents,
         'reason': reason,
-        'created_at': createdAt.millisecondsSinceEpoch,
+        'created_at': refundAt.millisecondsSinceEpoch,
       });
       await txn.insert('audit_events', {
         'event_type': 'post_print_edit',
@@ -185,14 +214,14 @@ class RefundRepository {
           'new_total': originalTotal - refundedCents / 100,
           'reason': reason,
         }),
-        'created_at': createdAt.millisecondsSinceEpoch,
+        'created_at': refundAt.millisecondsSinceEpoch,
       });
 
       return RefundResult(
         orderId: orderId,
         amountCents: refundedCents,
         isFull: false,
-        at: createdAt,
+        at: refundAt,
       );
     });
   }
@@ -216,6 +245,38 @@ class RefundRepository {
       final total = await _orderTotal(txn, orderId);
       final amountCents = (total * 100).round();
 
+      final createdAt = DateTime.now();
+
+      // Ingredient stock restoration (stock.md §3.3): a full void returns every
+      // tracked line's originally-consumed quantity. Shares this transaction so
+      // restored quantity and ledger can't drift; untracked products (no
+      // recipe) are skipped silently (§3.4).
+      final recipeRepo = RecipeRepository(_db);
+      final stockRepo = StockMovementRepository(_db);
+      final lineRows = await txn.query(
+        'order_items',
+        where: 'order_id = ?',
+        whereArgs: [orderId],
+      );
+      for (final line in lineRows) {
+        final quantity = line['quantity'] as int;
+        final productId = line['product_id'] as String;
+        final recipe = await recipeRepo.getRecipeForProduct(
+          productId,
+          txn: txn,
+        );
+        for (final entry in recipe) {
+          await stockRepo.logMovement(
+            txn: txn,
+            ingredientId: entry.ingredientId,
+            changeAmount: entry.quantityPerUnit * quantity,
+            reason: StockMovementReason.refundRestock,
+            orderId: orderId,
+            createdAt: createdAt,
+          );
+        }
+      }
+
       await txn.update(
         'orders',
         {'is_voided': 1},
@@ -223,7 +284,6 @@ class RefundRepository {
         whereArgs: [orderId],
       );
 
-      final createdAt = DateTime.now();
       final refundId = await txn.insert('order_refunds', {
         'order_id': orderId,
         'admin_id': adminId,
@@ -267,16 +327,18 @@ class RefundRepository {
     return (rows.first['total'] as num).toDouble();
   }
 
-  Future<int?> _lineQuantity(DatabaseExecutor txn, int lineId) async {
+  Future<Map<String, Object?>?> _line(
+    DatabaseExecutor txn,
+    int lineId,
+  ) async {
     final rows = await txn.query(
       'order_items',
-      columns: ['quantity'],
       where: 'id = ?',
       whereArgs: [lineId],
       limit: 1,
     );
     if (rows.isEmpty) return null;
-    return (rows.first['quantity'] as num).toInt();
+    return rows.first;
   }
 }
 

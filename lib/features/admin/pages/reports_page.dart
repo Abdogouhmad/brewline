@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/admin/providers/sales_trend_provider.dart';
 import 'package:brewline/features/admin/widgets/busiest_hours_heatmap.dart';
 import 'package:brewline/features/admin/widgets/category_mix_bars.dart';
@@ -21,37 +22,49 @@ class ReportsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final compact = Breakpoints.of(context) == ScreenSize.compact;
+
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        UiText(
+          'Performance',
+          type: UiTextType.headlineSmall,
+          fontWeight: FontWeight.w800,
+        ),
+        SizedBox(height: Space.xs),
+        UiText(
+          'Revenue, what sells and when.',
+          type: UiTextType.bodyMedium,
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ],
+    );
+
     return ListView(
       padding: EdgeInsets.symmetric(
-        horizontal: MediaQuery.of(context).size.width < 600
-            ? Space.lg
-            : Space.full,
+        horizontal: compact ? Space.lg : Space.full,
         vertical: Space.lg,
       ),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  UiText(
-                    'Performance',
-                    type: UiTextType.headlineSmall,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  SizedBox(height: Space.xs),
-                  UiText(
-                    'Revenue, what sells and when.',
-                    type: UiTextType.bodyMedium,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ],
-              ),
-            ),
-            const PeriodSelector(),
-          ],
-        ),
+        if (compact)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              title,
+              SizedBox(height: Space.md),
+              SizedBox(width: double.infinity, child: const PeriodSelector()),
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: title),
+              const PeriodSelector(),
+            ],
+          ),
         SizedBox(height: Space.lg),
         const _RevenueTrendCard(),
         SizedBox(height: Space.lg),

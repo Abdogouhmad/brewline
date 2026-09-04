@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Theme preference as a full-width [SegmentedButton] row — System / Light /
-/// Dark read better as segments than inside a dropdown.
+/// Dark read better as segments than inside a dropdown. On phones the leading
+/// avatar and the per-segment icons are dropped so the control fits the
+/// narrower settings card.
 class ThemeSegmentedControl extends StatelessWidget {
   final ThemePref themePref;
   final ValueChanged<ThemePref> onChanged;
@@ -19,17 +22,20 @@ class ThemeSegmentedControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final compact = Breakpoints.of(context) == ScreenSize.compact;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        CircleAvatar(
-          radius: AppSizes.iconMd / 2 + 2,
-          backgroundColor: colorScheme.secondaryContainer,
-          foregroundColor: colorScheme.onSecondaryContainer,
-          child: Icon(Icons.brightness_6_rounded, size: AppSizes.iconSm + 4),
-        ),
-        SizedBox(width: Space.lg),
+        if (!compact) ...[
+          CircleAvatar(
+            radius: AppSizes.iconMd / 2 + 2,
+            backgroundColor: colorScheme.secondaryContainer,
+            foregroundColor: colorScheme.onSecondaryContainer,
+            child: Icon(Icons.brightness_6_rounded, size: AppSizes.iconSm + 4),
+          ),
+          SizedBox(width: Space.lg),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,7 +61,9 @@ class ThemeSegmentedControl extends StatelessWidget {
                     for (final pref in ThemePref.values)
                       ButtonSegment(
                         value: pref,
-                        icon: Icon(_themeIcon(pref), size: AppSizes.iconSm + 2),
+                        icon: compact
+                            ? null
+                            : Icon(_themeIcon(pref), size: AppSizes.iconSm + 2),
                         label: Text(switch (pref) {
                           ThemePref.system => 'System',
                           ThemePref.light => 'Light',

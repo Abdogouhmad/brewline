@@ -123,8 +123,7 @@ class AdminSettingsPage extends ConsumerWidget {
 
   /// Child width for a 2-up desktop grid: half the available width minus the
   /// run gap so two cards plus the spacing exactly fill the row.
-  static double _halfWidth(double maxWidth, double gap) =>
-      (maxWidth - gap) / 2;
+  static double _halfWidth(double maxWidth, double gap) => (maxWidth - gap) / 2;
 
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
@@ -193,8 +192,9 @@ class _GeneralCard extends ConsumerWidget {
           subtitle: 'Interface language for this device',
           trailing: LanguageDropdown(
             value: language,
-            onChanged: (value) =>
-                ref.read(languageControllerProvider.notifier).setLanguage(value),
+            onChanged: (value) => ref
+                .read(languageControllerProvider.notifier)
+                .setLanguage(value),
           ),
         ),
         ThemeSegmentedControl(
@@ -251,11 +251,12 @@ class _ProfileHeader extends ConsumerWidget {
                     fontWeight: FontWeight.w800,
                   ),
                   SizedBox(height: Space.sm),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                  Wrap(
+                    spacing: Space.md,
+                    runSpacing: Space.xs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _Badge(colorScheme: colorScheme, label: role),
-                      SizedBox(width: Space.md),
                       Icon(
                         Icons.schedule_rounded,
                         size: AppSizes.iconSm + 2,

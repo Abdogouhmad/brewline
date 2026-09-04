@@ -9,10 +9,10 @@ import 'package:brewline/features/admin/providers/sales_trend_provider.dart';
 import 'package:brewline/features/admin/widgets/dashboard_card.dart';
 import 'package:brewline/features/admin/widgets/dashboard_header.dart';
 import 'package:brewline/features/admin/widgets/kpi_card.dart';
-import 'package:brewline/features/admin/widgets/low_stock_alerts.dart';
 import 'package:brewline/features/admin/widgets/quick_actions_row.dart';
 import 'package:brewline/features/admin/widgets/revenue_trend_chart.dart';
 import 'package:brewline/features/admin/widgets/shift_status_card.dart';
+import 'package:brewline/features/admin/widgets/stock_overview_card.dart';
 import 'package:brewline/features/admin/widgets/top_products_list.dart';
 import 'package:brewline/features/waiter/providers/price_format.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -120,7 +120,7 @@ class _RevenueAndRail extends StatelessWidget {
   }
 }
 
-/// Top sellers and low-stock alerts side by side on wide screens.
+/// Top sellers and the full stock overview side by side on wide screens.
 class _SecondaryRow extends StatelessWidget {
   const _SecondaryRow();
 
@@ -141,7 +141,7 @@ class _SecondaryRow extends StatelessWidget {
           runSpacing: Space.lg,
           children: [
             cell(const TopProductsList()),
-            cell(const LowStockAlerts()),
+            cell(const StockOverviewCard()),
           ],
         );
       },
@@ -175,8 +175,8 @@ class _KpiGrid extends ConsumerWidget {
     // fixed row height so the denser compact card never overflows.
     final size = Breakpoints.of(context);
     final (columns, rowHeight) = switch (size) {
-      ScreenSize.compact => (2, 132.0),
-      ScreenSize.medium => (3, 140.0),
+      ScreenSize.compact => (2, 150.0),
+      ScreenSize.medium => (3, 150.0),
       ScreenSize.expanded => (4, 152.0),
     };
 

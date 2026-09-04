@@ -16,6 +16,10 @@ import 'package:brewline/shared/widgets/product_image.dart';
 /// ([menuProductsProvider]) as a responsive grid of [UiCard]s. Tapping a card
 /// adds the product to the current order. Updates live when the admin edits
 /// the catalog.
+///
+/// Stock levels are intentionally **not** shown here — stock is admin-only
+/// information (private to the admin stock page), so waiters just see the menu
+/// and price, never low/out alerts.
 class MenuPage extends ConsumerWidget {
   const MenuPage({super.key});
 
@@ -62,7 +66,6 @@ class MenuPage extends ConsumerWidget {
                     ),
                   )
                 : ResponsiveGrid(
-                    // Compact subtitle-less menu cards: 2 / 3 / 5 columns.
                     mobileColumns: 2,
                     tabletColumns: 3,
                     desktopColumns: 5,

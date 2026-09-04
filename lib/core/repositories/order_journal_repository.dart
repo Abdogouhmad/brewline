@@ -4,6 +4,9 @@ import 'package:sqflite/sqflite.dart';
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/models/order_line_item.dart';
 import 'package:brewline/core/models/order_record.dart';
+import 'package:brewline/core/models/stock_movement.dart';
+import 'package:brewline/core/repositories/recipe_repository.dart';
+import 'package:brewline/core/repositories/stock_movement_repository.dart';
 
 /// Aggregated totals for a period, computed from the order journal.
 class PeriodStats {
@@ -170,7 +173,20 @@ class OrderJournalRepository {
   /// [nextOrderNumber] inside this same transaction, so number assignment and
   /// row insert can never disagree. Returns the record with the assigned
   /// number so callers can display it (kitchen ticket, receipt) immediately.
-  Future<OrderRecord> addOrder(OrderRecord order) async {
+  ///
+  /// When [deductStock] is `true` (the default), the ingredient-level stock for
+  /// every tracked line item is deducted **inside this same transaction** —
+  /// if the app crashes between "order saved" and "stock deducted" the two
+  /// would drift out of sync, defeating the point of the ledger (stock.md
+  /// §3.1). Untracked products (no recipe rows) are skipped silently (§3.4).
+  Future<OrderRecord> addOrder(
+    OrderRecord order, {
+    bool deductStock = true,
+  }) async {
+    final recipeRepo = RecipeRepository(_db);
+    final stockRepo = StockMovementRepository(_db);
+    final at = order.createdAt;
+
     return _db.transaction((txn) async {
       final number = order.orderNumber == 0
           ? await _claimOrderNumber(txn, order.createdAt)
@@ -190,6 +206,25 @@ class OrderJournalRepository {
           'quantity': item.quantity,
           'unit_price': item.unitPrice,
         });
+
+        // Stock deduction (stock.md §3.1) — inside the same transaction as the
+        // order_items write so they can never disagree.
+        if (deductStock) {
+          final recipe = await recipeRepo.getRecipeForProduct(
+            item.productId,
+            txn: txn,
+          );
+          for (final entry in recipe) {
+            await stockRepo.logMovement(
+              txn: txn,
+              ingredientId: entry.ingredientId,
+              changeAmount: -(entry.quantityPerUnit * item.quantity),
+              reason: StockMovementReason.sale,
+              orderId: order.id,
+              createdAt: at,
+            );
+          }
+        }
       }
       return order.copyWith(orderNumber: number);
     });

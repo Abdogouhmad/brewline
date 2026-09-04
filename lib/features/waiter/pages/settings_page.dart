@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/admin/settings/widgets/update_section.dart';
 import 'package:brewline/features/auth/login_page.dart';
@@ -78,47 +79,57 @@ class _SettingsIcons {
 /// Phone & tablet stack the cards; wide screens place General and
 /// Printing side by side with Account spanning full width. Content width
 /// is capped so it stays readable. Title lives in the app bar.
+///
+/// When pushed as its own route (desktop waiter app bar) the page carries its
+/// own [Scaffold]/[AppBar]; when embedded as an [AppShell] destination
+/// ([embedded] = true) the shell already provides them, so the page renders
+/// just its content to avoid a doubled header.
 class SettingsPage extends ConsumerWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.embedded = false});
+
+  final bool embedded;
 
   /// Content width at which General + Printing sit side by side.
   static const double _twoColumnBreakpoint = 900;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final body = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
+        child: ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: _contentPadding(context),
+            vertical: Space.lg,
+          ),
+          children: [
+            const _ProfileHeader(),
+            SizedBox(height: Space.x2l),
+            _ResponsiveSections(
+              breakpoint: _twoColumnBreakpoint,
+              general: _buildGeneralCard(ref),
+              printing: _buildPrintingCard(ref),
+              account: _buildAccountCard(context, ref),
+              update: const UpdateSection(),
+            ),
+            SizedBox(height: Space.x2l),
+            const SettingsFooter(),
+          ],
+        ),
+      ),
+    );
+
+    if (embedded) return body;
     return Scaffold(
       appBar: AppBar(
         title: const UiText(_Copy.pageTitle, type: UiTextType.titleLarge),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
-          child: ListView(
-            padding: EdgeInsets.symmetric(
-              horizontal: _contentPadding(context),
-              vertical: Space.lg,
-            ),
-            children: [
-              const _ProfileHeader(),
-              SizedBox(height: Space.x2l),
-              _ResponsiveSections(
-                breakpoint: _twoColumnBreakpoint,
-                general: _buildGeneralCard(ref),
-                printing: _buildPrintingCard(ref),
-                account: _buildAccountCard(context, ref),
-                update: const UpdateSection(),
-              ),
-              SizedBox(height: Space.x2l),
-              const SettingsFooter(),
-            ],
-          ),
-        ),
-      ),
+      body: body,
     );
   }
 
   double _contentPadding(BuildContext context) =>
-      MediaQuery.of(context).size.width < 600 ? Space.lg : Space.full;
+      Breakpoints.of(context) == ScreenSize.compact ? Space.lg : Space.full;
 
   // ---------------------------------------------------------------------------
   // Sections
@@ -323,11 +334,12 @@ class _ProfileHeader extends ConsumerWidget {
                     fontWeight: FontWeight.w800,
                   ),
                   SizedBox(height: Space.sm),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                  Wrap(
+                    spacing: Space.md,
+                    runSpacing: Space.xs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _RoleBadge(role: user.role),
-                      SizedBox(width: Space.md),
                       Icon(
                         Icons.schedule_rounded,
                         size: AppSizes.iconSm + 2,
