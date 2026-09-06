@@ -48,13 +48,17 @@ jobs:
       #   BREWLINE_KEY_ALIAS
       #   BREWLINE_KEY_PASSWORD
       - name: Provision Android release keystore
-        if: runner.os == 'Linux' && secrets.BREWLINE_KEYSTORE_BASE64 != ''
+        if: runner.os == 'Linux'
         env:
           BREWLINE_KEYSTORE_BASE64: ${{ secrets.BREWLINE_KEYSTORE_BASE64 }}
           BREWLINE_KEYSTORE_PASSWORD: ${{ secrets.BREWLINE_KEYSTORE_PASSWORD }}
           BREWLINE_KEY_ALIAS: ${{ secrets.BREWLINE_KEY_ALIAS }}
           BREWLINE_KEY_PASSWORD: ${{ secrets.BREWLINE_KEY_PASSWORD }}
         run: |
+          if [ -z "$BREWLINE_KEYSTORE_BASE64" ]; then
+            echo "::warning::No release keystore configured — building with debug signing."
+            exit 0
+          fi
           # Decode the keystore under android/app so Gradle's relative
           # `file()` (resolved from the app module dir) can find it.
           mkdir -p android/app/keystores
