@@ -1,27 +1,27 @@
 {
-  "channel": "stable",
+  "channel": "release",
   "android": {
-    "latestVersionCode": 10,
-    "latestVersionName": "1.4.2",
+    "latestVersionCode": 11,
+    "latestVersionName": "1.5.0",
     "minSupportedVersionCode": 1,
     "mandatory": false,
-    "apkUrl": "https://github.com/Abdogouhmad/brewline/releases/download/1.4.2/app-release.apk",
-    "sha256": "67d5cdac2a6557f35c0f91f3fee1b1743a31f5346ce3018b504e0be9a8578684"
+    "apkUrl": "https://github.com/Abdogouhmad/brewline/releases/download/1.5.0/app-release.apk",
+    "sha256": "8eb04e1a2ab4529ef9c3726ef64e3206a752ac2478c90d82f5c7a777b9077641"
   },
   "windows": {
-    "latestVersion": "1.4.2",
+    "latestVersion": "1.5.0",
     "minSupportedVersion": "1.0.0",
     "mandatory": false,
-    "archiveUrl": "https://github.com/Abdogouhmad/brewline/releases/download/1.4.2/brewline-windows-x64.zip",
-    "sha256": "efec1ba9e9f341a91c94544e822d9e90898befdf54fc210adf5021470bcc9a47"
+    "archiveUrl": "https://github.com/Abdogouhmad/brewline/releases/download/1.5.0/brewline-windows-x64.zip",
+    "sha256": "f635ffce7184c41ad897d4dc4b639d44ab87198a497b80850f9cbef475b3bd9a"
   },
   "linux": {
-    "latestVersion": "1.4.2",
+    "latestVersion": "1.5.0",
     "minSupportedVersion": "1.0.0",
     "mandatory": false,
-    "archiveUrl": "https://github.com/Abdogouhmad/brewline/releases/download/1.4.2/brewline-linux-x64.tar.gz",
-    "sha256": "a3a39f4bdb022652c15cdcafaead0d82c237b545753a44b8c309b4fcfc482961"
+    "archiveUrl": "https://github.com/Abdogouhmad/brewline/releases/download/1.5.0/brewline-linux-x64.tar.gz",
+    "sha256": "75607c46def4370d66faedb65331e4ec522c4d7db431bed1fb6c33a247a8f276"
   },
   "releaseNotes": "",
-  "publishedAt": "2026-09-04T10:53:19+01:00"
+  "publishedAt": "2026-09-06T16:35:41+01:00"
 }
