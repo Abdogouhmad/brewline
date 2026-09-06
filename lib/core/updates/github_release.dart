@@ -107,7 +107,7 @@ class GitHubRelease {
   /// nothing installable on the current platform.
   Future<UpdateAsset?> pickAssetForCurrentPlatform() async {
     if (Platform.isAndroid) {
-      final abi = await _detectAndroidAbi();
+      final abi = await _cachedAndroidAbi();
       final preferred = switch (abi) {
         AndroidAbi.arm64V8a => 'app-arm64-v8a-release.apk',
         AndroidAbi.armeabiV7a => 'app-armeabi-v7a-release.apk',
@@ -130,6 +130,11 @@ class GitHubRelease {
 /// per-ABI split APK so phones get the smallest possible download.
 enum AndroidAbi { arm64V8a, armeabiV7a, x8664, unknown }
 
+/// Memoised ABI probe. Spawning a process via `uname` is cheap, but the CPU
+/// architecture never changes during a process' lifetime, so the result is
+/// resolved once and re-used for every subsequent update check in this run.
+Future<AndroidAbi>? _abiCache;
+
 /// Detects the ABI by asking the kernel (`uname -m`), which is available on
 /// Android. Falls back to [AndroidAbi.unknown] (universal APK) on any failure.
 Future<AndroidAbi> _detectAndroidAbi() async {
@@ -145,3 +150,7 @@ Future<AndroidAbi> _detectAndroidAbi() async {
     return AndroidAbi.unknown;
   }
 }
+
+/// Returns the cached ABI probe, resolving it on first use.
+Future<AndroidAbi> _cachedAndroidAbi() =>
+    _abiCache ??= _detectAndroidAbi();

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-09-06
+
+### Changed
+
+- **Cached Android ABI detection** — the CPU architecture probe (`uname -m`,
+  used to pick the per-ABI split APK) now memoises its result for the app's
+  lifetime instead of spawning a process on every update check.
+
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.6.1...HEAD
+[1.6.1]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...1.6.1
+
 ## [1.6.0] - 2026-09-06
 
 ### Changed
