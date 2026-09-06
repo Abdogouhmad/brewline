@@ -224,7 +224,7 @@ jobs:
 
           python3 - "$BN" "$VERSION" "$RELEASE_URL" "$TIMESTAMP" \
                     "$ANDROID_APK" "$LINUX_TGZ" "$WINDOWS_ZIP" <<'PY'
-          import hashlib, json, os, sys
+          import hashlib, json, os, re, sys
           bn, version, release_url, timestamp = sys.argv[1:5]
           apk, tgz, zip_ = sys.argv[5:8]
 
@@ -236,6 +236,25 @@ jobs:
                   for block in iter(lambda: f.read(65536), b''):
                       h.update(block)
               return h.hexdigest()
+
+          def release_notes_for(version):
+              """Extracts the CHANGELOG section for `version` so the in-app
+              OTA screen can show users what changed in this release."""
+              try:
+                  with open('CHANGELOG.md', encoding='utf-8') as f:
+                      text = f.read()
+              except OSError:
+                  return ''
+              m = re.search(r'^##\s*\[' + re.escape(version) + r'\][^\n]*\n', text, re.M)
+              if not m:
+                  return ''
+              nxt = re.search(r'^##\s*\[', text[m.end():], re.M)
+              end = m.end() + (nxt.start() if nxt else len(text) - m.end())
+              seg = text[m.end():end]
+              # Drop Keep-a-Changelog reference-link definitions ([name]: url).
+              lines = [ln for ln in seg.splitlines()
+                       if not re.match(r'^\s*\[[^\]]+\]:\s*\S', ln)]
+              return '\n'.join(lines).strip()
 
           ZERO = "0000000000000000000000000000000000000000000000000000000000000000"
           manifest = {
@@ -262,7 +281,7 @@ jobs:
                   "archiveUrl": f"{release_url}/brewline-linux-x64.tar.gz",
                   "sha256": sha256(tgz) or ZERO,
               },
-              "releaseNotes": "",
+              "releaseNotes": release_notes_for(version),
               "publishedAt": timestamp,
           }
           with open('update_manifest.json', 'w') as f:
