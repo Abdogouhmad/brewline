@@ -2,6 +2,7 @@ name: release
 
 # Builds installable release bundles on every push/merge to `main` and
 # publishes them as a GitHub **release** (official stable release).
+# The git tag is created automatically from the version in pubspec.yaml.
 #
 #   Linux   (x64)   built on ubuntu
 #   Android (APK)   built on ubuntu (universal fat APK + per-arch AAB)
@@ -47,7 +48,7 @@ jobs:
       #   BREWLINE_KEY_ALIAS
       #   BREWLINE_KEY_PASSWORD
       - name: Provision Android release keystore
-        if: runner.os == 'Linux' && env.BREWLINE_KEYSTORE_BASE64 != ''
+        if: runner.os == 'Linux' && secrets.BREWLINE_KEYSTORE_BASE64 != ''
         env:
           BREWLINE_KEYSTORE_BASE64: ${{ secrets.BREWLINE_KEYSTORE_BASE64 }}
           BREWLINE_KEYSTORE_PASSWORD: ${{ secrets.BREWLINE_KEYSTORE_PASSWORD }}
@@ -186,10 +187,9 @@ jobs:
         shell: bash
         run: |
           VERSION="$(sed -nE 's/^version: *([^ ]+).*/\1/p' pubspec.yaml | head -n1)"
-          # Replace the +N build number so it can be used as a git tag.
           TAG="${VERSION%%+*}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -317,6 +317,10 @@ jobs:
           else
             git tag -d "$TAG" >/dev/null 2>&1 || true
           fi
+
+          # Create and push the version tag derived from pubspec.yaml.
+          git tag "$TAG"
+          git push origin "$TAG"
 
           # Strip the YAML-indentation whitespace from CHANGELOG.md so the
           # release notes render cleanly on GitHub.
