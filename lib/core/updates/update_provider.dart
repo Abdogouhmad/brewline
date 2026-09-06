@@ -133,7 +133,16 @@ class UpdateNotifier extends Notifier<UpdateState> {
   /// Triggers an update check. Silent on failure (never blocks startup).
   Future<void> checkForUpdates() async {
     state = state.copyWith(status: UpdateStatus.checking, error: null);
-    final appInfo = ref.read(appInfoProvider).value;
+    // `PackageInfo` resolves asynchronously (platform channel). Await the
+    // future instead of reading `.value`, which is null until it resolves —
+    // otherwise the early startup auto-check would silently abort before the
+    // installed version is ever known, and OTA detection would do nothing.
+    AppInfoData? appInfo;
+    try {
+      appInfo = await ref.read(appInfoProvider.future);
+    } catch (_) {
+      appInfo = null;
+    }
     if (appInfo == null) {
       state = state.copyWith(status: UpdateStatus.idle);
       return;

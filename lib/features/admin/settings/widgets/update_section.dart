@@ -1,30 +1,21 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/services/app_info.dart';
-import 'package:brewline/core/updates/update_manifest.dart';
 import 'package:brewline/core/updates/update_provider.dart';
-import 'package:brewline/features/admin/settings/widgets/update_action_sheet.dart';
+import 'package:brewline/features/admin/settings/widgets/update_screen.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
-/// Human-readable label for the current platform, shown next to the version
-/// so an admin can tell whether they're looking at the phone or the
-/// front-counter desktop build at a glance.
-String currentPlatformLabel() {
-  if (Platform.isAndroid) return 'Android';
-  if (Platform.isWindows) return 'Windows';
-  if (Platform.isLinux) return 'Linux';
-  return Platform.operatingSystem;
-}
-
-/// Settings card for OTA updates: current version + platform, a "Check for
-/// updates" action, an auto-check toggle and a status line driven by
-/// [updateProvider].
+/// Settings card for OTA updates. It's the **entry point** to the dedicated
+/// [UpdateScreen] (pushed as a nested route on both admin and waiter pages),
+/// and also carries the auto-check toggle so it stays available without
+/// leaving Settings.
+///
+/// Tapping the summary tile opens the full update center: status header,
+/// version details, changelog and the download/install action.
 class UpdateSection extends ConsumerWidget {
   const UpdateSection({super.key});
 
@@ -34,29 +25,11 @@ class UpdateSection extends ConsumerWidget {
     final appInfo = ref.watch(appInfoProvider);
     final updater = ref.watch(updateProvider);
     final autoCheck = ref.watch(autoCheckUpdatesProvider);
-    final lastChecked = ref.watch(lastUpdateCheckProvider);
 
     final versionLabel = appInfo.maybeWhen(
-      data: (info) => '${info.version} (${currentPlatformLabel()})',
+      data: (info) => 'v${info.version}',
       orElse: () => '…',
     );
-
-    final statusText = switch (updater.status) {
-      UpdateStatus.checking => 'Checking for updates…',
-      UpdateStatus.available when updater.hasUpdate => updater.isMandatory
-          ? 'A mandatory update is available'
-          : 'An update is available ($_channelName)',
-      UpdateStatus.downloading => 'Downloading…',
-      UpdateStatus.readyToInstall => 'Ready to install',
-      UpdateStatus.error => 'Update check failed',
-      _ => 'Up to date',
-    };
-
-    final lastCheckedText = lastChecked == null
-        ? 'Never checked'
-        : 'Last checked ${_friendlyTime(lastChecked)}';
-
-    final showBetaBadge = kUpdateChannel == UpdateChannel.beta;
 
     return SettingsSectionCard(
       icon: Icons.system_update_alt_rounded,
@@ -65,36 +38,28 @@ class UpdateSection extends ConsumerWidget {
       accent: SettingsAccent.secondary,
       children: [
         SettingsTile(
-          icon: Icons.info_outline_rounded,
-          title: 'Version',
-          subtitle: '$versionLabel · $lastCheckedText',
-          trailing: showBetaBadge
-              ? _BetaBadge(colorScheme: colorScheme)
-              : null,
-          onTap: () => showUpdateActionSheet(context),
-        ),
-        SettingsTile(
-          icon: Icons.cloud_sync_outlined,
-          title: updater.status == UpdateStatus.checking
-              ? 'Checking…'
-              : 'Check for updates',
-          subtitle: statusText,
-          trailing: updater.status == UpdateStatus.checking
-              ? const SizedBox(
-                  width: AppSizes.iconMd,
-                  height: AppSizes.iconMd,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(
-                  Icons.system_update_alt_rounded,
-                  color: colorScheme.primary,
-                ),
-          onTap: updater.status == UpdateStatus.checking
-              ? null
-              : () {
-                  ref.read(updateProvider.notifier).checkForUpdates();
-                  showUpdateActionSheet(context);
-                },
+          icon: Icons.system_update_alt_rounded,
+          title: 'Software update',
+          subtitle: _summaryText(updater),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              UiText(
+                versionLabel,
+                type: UiTextType.labelMedium,
+                fontWeight: FontWeight.w700,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              SizedBox(width: Space.lg),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const UpdateScreen()),
+          ),
         ),
         SettingsTile(
           icon: Icons.autorenew_rounded,
@@ -110,42 +75,17 @@ class UpdateSection extends ConsumerWidget {
     );
   }
 
-  /// Human-readable channel name shown in the status line.
-  static String get _channelName =>
-      kUpdateChannel == UpdateChannel.beta ? 'beta' : 'stable';
-
-  /// Compact relative/"HH:MM" label for the last-checked timestamp.
-  static String _friendlyTime(DateTime t) {
-    final now = DateTime.now();
-    final diff = now.difference(t);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours < 24) return '${diff.inHours} h ago';
-    return '${t.day}/${t.month}';
-  }
-}
-
-/// Small "Beta" chip shown on beta-channel builds so it's never ambiguous
-/// which kind of build someone is looking at from the settings screen.
-class _BetaBadge extends StatelessWidget {
-  final ColorScheme colorScheme;
-
-  const _BetaBadge({required this.colorScheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
-      decoration: BoxDecoration(
-        color: colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(Rounded.full),
-      ),
-      child: UiText(
-        'Beta',
-        type: UiTextType.labelMedium,
-        fontWeight: FontWeight.w700,
-        color: colorScheme.onTertiaryContainer,
-      ),
-    );
+  /// One-line summary of the current update state for the entry tile.
+  static String _summaryText(UpdateState updater) {
+    return switch (updater.status) {
+      UpdateStatus.checking => 'Checking for updates…',
+      UpdateStatus.available when updater.hasUpdate => updater.isMandatory
+          ? 'Update required'
+          : 'An update is available',
+      UpdateStatus.downloading => 'Downloading…',
+      UpdateStatus.readyToInstall => 'Ready to install',
+      UpdateStatus.error => 'Update check failed',
+      _ => 'Up to date',
+    };
   }
 }
