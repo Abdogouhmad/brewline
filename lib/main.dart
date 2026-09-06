@@ -37,8 +37,8 @@ Future<void> main() async {
     return;
   }
 
-  // No dummy data is seeded at startup — the app starts completely empty and
-  // the admin enters real products, ingredients and staff from zero.
+  // No dummy data is seeded at startup — the app starts completely empty
+  // and the admin enters real products, ingredients and staff from zero.
 
   runApp(
     ProviderScope(
