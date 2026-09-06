@@ -170,7 +170,7 @@ class UpdateRequiredScreen extends ConsumerWidget {
 
       case UpdateStatus.available:
       case UpdateStatus.idle:
-        final notes = updater.manifest?.releaseNotes ?? '';
+        final notes = updater.release?.releaseNotes ?? '';
         final lines =
             notes
                 .split('\n')

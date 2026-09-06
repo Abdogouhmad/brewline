@@ -9,12 +9,35 @@ library;
 
 import 'dart:io';
 
+import 'package:pub_semver/pub_semver.dart';
+
 import 'package:brewline/core/services/app_info.dart';
 import 'package:brewline/core/updates/android_update_installer.dart';
 import 'package:brewline/core/updates/desktop_update_installer.dart';
-import 'package:brewline/core/updates/update_manifest.dart';
+import 'package:brewline/core/updates/github_release.dart';
 
-/// Result of comparing the installed version against the manifest.
+/// Compares the installed [currentInfo] version against the released
+/// [release]'s version (both semantic-version strings) and reports whether an
+/// update is available.
+///
+/// Shared by every platform: the GitHub release tag is the single version
+/// source, so Android and desktop compare identically. A failure to parse
+/// either version yields [UpdateCheckResult.checkFailed].
+UpdateCheckResult compareSemVer(
+  GitHubRelease release,
+  AppInfoData currentInfo,
+) {
+  try {
+    final current = Version.parse(currentInfo.version);
+    final latest = Version.parse(release.version);
+    if (current >= latest) return UpdateCheckResult.upToDate;
+    return UpdateCheckResult.updateAvailable;
+  } on FormatException {
+    return UpdateCheckResult.checkFailed;
+  }
+}
+
+/// Result of comparing the installed version against the latest release.
 enum UpdateCheckResult {
   /// The app is already up to date.
   upToDate,
@@ -71,18 +94,19 @@ abstract class UpdateInstaller {
     );
   }
 
-  /// Compares [currentInfo] against the relevant section of [manifest]
-  /// and returns whether an update is available.
+  /// Compares [currentInfo] against the released [release] and returns whether
+  /// an update is available.
   UpdateCheckResult checkForUpdate(
-    UpdateManifest manifest,
+    GitHubRelease release,
     AppInfoData currentInfo,
   );
 
   /// Downloads the update artifact from [url], verifying its SHA-256 against
-  /// [expectedSha256]. [onProgress] is called with a value in 0.0–1.0.
+  /// [expectedSha256] when one is known (GitHub may not report a digest).
+  /// [onProgress] is called with a value in 0.0–1.0.
   Future<void> download(
-    String url,
-    String expectedSha256, {
+    String url, {
+    String? expectedSha256,
     DownloadProgress? onProgress,
   });
 

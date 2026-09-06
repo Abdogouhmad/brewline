@@ -1,16 +1,15 @@
-/// Fetches the OTA update manifest, picks the right platform section, and
-/// compares against the installed version.
+/// Fetches the latest published GitHub release, picks the asset matching the
+/// current platform, and compares it against the installed version.
 ///
-/// The manifest is a static JSON file hosted free on GitHub raw — the app
-/// never calls GitHub's Releases API (which excludes pre-releases by design
-/// and is rate-limited to 60 req/h per unauth'd IP). A failed or offline check
-/// is always silent — it never blocks startup and never surfaces as an error
-/// for a routine background check.
+/// This replaces the old static `update_manifest.json` approach: there is now a
+/// single source of truth — the GitHub **release itself**. The app calls the
+/// Releases API (`releases/latest`), which serves the newest non-prerelease
+/// tag, its assets (APKs / archives) and the release body (used verbatim as the
+/// in-app changelog).
 ///
-/// The manifest URL is selected from the build's [kUpdateChannel], keeping the
-/// `beta` (pre-release) and `stable` manifests as two separate files so a
-/// production device can never accidentally pull a beta build just because a
-/// config value got flipped.
+/// The one trade-off is GitHub's unauthenticated rate limit (60 req/h per IP);
+/// a failed or offline check is always silent — it never blocks startup and
+/// never surfaces as an error for a routine background check.
 library;
 
 import 'dart:io';
@@ -20,50 +19,33 @@ import 'package:dio/dio.dart';
 import 'package:brewline/core/services/app_info.dart';
 import 'package:brewline/core/updates/android_update_installer.dart';
 import 'package:brewline/core/updates/desktop_update_installer.dart';
+import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
-import 'package:brewline/core/updates/update_manifest.dart';
 
-/// Base path for the update manifests, hosted free on GitHub raw.
-///
-/// The `stable` channel reads `update_manifest.json` and the `beta` channel
-/// reads `update_manifest_beta.json` — see [kUpdateChannel]. These are
-/// compile-time constants so they can't drift from the CI workflow that writes
-/// to the same paths.
-const String kUpdateManifestBaseUrl =
-    'https://raw.githubusercontent.com/Abdogouhmad/brewline/main';
+/// Compile-time constant so the API base can't drift between the code and the
+/// CI workflow that publishes the releases.
+const String kGitHubRepo = 'Abdogouhmad/brewline';
 
-/// The manifest file for the build's [kUpdateChannel]. Beta lives in a
-/// separate file so a production build reading the stable URL can never
-/// stumble onto a pre-release.
-String get kUpdateManifestUrl =>
-    kUpdateChannel == UpdateChannel.beta
-        ? '$kUpdateManifestBaseUrl/update_manifest_beta.json'
-        : '$kUpdateManifestBaseUrl/update_manifest.json';
+/// The GitHub Releases API base for [kGitHubRepo].
+const String kReleasesApiBase = 'https://api.github.com/repos/$kGitHubRepo';
 
 class UpdateService {
   const UpdateService();
 
-  /// Downloads and parses the update manifest for the current channel, then
-  /// verifies it actually belongs to that channel. Returns `null` on any
-  /// failure (offline, 404, bad JSON, channel mismatch) so callers can treat a
-  /// failed background check as "check again later".
-  Future<UpdateManifest?> fetchManifest() async {
+  /// Fetches the newest release from GitHub. Returns `null` on any failure
+  /// (offline, rate-limited, 404, bad JSON) so callers can treat a failed
+  /// background check as "check again later".
+  Future<GitHubRelease?> fetchLatestRelease() async {
     try {
       final dio = Dio();
       final response = await dio.get<Map<String, dynamic>>(
-        kUpdateManifestUrl,
+        '$kReleasesApiBase/releases/latest',
         options: Options(
           responseType: ResponseType.json,
-          headers: {HttpHeaders.userAgentHeader: 'brewline'},
+          headers: {HttpHeaders.userAgentHeader: 'brewline/$kGitHubRepo'},
         ),
       );
-      final manifest = UpdateManifest.fromJson(response.data ?? const {});
-
-      // A manifest published for a different channel than this build is
-      // ignored entirely — a stable build never consumes a beta manifest, no
-      // matter how its URL got resolved.
-      if (manifest.channel != kUpdateChannel) return null;
-      return manifest;
+      return GitHubRelease.fromJson(response.data ?? const {});
     } on DioException {
       return null;
     } on FormatException {
@@ -84,31 +66,39 @@ class UpdateService {
     );
   }
 
-  /// Performs a full update check: fetch the channel manifest, choose the
+  /// Performs a full update check: fetch the latest release, choose the
   /// platform installer, and compare versions.
   ///
-  /// Returns the manifest on success (for consumers that need the release
-  /// notes / URLs) or `null` when the check failed.
+  /// Returns the release and its matching asset on success (for consumers that
+  /// need the release notes / download URL) or `null`s when the check failed.
   Future<UpdateCheckOutcome> check({
     required AppInfoData currentInfo,
   }) async {
-    final manifest = await fetchManifest();
-    if (manifest == null) {
-      return const UpdateCheckOutcome(null, UpdateCheckResult.checkFailed);
+    final release = await fetchLatestRelease();
+    if (release == null) {
+      return const UpdateCheckOutcome(null, null, UpdateCheckResult.checkFailed);
     }
-    final result = installerForCurrentPlatform()
-        .checkForUpdate(manifest, currentInfo);
-    return UpdateCheckOutcome(manifest, result);
+    final asset = await release.pickAssetForCurrentPlatform();
+    if (asset == null) {
+      // The release exists but has nothing this device can install.
+      return const UpdateCheckOutcome(null, null, UpdateCheckResult.checkFailed);
+    }
+    final result = installerForCurrentPlatform().checkForUpdate(
+      release,
+      currentInfo,
+    );
+    return UpdateCheckOutcome(release, asset, result);
   }
 }
 
-/// Result of a version check, wrapping the manifest (if fetched) with the
-/// comparison result.
+/// Result of a version check, wrapping the release + matching platform asset
+/// (if fetched) with the comparison result.
 class UpdateCheckOutcome {
-  final UpdateManifest? manifest;
+  final GitHubRelease? release;
+  final UpdateAsset? asset;
   final UpdateCheckResult result;
 
-  const UpdateCheckOutcome(this.manifest, this.result);
+  const UpdateCheckOutcome(this.release, this.asset, this.result);
 
   bool get hasUpdate =>
       result == UpdateCheckResult.updateAvailable ||

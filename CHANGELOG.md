@@ -7,16 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-09-06
+## [1.6.0] - 2026-09-06
 
 ### Changed
 
-- **Official stable release** — Brewline moves from pre-release (beta) to its
-  first official stable release. The CI pipeline now publishes full GitHub
-  releases instead of prereleases, and the OTA manifest channel is set to
-  `release`.
+- **OTA fetches the latest GitHub release directly** — the app now queries
+  `releases/latest` on the GitHub Releases API instead of reading a static
+  `update_manifest.json` committed to `main`. The release body serves as the
+  in-app changelog, and each asset's SHA-256 is read from the API's `digest`
+  field (no hand-maintained checksums needed).
+- **Android per-ABI APK selection** — on Android the updater detects the CPU
+  architecture via `uname -m` and picks the matching split APK
+  (`app-arm64-v8a-release.apk`, `app-armeabi-v7a-release.apk`, etc.),
+  falling back to the universal `app-release.apk` on unknown ABIs.
+- **Android version comparison** — both Android and desktop now compare via
+  `pub_semver` on the release tag (semver) instead of raw `versionCode`,
+  eliminating the `versionCode % 1000` normalisation entirely.
+- **Release notes are scoped per version** — the CI release notes now extract
+  only the `## [<version>]` section from `CHANGELOG.md` instead of dumping
+  everything from the first heading onward.
 
-## [1.4.1] - 2026-09-03
+### Fixed
+
+- **Android signing is now consistent across CI and local builds** — the four
+  keystore secrets (`BREWLINE_KEYSTORE_BASE64`, `BREWLINE_KEYSTORE_PASSWORD`,
+  `BREWLINE_KEY_ALIAS`, `BREWLINE_KEY_PASSWORD`) are now provisioned, so every
+  release APK is signed with the stable `brewline.jks` key instead of a fresh
+  throwaway debug keystore per runner. This fixes `INSTALL_FAILED_UPDATE_INCOMPATIBLE`
+  for all APK types including `app-arm64-v8a-release.apk`. **Note:** the
+  1.5.0 release was signed with a throwaway debug key — one final uninstall is
+  required; going forward every release shares the same stable signature.
+
+### Removed
+
+- `update_manifest.json` and `update_manifest_beta.json` (no longer generated
+  or consumed — the GitHub release is the single source of truth).
+- "Check automatically" switch from the Settings update card — the toggle
+  already lives inside the full OTA update screen.
+
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/Abdogouhmad/brewline/compare/1.5.0...1.6.0
+[1.5.0]: https://github.com/Abdogouhmad/brewline/compare/1.4.1...1.5.0
+[1.4.1]: https://github.com/Abdogouhmad/brewline/compare/1.4.0...1.4.1
+[1.4.0]: https://github.com/Abdogouhmad/brewline/compare/1.3.1...1.4.0
+
+## [1.3.1] - 2026-09-02
 
 ### Added
 
@@ -92,11 +127,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as a display name — the underlying `username` data model column is unchanged).
 - Username-based lookup in `authProvider._authenticate()` — replaced by the
   shared PIN scan in `core/auth/pin_lookup.dart`.
-
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.5.0...HEAD
-[1.5.0]: https://github.com/Abdogouhmad/brewline/compare/1.4.1...1.5.0
-[1.4.1]: https://github.com/Abdogouhmad/brewline/compare/1.4.0...1.4.1
-[1.4.0]: https://github.com/Abdogouhmad/brewline/compare/1.3.1...1.4.0
 
 ## [1.3.1] - 2026-09-02
 
@@ -181,7 +211,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `update.json` back to `main` so the raw GitHub URL always serves the
     current release.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.3.0...HEAD
 [1.3.0]: https://github.com/Abdogouhmad/brewline/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/Abdogouhmad/brewline/compare/1.2.0...1.2.1
 

@@ -77,9 +77,9 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
                     ],
                     _VersionCard(state: state),
                     if (state.hasUpdate ||
-                        (state.manifest?.releaseNotes ?? '').isNotEmpty) ...[
+                        (state.release?.releaseNotes ?? '').isNotEmpty) ...[
                       SizedBox(height: Space.lg),
-                      _ChangelogCard(notes: state.manifest?.releaseNotes ?? ''),
+                      _ChangelogCard(notes: state.release?.releaseNotes ?? ''),
                     ],
                     SizedBox(height: Space.x2l),
                     switch (state.status) {
@@ -348,19 +348,19 @@ class _VersionCard extends ConsumerWidget {
   }
 
   static String? _latestVersion(UpdateState state) {
-    final manifest = state.manifest;
-    if (manifest == null) return null;
-    // A generic label; platform-specific latestVersionName/Version live in the
-    // manifest but differ per platform, so we just surface the human-readable
-    // channel latest when available.
-    return manifest.android?.latestVersionName ??
-        manifest.linux?.latestVersion ??
-        manifest.windows?.latestVersion;
+    final release = state.release;
+    if (release == null) return null;
+    return release.version;
   }
 
   static String? _downloadSizeMB(UpdateState state) {
-    // The manifest doesn't carry a size; keep the row honest and omit it.
-    return null;
+    final size = state.asset?.sizeBytes;
+    if (size == null) return null;
+    if (size >= 1 << 20) return '${(size / (1 << 20)).toStringAsFixed(1)} MB';
+    if (size >= 1 << 10) {
+      return '${(size / (1 << 10)).toStringAsFixed(0)} KB';
+    }
+    return '$size B';
   }
 }
 
@@ -409,13 +409,12 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// "What's new" card rendering the release notes from the OTA manifest.
+/// "What's new" card rendering the release notes from the GitHub release body.
 ///
-/// Handles the CHANGELOG markdown subset the workflow ships in
-/// `releaseNotes`: `### Added/Changed/Fixed/...` section headings render as
-/// tinted sub-headers, `- bullet` lines render as bulleted rows, and any other
-/// line renders as plain body text. Inline `**bold**` emphasis is preserved
-/// everywhere.
+/// Handles the CHANGELOG markdown subset the workflow ships in the release:
+/// `### Added/Changed/Fixed/...` section headings render as tinted sub-headers,
+/// `- bullet` lines render as bulleted rows, and any other line renders as plain
+/// body text. Inline `**bold**` emphasis is preserved everywhere.
 class _ChangelogCard extends StatelessWidget {
   final String notes;
 

@@ -8,6 +8,9 @@ name: release
 #   Android (APK)   built on ubuntu (universal fat APK + per-arch AAB)
 #   Windows (x64)   built on windows-latest
 #
+# The in-app OTA updater fetches `releases/latest` from the GitHub API
+# (no static manifest JSON files are generated or committed).
+#
 on:
   push:
     branches: [main]
@@ -201,113 +204,6 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      # Generate update_manifest.json — the OTA manifest the app fetches
-      # from raw.githubusercontent.com/Abdogouhmad/brewline/main/. Because this
-      # workflow publishes a GitHub **release**, its manifest is the `release`
-      # channel file; stable devices read this manifest so they pick up the
-      # official release. Each
-      # platform section carries the release asset URL and SHA-256 so the app
-      # can verify the download before installing.
-      - name: Generate release update manifest
-        id: manifest
-        shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.tag }}"
-          RELEASE_URL="https://github.com/Abdogouhmad/brewline/releases/download/$VERSION"
-          TIMESTAMP="${{ github.event.head_commit.timestamp }}"
-
-          ANDROID_APK="artifacts/app-release.apk"
-          LINUX_TGZ="artifacts/brewline-linux-x64.tar.gz"
-          WINDOWS_ZIP="artifacts/brewline-windows-x64.zip"
-
-          build_number() {
-            sed -nE 's/^version: *[^+]+\+([0-9]+).*/\1/p' pubspec.yaml | head -n1
-          }
-          BN="$(build_number)"
-          [ -n "$BN" ] || BN="1"
-
-          python3 - "$BN" "$VERSION" "$RELEASE_URL" "$TIMESTAMP" \
-                    "$ANDROID_APK" "$LINUX_TGZ" "$WINDOWS_ZIP" <<'PY'
-          import hashlib, json, os, re, sys
-          bn, version, release_url, timestamp = sys.argv[1:5]
-          apk, tgz, zip_ = sys.argv[5:8]
-
-          def sha256(path):
-              if not os.path.exists(path):
-                  return None
-              h = hashlib.sha256()
-              with open(path, 'rb') as f:
-                  for block in iter(lambda: f.read(65536), b''):
-                      h.update(block)
-              return h.hexdigest()
-
-          def release_notes_for(version):
-              """Extracts the CHANGELOG section for `version` so the in-app
-              OTA screen can show users what changed in this release."""
-              try:
-                  with open('CHANGELOG.md', encoding='utf-8') as f:
-                      text = f.read()
-              except OSError:
-                  return ''
-              m = re.search(r'^##\s*\[' + re.escape(version) + r'\][^\n]*\n', text, re.M)
-              if not m:
-                  return ''
-              nxt = re.search(r'^##\s*\[', text[m.end():], re.M)
-              end = m.end() + (nxt.start() if nxt else len(text) - m.end())
-              seg = text[m.end():end]
-              # Drop Keep-a-Changelog reference-link definitions ([name]: url).
-              lines = [ln for ln in seg.splitlines()
-                       if not re.match(r'^\s*\[[^\]]+\]:\s*\S', ln)]
-              return '\n'.join(lines).strip()
-
-          ZERO = "0000000000000000000000000000000000000000000000000000000000000000"
-          manifest = {
-              "channel": "release",
-              "android": {
-                  "latestVersionCode": int(bn),
-                  "latestVersionName": version,
-                  "minSupportedVersionCode": 1,
-                  "mandatory": False,
-                  "apkUrl": f"{release_url}/app-release.apk",
-                  "sha256": sha256(apk) or ZERO,
-              },
-              "windows": {
-                  "latestVersion": version,
-                  "minSupportedVersion": "1.0.0",
-                  "mandatory": False,
-                  "archiveUrl": f"{release_url}/brewline-windows-x64.zip",
-                  "sha256": sha256(zip_) or ZERO,
-              },
-              "linux": {
-                  "latestVersion": version,
-                  "minSupportedVersion": "1.0.0",
-                  "mandatory": False,
-                  "archiveUrl": f"{release_url}/brewline-linux-x64.tar.gz",
-                  "sha256": sha256(tgz) or ZERO,
-              },
-              "releaseNotes": release_notes_for(version),
-              "publishedAt": timestamp,
-          }
-          with open('update_manifest.json', 'w') as f:
-              json.dump(manifest, f, indent=2)
-          PY
-
-      # Commit the updated manifest back to main so the raw URL always
-      # serves the official release. Uses the workflows token; skips if
-      # unchanged.
-      - name: Commit release update manifest
-        shell: bash
-        run: |
-          git config user.name "brewline CI"
-          git config user.email "ci@example.com"
-          if git diff --quiet update_manifest.json; then
-            echo "update_manifest.json unchanged — nothing to commit."
-          else
-            git add update_manifest.json
-            git commit -m "chore(ci): update release OTA manifest for ${{ steps.version.outputs.tag }}"
-            git push origin HEAD:main
-          fi
-
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -326,11 +222,14 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
 
-          # Strip the YAML-indentation whitespace from CHANGELOG.md so the
-          # release notes render cleanly on GitHub.
-          sed 's/^[[:space:]]*//' > /tmp/release_notes.md <<EOF
-          $(sed -n '/^## \[/,$p' CHANGELOG.md)
-          EOF
+          # Strip the YAML-indentation whitespace and extract ONLY the
+          # `## [<version>]` section from CHANGELOG.md (not everything from the
+          # first heading). Reference-link lines (`[name]: url`) are dropped too.
+          sed -n "/^## \\[$TAG\\]/,/^## \\[/p" CHANGELOG.md \
+            | sed '$d' \
+            | sed -E '/^[[:space:]]*\[[^]]+\]:[[:space:]]/d' \
+            | sed 's/^[[:space:]]*//' \
+            > /tmp/release_notes.md
 
           # Collect the downloaded artifacts into an array with nullglob so an
           # unmatched pattern expands to nothing (instead of being passed to gh

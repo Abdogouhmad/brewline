@@ -7,15 +7,13 @@
 /// platform-agnostic — the same shell renders on Android, Windows and Linux.
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/services/app_info.dart';
 import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
+import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
-import 'package:brewline/core/updates/update_manifest.dart';
 import 'package:brewline/core/updates/update_service.dart';
 
 /// SharedPreferences keys for the update settings.
@@ -74,7 +72,12 @@ enum UpdateStatus { idle, checking, available, downloading, readyToInstall, erro
 /// The update state surfaced to the UI.
 class UpdateState {
   final UpdateStatus status;
-  final UpdateManifest? manifest;
+
+  /// The latest release found by the last check (original + updated release).
+  final GitHubRelease? release;
+
+  /// The release asset this device should download.
+  final UpdateAsset? asset;
   final UpdateCheckResult? checkResult;
 
   /// Download progress 0.0–1.0 while [UpdateStatus.downloading].
@@ -85,7 +88,8 @@ class UpdateState {
 
   const UpdateState({
     this.status = UpdateStatus.idle,
-    this.manifest,
+    this.release,
+    this.asset,
     this.checkResult,
     this.progress,
     this.error,
@@ -99,16 +103,19 @@ class UpdateState {
 
   UpdateState copyWith({
     UpdateStatus? status,
-    UpdateManifest? manifest,
+    GitHubRelease? release,
+    UpdateAsset? asset,
     UpdateCheckResult? checkResult,
-    bool clearManifest = false,
+    bool clearRelease = false,
+    bool clearAsset = false,
     double? progress,
     bool clearProgress = false,
     String? error,
   }) {
     return UpdateState(
       status: status ?? this.status,
-      manifest: clearManifest ? null : (manifest ?? this.manifest),
+      release: clearRelease ? null : (release ?? this.release),
+      asset: clearAsset ? null : (asset ?? this.asset),
       checkResult: checkResult ?? this.checkResult,
       progress: clearProgress ? null : (progress ?? this.progress),
       error: error ?? this.error,
@@ -155,13 +162,15 @@ class UpdateNotifier extends Notifier<UpdateState> {
       state = state.copyWith(
         status: UpdateStatus.idle,
         checkResult: UpdateCheckResult.checkFailed,
-        clearManifest: true,
+        clearRelease: true,
+        clearAsset: true,
       );
       return;
     }
     state = state.copyWith(
       status: UpdateStatus.available,
-      manifest: outcome.manifest,
+      release: outcome.release,
+      asset: outcome.asset,
       checkResult: outcome.result,
       clearProgress: true,
       error: null,
@@ -176,18 +185,15 @@ class UpdateNotifier extends Notifier<UpdateState> {
   /// this method returns once the download completes and the install/relaunch
   /// handoff begins.
   Future<void> downloadAndInstall() async {
-    final manifest = state.manifest;
-    if (manifest == null) return;
+    final asset = state.asset;
+    if (asset == null) return;
 
     final installer = ref.read(updateInstallerProvider);
 
-    // Resolve the download URL for the current platform.
-    final url = _urlFor(manifest);
-    final sha = _shaFor(manifest);
-    if (url == null || sha == null) {
+    if (asset.downloadUrl.isEmpty) {
       state = state.copyWith(
         status: UpdateStatus.error,
-        error: 'This build has no update manifest entry.',
+        error: 'This release has no installable build for this device.',
       );
       return;
     }
@@ -195,13 +201,17 @@ class UpdateNotifier extends Notifier<UpdateState> {
     try {
       state = state.copyWith(status: UpdateStatus.downloading, progress: 0);
       await installer.download(
-        url,
-        sha,
+        asset.downloadUrl,
+        expectedSha256: asset.sha256,
         onProgress: (p) => state = state.copyWith(progress: p),
       );
       state = state.copyWith(status: UpdateStatus.readyToInstall, progress: 1);
       await installer.install();
-      state = state.copyWith(status: UpdateStatus.idle, clearManifest: true);
+      state = state.copyWith(
+        status: UpdateStatus.idle,
+        clearRelease: true,
+        clearAsset: true,
+      );
     } on UpdateIntegrityException catch (e) {
       state = state.copyWith(status: UpdateStatus.error, error: e.message);
     } on UpdateInstallException catch (e) {
@@ -212,19 +222,5 @@ class UpdateNotifier extends Notifier<UpdateState> {
         error: 'Download failed: $e',
       );
     }
-  }
-
-  String? _urlFor(UpdateManifest manifest) {
-    if (Platform.isAndroid) return manifest.android?.apkUrl;
-    if (Platform.isWindows) return manifest.windows?.archiveUrl;
-    if (Platform.isLinux) return manifest.linux?.archiveUrl;
-    return null;
-  }
-
-  String? _shaFor(UpdateManifest manifest) {
-    if (Platform.isAndroid) return manifest.android?.sha256;
-    if (Platform.isWindows) return manifest.windows?.sha256;
-    if (Platform.isLinux) return manifest.linux?.sha256;
-    return null;
   }
 }

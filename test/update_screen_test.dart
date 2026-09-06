@@ -1,7 +1,7 @@
 import 'package:brewline/core/services/app_info.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
+import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
-import 'package:brewline/core/updates/update_manifest.dart';
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/core/updates/update_service.dart';
 import 'package:brewline/features/admin/settings/widgets/update_screen.dart';
@@ -31,21 +31,21 @@ class _FakeUpdateService extends UpdateService {
 
   @override
   Future<UpdateCheckOutcome> check({required AppInfoData currentInfo}) async {
-    final manifest = UpdateManifest(
+    final upToDate = result == UpdateCheckResult.upToDate;
+    final release = GitHubRelease(
+      version: upToDate ? '1.4.2' : '1.5.0',
       releaseNotes: releaseNotes,
       publishedAt: DateTime.parse('2026-09-06T00:00:00Z'),
-      android: result == UpdateCheckResult.upToDate
-          ? null
-          : const AndroidUpdateInfo(
-              latestVersionCode: 11,
-              latestVersionName: '1.5.0',
-              minSupportedVersionCode: 1,
-              mandatory: false,
-              apkUrl: 'https://example.com/app-release.apk',
-              sha256: '0000000000000000000000000000000000000000000000000000000000000000',
-            ),
+      assets: const [
+        UpdateAsset(
+          name: 'app-release.apk',
+          downloadUrl: 'https://example.com/app-release.apk',
+          sha256: '0000000000000000000000000000000000000000000000000000000000000000',
+        ),
+      ],
     );
-    return UpdateCheckOutcome(manifest, result);
+    final asset = release.assets.first;
+    return UpdateCheckOutcome(release, asset, result);
   }
 }
 
@@ -84,7 +84,7 @@ void main() {
     expect(find.text('Current version'), findsOneWidget);
     expect(find.text('Latest version'), findsOneWidget);
     expect(find.text('You are up to date'), findsOneWidget);
-    expect(find.text('v1.4.2'), findsOneWidget);
+    expect(find.text('v1.4.2'), findsNWidgets(2));
   });
 
   testWidgets('surfaces an available update with a changelog', (tester) async {

@@ -10,12 +10,11 @@ import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Settings card for OTA updates. It's the **entry point** to the dedicated
-/// [UpdateScreen] (pushed as a nested route on both admin and waiter pages),
-/// and also carries the auto-check toggle so it stays available without
-/// leaving Settings.
+/// [UpdateScreen] (pushed as a nested route on both admin and waiter pages).
 ///
 /// Tapping the summary tile opens the full update center: status header,
-/// version details, changelog and the download/install action.
+/// version details, changelog and the download/install action. The auto-check
+/// toggle lives inside that screen, not here.
 class UpdateSection extends ConsumerWidget {
   const UpdateSection({super.key});
 
@@ -24,7 +23,6 @@ class UpdateSection extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final appInfo = ref.watch(appInfoProvider);
     final updater = ref.watch(updateProvider);
-    final autoCheck = ref.watch(autoCheckUpdatesProvider);
 
     final versionLabel = appInfo.maybeWhen(
       data: (info) => 'v${info.version}',
@@ -59,16 +57,6 @@ class UpdateSection extends ConsumerWidget {
           ),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(builder: (_) => const UpdateScreen()),
-          ),
-        ),
-        SettingsTile(
-          icon: Icons.autorenew_rounded,
-          title: 'Check automatically',
-          subtitle: 'Look for updates when the app starts',
-          trailing: Switch(
-            value: autoCheck,
-            onChanged: (value) =>
-                ref.read(autoCheckUpdatesProvider.notifier).setEnabled(value),
           ),
         ),
       ],

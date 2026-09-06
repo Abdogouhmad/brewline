@@ -17,8 +17,8 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:brewline/core/services/app_info.dart';
+import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
-import 'package:brewline/core/updates/update_manifest.dart';
 
 class AndroidUpdateInstaller implements UpdateInstaller {
   AndroidUpdateInstaller();
@@ -27,33 +27,20 @@ class AndroidUpdateInstaller implements UpdateInstaller {
 
   @override
   UpdateCheckResult checkForUpdate(
-    UpdateManifest manifest,
+    GitHubRelease release,
     AppInfoData currentInfo,
   ) {
-    final info = manifest.android;
-    if (info == null) return UpdateCheckResult.checkFailed;
-
-    // `PackageInfo.buildNumber` on Android is the installed APK's versionCode.
-    // Split-per-ABI APKs *without* `force-version-code-ignoring-abi` get an
-    // ABI offset baked in (e.g. 2006 for arm64 vs 6 for the universal APK), so
-    // normalise any offset away before comparing against the manifest's raw
-    // build number. This keeps an arm64 split APK from being misread as
-    // "newer than everything" and silently blocking OTA updates.
-    final rawCode = int.tryParse(currentInfo.buildNumber) ?? 0;
-    final currentCode = rawCode % 1000;
-
-    if (currentCode >= info.latestVersionCode) {
-      return UpdateCheckResult.upToDate;
-    }
-    return info.mandatory
-        ? UpdateCheckResult.updateMandatory
-        : UpdateCheckResult.updateAvailable;
+    // Semantic-version comparison (shared with desktop): release tag vs
+    // installed `versionName`. The build number (versionCode) is deliberately
+    // NOT used — split-per-ABI APKs can carry a `1000 × ABI` offset that would
+    // otherwise make an arm64 split APK look "newer than everything".
+    return compareSemVer(release, currentInfo);
   }
 
   @override
   Future<void> download(
-    String url,
-    String expectedSha256, {
+    String url, {
+    String? expectedSha256,
     DownloadProgress? onProgress,
   }) async {
     final dio = Dio();
@@ -72,13 +59,16 @@ class AndroidUpdateInstaller implements UpdateInstaller {
       },
     );
 
-    // Verify the SHA-256 checksum before letting anything near the installer.
-    final digest = await _sha256OfFile(file);
-    if (digest.toLowerCase() != expectedSha256.toLowerCase()) {
-      await file.delete();
-      throw UpdateIntegrityException(
-        'SHA-256 mismatch: expected $expectedSha256, got $digest',
-      );
+    // Verify the SHA-256 checksum before letting anything near the installer
+    // when GitHub reported one.
+    if (expectedSha256 != null) {
+      final digest = await _sha256OfFile(file);
+      if (digest.toLowerCase() != expectedSha256.toLowerCase()) {
+        await file.delete();
+        throw UpdateIntegrityException(
+          'SHA-256 mismatch: expected $expectedSha256, got $digest',
+        );
+      }
     }
 
     _downloadedApkPath = filePath;

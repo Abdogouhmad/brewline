@@ -23,11 +23,10 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:pub_semver/pub_semver.dart';
 
 import 'package:brewline/core/services/app_info.dart';
+import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
-import 'package:brewline/core/updates/update_manifest.dart';
 
 class DesktopUpdateInstaller implements UpdateInstaller {
   DesktopUpdateInstaller();
@@ -36,31 +35,19 @@ class DesktopUpdateInstaller implements UpdateInstaller {
 
   @override
   UpdateCheckResult checkForUpdate(
-    UpdateManifest manifest,
+    GitHubRelease release,
     AppInfoData currentInfo,
   ) {
     if (!Platform.isWindows && !Platform.isLinux) {
       return UpdateCheckResult.checkFailed;
     }
-    final info = Platform.isWindows ? manifest.windows : manifest.linux;
-    if (info == null) return UpdateCheckResult.checkFailed;
-
-    try {
-      final current = Version.parse(currentInfo.version);
-      final latest = Version.parse(info.latestVersion);
-      if (current >= latest) return UpdateCheckResult.upToDate;
-      return info.mandatory
-          ? UpdateCheckResult.updateMandatory
-          : UpdateCheckResult.updateAvailable;
-    } on FormatException {
-      return UpdateCheckResult.checkFailed;
-    }
+    return compareSemVer(release, currentInfo);
   }
 
   @override
   Future<void> download(
-    String url,
-    String expectedSha256, {
+    String url, {
+    String? expectedSha256,
     DownloadProgress? onProgress,
   }) async {
     final dio = Dio();
@@ -76,13 +63,16 @@ class DesktopUpdateInstaller implements UpdateInstaller {
       }
     });
 
-    // Verify the SHA-256 checksum before admitting the archive.
-    final digest = await _sha256OfFile(file);
-    if (digest.toLowerCase() != expectedSha256.toLowerCase()) {
-      await file.delete();
-      throw UpdateIntegrityException(
-        'SHA-256 mismatch: expected $expectedSha256, got $digest',
-      );
+    // Verify the SHA-256 checksum before admitting the archive when GitHub
+    // reported one.
+    if (expectedSha256 != null) {
+      final digest = await _sha256OfFile(file);
+      if (digest.toLowerCase() != expectedSha256.toLowerCase()) {
+        await file.delete();
+        throw UpdateIntegrityException(
+          'SHA-256 mismatch: expected $expectedSha256, got $digest',
+        );
+      }
     }
 
     _downloadedArchive = file;
