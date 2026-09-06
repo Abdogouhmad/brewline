@@ -1,7 +1,7 @@
 name: release
 
 # Builds installable release bundles on every push/merge to `main` and
-# publishes them as a GitHub **prerelease** (the app is still pre-1.0/alpha).
+# publishes them as a GitHub **release** (official stable release).
 #
 #   Linux   (x64)   built on ubuntu
 #   Android (APK)   built on ubuntu (universal fat APK + per-arch AAB)
@@ -173,7 +173,7 @@ jobs:
           path: dist/*
 
   # Aggregates every artifact from the build matrix into a single GitHub
-  # prerelease draft, tagged as the app version.
+  # release, tagged as the app version.
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -197,14 +197,14 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      # Generate update_manifest_beta.json — the OTA manifest the app fetches
+      # Generate update_manifest.json — the OTA manifest the app fetches
       # from raw.githubusercontent.com/Abdogouhmad/brewline/main/. Because this
-      # workflow publishes a GitHub **prerelease**, its manifest is the `beta`
-      # channel file; production/stable devices read a separately-curated
-      # `update_manifest.json` so they can never pick up a pre-release. Each
+      # workflow publishes a GitHub **release**, its manifest is the `release`
+      # channel file; stable devices read this manifest so they pick up the
+      # official release. Each
       # platform section carries the release asset URL and SHA-256 so the app
       # can verify the download before installing.
-      - name: Generate beta update manifest
+      - name: Generate release update manifest
         id: manifest
         shell: bash
         run: |
@@ -239,7 +239,7 @@ jobs:
 
           ZERO = "0000000000000000000000000000000000000000000000000000000000000000"
           manifest = {
-              "channel": "beta",
+              "channel": "release",
               "android": {
                   "latestVersionCode": int(bn),
                   "latestVersionName": version,
@@ -265,27 +265,27 @@ jobs:
               "releaseNotes": "",
               "publishedAt": timestamp,
           }
-          with open('update_manifest_beta.json', 'w') as f:
+          with open('update_manifest.json', 'w') as f:
               json.dump(manifest, f, indent=2)
           PY
 
-      # Commit the updated beta manifest back to main so the raw URL always
-      # serves the latest pre-release build. Uses the workflows token; skips if
+      # Commit the updated manifest back to main so the raw URL always
+      # serves the official release. Uses the workflows token; skips if
       # unchanged.
-      - name: Commit beta update manifest
+      - name: Commit release update manifest
         shell: bash
         run: |
           git config user.name "brewline CI"
           git config user.email "ci@example.com"
-          if git diff --quiet update_manifest_beta.json; then
-            echo "update_manifest_beta.json unchanged — nothing to commit."
+          if git diff --quiet update_manifest.json; then
+            echo "update_manifest.json unchanged — nothing to commit."
           else
-            git add update_manifest_beta.json
-            git commit -m "chore(ci): update beta OTA manifest for ${{ steps.version.outputs.tag }}"
+            git add update_manifest.json
+            git commit -m "chore(ci): update release OTA manifest for ${{ steps.version.outputs.tag }}"
             git push origin HEAD:main
           fi
 
-      - name: Publish prerelease
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -299,19 +299,10 @@ jobs:
             git tag -d "$TAG" >/dev/null 2>&1 || true
           fi
 
-          # Build the notes file and strip the YAML-indentation whitespace.
-          # Unquoted heredoc keeps ${GITHUB_SHA} (and friends) expanded.
+          # Strip the YAML-indentation whitespace from CHANGELOG.md so the
+          # release notes render cleanly on GitHub.
           sed 's/^[[:space:]]*//' > /tmp/release_notes.md <<EOF
-          Automated **prerelease** build from commit \`${GITHUB_SHA::7}\`.
-
-          > ⚠️ Alpha — not for production use.
-
-          **Artifacts**
-          - \`brewline-linux-x64.tar.gz\` — Linux desktop
-          - \`brewline-windows-x64.zip\` — Windows desktop
-          - \`app-release.apk\` — Android universal (arm32 + arm64 + x64)
-          - \`app-arm64-v8a-release.apk\` / \`app-armeabi-v7a-release.apk\` / \`app-x86_64-release.apk\` — Android per-architecture split APKs
-          - \`app-release.aab\` — Android split bundle (Play Store)
+          $(sed -n '/^## \[/,$p' CHANGELOG.md)
           EOF
 
           # Collect the downloaded artifacts into an array with nullglob so an
@@ -324,7 +315,6 @@ jobs:
           fi
 
           gh release create "$TAG" \
-            --title "brewline $VERSION (pre-release)" \
-            --prerelease \
+            --title "brewline $VERSION" \
             --notes-file /tmp/release_notes.md \
             "${artifacts[@]}"

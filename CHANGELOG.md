@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-06
+
+### Changed
+
+- **Official stable release** — Brewline moves from pre-release (beta) to its
+  first official stable release. The CI pipeline now publishes full GitHub
+  releases instead of prereleases, and the OTA manifest channel is set to
+  `release`.
+
 ## [1.4.1] - 2026-09-03
 
 ### Added
@@ -84,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Username-based lookup in `authProvider._authenticate()` — replaced by the
   shared PIN scan in `core/auth/pin_lookup.dart`.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.4.1...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.5.0...HEAD
+[1.5.0]: https://github.com/Abdogouhmad/brewline/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/Abdogouhmad/brewline/compare/1.4.0...1.4.1
 [1.4.0]: https://github.com/Abdogouhmad/brewline/compare/1.3.1...1.4.0
 
