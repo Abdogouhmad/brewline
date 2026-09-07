@@ -9,11 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.1] - 2026-09-06
 
+### Fixed
+
+- **Desktop launch crash on clean installs (Windows/Linux)** —
+  `sqflite_common_ffi` talks to SQLite over `dart:ffi`, which needs a real
+  `sqlite3.dll` / `libsqlite3.so` next to the executable, but nothing shipped
+  one. On a clean Windows install the app failed to start
+  (`sqlite3_initialize` / error code 126). Added `sqlite3_flutter_libs` so the
+  precompiled native SQLite is bundled into the build output on every platform;
+  verified `libsqlite3.so` now lands in the Linux bundle. Android (which has a
+  system SQLite) is unaffected.
+
 ### Changed
 
 - **Cached Android ABI detection** — the CPU architecture probe (`uname -m`,
   used to pick the per-ABI split APK) now memoises its result for the app's
   lifetime instead of spawning a process on every update check.
+- **Windows exe metadata** — `Runner.rc` now reports Company/ProductName
+  "Brewline", FileDescription "Brewline Café POS" and a version fallback synced
+  to `pubspec.yaml` (1.6.1+14), so Explorer's Properties → Details tab shows
+  proper identification. The UAC "Unknown Publisher" prompt is a code-signing
+  matter and is unaffected by metadata.
+- **Release packaging pinned to the full build output** — the Windows/Linux
+  packaging steps in the release workflow now document that they must archive
+  the entire build directory recursively, so the native SQLite library can
+  never be silently dropped out of the distributed zip/tar.gz again.
 
 [Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.6.1...HEAD
 [1.6.1]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...1.6.1
