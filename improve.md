@@ -1,182 +1,88 @@
-# Login — PIN-Only Identification (Brewline / Café POS)
+# Bug Fix: Desktop Launch Crash & Missing Windows Trust Metadata (Brewline / Café POS)
 
 **Audience:** opencode coding agent
-**Stack:** Flutter, Riverpod, `flutter_secure_storage`, `sqflite_common_ffi`, `dynamic_color`
-**Replaces:** the earlier username + PIN login spec. This is a full replacement, not a patch on top — read §1 first if the old version is already implemented.
-**Depends on:** `ONBOARDING_UI_SPEC.md` (`PinKeypadField`, `AppTextField`), `ADMIN_DASHBOARD_IMPROVEMENTS_SPEC.md` (responsive shell pattern).
-**Status:** Ready for implementation.
+**Stack:** Flutter, `sqflite_common_ffi`, targets Android + Linux + Windows
+**Status:** Two unrelated issues, evidenced by the screenshots — fixed separately, don't conflate them. Issue A is a real crash and is the priority; Issue B is cosmetic/trust-related and lower priority.
 
 ---
 
-## 0. What Changed and Why
+## 0. What the Screenshots Actually Show
 
-Old approach: pick a role (Admin/Waiter), type a username, then enter a PIN.
-New approach: **enter a PIN, nothing else.** The system identifies who's logging in — and therefore which role/dashboard they land on — purely from the PIN. No role switch, no username field, no second identifying input at all.
-
-This has one important consequence the request didn't spell out but the system has to handle correctly: **if the only thing you type is a PIN, every PIN in the system must be unique** — across the admin and every waiter, not just unique per role. §3 is entirely about getting that right, because the naive way to enforce it (a database `UNIQUE` constraint on the stored hash) doesn't actually work once PINs are hashed with per-user salts, which is what this project already does. Read that section before touching the database.
-
----
-
-## 1. Migration Notes (if the old login screen is already built)
-
-Remove:
-- `RoleSegmentedControl` widget and any `Role` enum branching in the login form — there's no role choice anymore, the system determines it.
-- The username `AppTextField` from the login form specifically (it stays in **onboarding** — the admin's display name is still useful elsewhere, see §5).
-- The "last used role" preference that used to default the segmented control — no longer meaningful, delete it rather than leaving dead code.
-- The "confirm PIN" step doesn't apply here — that was always onboarding-only, no change needed on that front.
-
-Modify:
-- `authProvider.login(...)` — signature changes from `{role, username, pin}` to just `{pin}`. See §4.
-- `login_form_provider.dart` — drops `username` and `role` fields entirely, keeps only the in-progress PIN string.
-
-Add:
-- A shared PIN-uniqueness check (§3) that needs to be wired into **every** place a PIN gets set or changed — onboarding, waiter creation, waiter PIN reset, and any future admin PIN-change flow. Some of these screens may not have written specs yet in this project; wherever they exist or get built, this validator applies.
+- **"brewline failed to start" / `sqlite3_initialize` / `error code 126`** — this is a real crash, app is unusable on that machine. This is Issue A, §1.
+- **UAC "Voulez-vous autoriser cette application provenant d'un éditeur inconnu..." with `Éditeur : Inconnu`** — this is Windows' code-signing trust prompt, unrelated to the crash. This is Issue B, §2.
+- The fact that the crash screen renders as a proper styled Flutter UI (not a raw OS crash dialog) confirms the core Flutter engine and its DLLs loaded fine — the failure is isolated specifically to the SQLite native library. That's an important clue: it rules out a broader "missing Visual C++ Redistributable" theory, which would have prevented the engine itself from starting.
 
 ---
 
-## 2. Functional Requirements
+## 1. Issue A (priority): SQLite Native Library Fails to Load on Windows
 
-- One input: a PIN, entered on the same `PinKeypadField` component already built for onboarding — no new keypad widget needed.
-- On completing all digits, the app looks up which user (if any) that PIN belongs to, and what role they have.
-- No match → generic error, same principle as before but simpler now that there's no username to also be wrong: just **"Incorrect PIN."**
-- Match → navigate straight to that user's dashboard (Admin or Waiter), exactly as before — the destination logic doesn't change, only how the app decides who's logging in.
+### 1.1 Root cause
+`sqflite_common_ffi` talks to SQLite via `dart:ffi`, which means it needs an actual `sqlite3` shared library sitting on disk to load — `sqlite3.dll` on Windows, `libsqlite3.so` on Linux. Unlike Android (which already ships a system SQLite that Android's plugins can use), **Windows has no guaranteed system-wide `sqlite3.dll`** — if the app doesn't bundle its own copy right next to the executable, there's nothing for it to load. Error `126` from `LoadLibrary` specifically means "the module could not be found" — consistent with the file simply not being present in the shipped folder, which matches what's visible in the Explorer screenshot: no `sqlite3.dll` next to `brewline.exe`.
 
----
+The most likely explanation is one of these two, and it's worth checking both rather than guessing:
+1. **The project has no dependency that bundles a native `sqlite3` binary for desktop.** `sqflite_common_ffi` itself doesn't ship the library — it only knows how to *talk* to one via FFI. Something else has to put the actual `.dll`/`.so` file into the build output.
+2. **The release packaging step for OTA distribution (the zip built for Windows in `CASHOUT_PRINTING_SPEC.md`/`OTA_UPDATE_SYSTEM_SPEC.md`) didn't copy the full `Release/` build output.** Even if the DLL exists in the raw `flutter build windows` output, a packaging script that cherry-picks files instead of zipping the whole folder could easily have dropped it.
 
-## 3. PIN Uniqueness — the Part That Needs Care
+### 1.2 Fix
+Add **`sqlite3_flutter_libs`** as a direct dependency in `pubspec.yaml`, on top of the existing `sqflite_common_ffi`. This package's entire job is bundling the correct precompiled native `sqlite3` binary for whichever platform is being built — Flutter's build tooling automatically copies it into the right place in `build/windows/.../Release/` and `build/linux/.../bundle/lib/` during a normal `flutter build`. Add it even though Android doesn't strictly need it (Android already has a usable system library) — it's harmless there and keeps the dependency story consistent across all three platforms rather than having Windows/Linux rely on something that isn't explicitly declared.
 
-### 3.1 Why a `UNIQUE` database constraint doesn't work here
-PINs are (and should stay) hashed with a per-user random salt — that's already this project's convention for the admin PIN from onboarding, and it should extend to waiter PINs too. But a salted hash means **the same PIN produces a different stored hash for every user.** Two people who both pick `1234` end up with two completely different-looking hash strings in the database. A `UNIQUE` index on that column would never catch the collision — it would just let both rows exist, silently defeating the whole point of this requirement.
-
-### 3.2 What to do instead
-Enforce uniqueness in application code, by checking a *candidate* PIN against every existing user's hash at the moment it's being set — not by indexing the stored hash.
-
-```dart
-/// Returns true if [candidatePin] matches any existing active user's PIN.
-/// [excludingUserId] lets a user's own unchanged PIN pass during an edit
-/// (otherwise editing a waiter without changing their PIN would flag
-/// itself as a duplicate).
-Future<bool> isPinTaken(String candidatePin, {int? excludingUserId}) async {
-  final users = await userRepository.getAllActiveUsers(); // admin + waiters
-  for (final user in users) {
-    if (excludingUserId != null && user.id == excludingUserId) continue;
-    if (await PinHasher.verify(candidatePin, user.pinHash)) return true;
-  }
-  return false;
-}
+```yaml
+dependencies:
+  sqflite_common_ffi: ^2.x.x   # existing
+  sqlite3_flutter_libs: ^0.5.x # add this
 ```
 
-Call this **before** writing a new hash, everywhere a PIN is set:
-- Onboarding's PIN step (trivial the very first time — no other users exist yet — but wire it in now so the pattern is already correct if onboarding is ever re-run, e.g. a factory-reset flow).
-- Waiter creation.
-- Waiter PIN reset/edit.
-- Any future "change my PIN" flow in admin settings.
+No changes needed to `database_helper.dart`'s use of `databaseFactoryFfi` — `sqlite3_flutter_libs` just makes sure the library `sqflite_common_ffi` is already looking for actually exists on disk; it doesn't change how the app talks to it.
 
-If it returns `true`, surface a clear inline error at the point of entry ("That PIN is already in use — pick a different one") rather than a generic failure — this one specifically *should* say what's wrong, unlike login errors, because the person setting the PIN is authorized to know why it was rejected.
+### 1.3 Fix the packaging step too, regardless of which cause it turns out to be
+Whatever script builds the Windows `.zip` and Linux `.tar.gz` for OTA distribution must archive the **entire** `Release`/`bundle` output directory recursively — every DLL/`.so`, the `data/` folder, everything `flutter build` produced — not a hand-picked subset of files. This is worth fixing even if adding `sqlite3_flutter_libs` alone resolves the crash, because a packaging step that can silently drop one required file can drop another one later.
 
-### 3.3 Login lookup uses the same scan
-Identifying who's logging in works the same way, in reverse — there's no username to look up a single row first, so the login check scans active users and verifies the entered PIN against each stored hash until one matches:
-
-```dart
-Future<User?> findUserByPin(String pin) async {
-  final users = await userRepository.getAllActiveUsers();
-  for (final user in users) {
-    if (await PinHasher.verify(pin, user.pinHash)) return user;
-  }
-  return null;
-}
-```
-
-Both `isPinTaken` and `findUserByPin` should live in one place (`lib/core/auth/pin_lookup.dart` or similar) and be the **only** code that ever scans+verifies PINs — don't duplicate this loop in the login provider and the waiter-form provider separately.
-
-### 3.4 Performance note — read before assuming this needs optimizing
-This scan runs the hash-verify function once per active user, which sounds worse than it is: for a café's actual staff size (a handful up to maybe 20), a handful to twenty argon2 verifies is comfortably sub-second — not something a real user will perceive as slow. If staff count ever grows into the dozens+, this cost scales linearly and is worth revisiting (e.g. a faster-but-still-salted hash tuned specifically for this lookup path), but don't pre-optimize for a scale this app isn't at. This is a deliberate simplicity-over-premature-optimization choice, not an oversight — a deterministic pepper-based lookup hash would make this an indexed O(1) lookup, but it adds a second hash column and a secret-management burden that isn't worth it at café scale, and doesn't meaningfully change the real security picture anyway (see §3.5).
-
-### 3.5 Honest note on what a 6-digit PIN actually protects against
-Worth being upfront about: a 6-digit PIN has exactly 1,000,000 possible values — trivially brute-forceable offline by anything faster than "a human tapping buttons," regardless of how strong the hashing algorithm is. The realistic threat model here isn't "attacker with the database file," it's "someone physically at the till trying PINs by hand" — which is what §6's optional throttle is actually defending against, not cryptographic strength. Keep the salted hashing (it's still correct practice and cheap to keep), just don't treat it as the main defense.
+### 1.4 Verification — don't just test on the dev machine
+This bug likely didn't show up during development because a machine with the Flutter SDK and its tooling installed already has stray copies of common DLLs lying around, masking exactly this kind of missing-file bug. Test the *actual shipped zip* on a clean machine (or at minimum a different one than whatever built it) that has never had Flutter installed:
+1. Run `flutter build windows --release` (and `flutter build linux --release`), confirm `sqlite3.dll` / `libsqlite3.so` now appears in the output folder alongside the exe.
+2. Build the distribution archive exactly the way the real release process does (§1.3).
+3. Unzip/untar it on a clean machine and launch the app from there — not from the build output folder directly, since that's not what an end user will ever run.
+4. Repeat the same check for Linux specifically — the reasoning in §1.1 doesn't guarantee Linux was safe just because the visible crash was on Windows; some distros also lack a usable system `libsqlite3`, so confirm this didn't exist there too, silently, unreported.
 
 ---
 
-## 4. `authProvider` Changes
+## 2. Issue B (lower priority): "Unknown Publisher" & Missing Exe Metadata
 
-```dart
-Future<void> login({required String pin}) async {
-  final user = await pinLookup.findUserByPin(pin);
-  if (user == null) {
-    throw AuthException('Incorrect PIN'); // generic, same principle as before
-  }
-  state = AuthState(role: user.role, userId: user.id, username: user.displayName);
-}
-```
+These are two separate things, worth being precise about since they have different fixes and different costs:
 
-Everything downstream — session state shape, `logout()`, no-persistence-across-restart behavior, the "last used role" removal aside — is unchanged from the original login spec.
+### 2.1 Exe metadata (cheap, do this)
+Windows Explorer's file Properties → Details tab (Company, Product Name, File Description, Version) pulls from a `VERSIONINFO` resource block that Flutter's default Windows template leaves mostly blank/generic. Edit `windows/runner/Runner.rc` and fill in:
+- `CompanyName` → your name/café brand
+- `ProductName` → "Brewline"
+- `FileDescription` → "Brewline Café POS"
+- `ProductVersion` / `FileVersion` → sourced from `pubspec.yaml`'s `version:` field, kept in sync at build time rather than hand-edited separately
 
----
+This makes the app look properly identified in Explorer and Task Manager. **It will not change what the UAC prompt shows, though** — that's §2.2.
 
-## 5. What Happens to "Username"
+### 2.2 "Unknown Publisher" in the UAC prompt (bigger, optional — not required to ship)
+This specific field comes from Windows checking for a valid Authenticode code-signing signature on the exe — it has nothing to do with the metadata in §2.1. Filling in `Runner.rc` perfectly will still show "Unknown Publisher" with no signature behind it. This was already flagged as an optional, not-required-to-ship item in the OTA plan (a paid code-signing cert removes it entirely; a self-signed cert can work for a handful of café-owned devices but has to be manually trusted on each one). Nothing new to decide here — just confirming this screenshot is that same known, already-documented trade-off, not a new problem.
 
-The username field is **not removed from the data model** — it's removed only from the *login* form. Keep it as each user's display name:
-- Shown in receipts ("Served by: Maria"), the Sales Log and Cashout Logs "Waiter" column, and anywhere else a human-readable name matters — all of that already depends on it existing.
-- Still collected in onboarding (admin's own display name) and in waiter creation (wherever that screen lives).
-- Cosmetic-only suggestion, not required: consider relabeling it "Name" instead of "Username" in UI copy wherever it's shown, since "username" now implies a login role it no longer has — but don't rename the underlying database column just for this, that's a migration for no functional gain.
+### 2.3 Linux parity (small, optional)
+Linux doesn't have a UAC-style prompt, but has a rough equivalent of "no metadata": if the app is missing a proper `.desktop` entry, it may show up unlabeled or generically in a file manager/app launcher. If one doesn't already exist, add a `brewline.desktop` file with `Name=Brewline`, a `Comment`, an `Icon`, and an appropriate `Categories` entry — cheap parity with the Windows metadata fix, not required for the app to function.
 
 ---
 
-## 6. Optional Hardening: Attempt Throttling
+## 3. Documentation Requirements
 
-Worth adding given §3.5 — not required, but cheap and meaningfully raises the bar against someone standing at the till trying PINs by hand:
-
-- Track consecutive failed attempts **in memory** (no database table needed — this resets naturally on app restart, which is fine for this threat model).
-- After 5 consecutive failures, disable the keypad for a short cooldown (e.g. 15–30 seconds) with a visible countdown, rather than silently rejecting input.
-- Reset the counter on any successful login.
-- This is a UX/deterrence measure, not a cryptographic one — keep the existing generic "Incorrect PIN" message throughout, don't let the lockout messaging reveal anything about which PINs are close to correct.
+- `pubspec.yaml`'s `sqlite3_flutter_libs` entry gets a one-line comment explaining it's there specifically to bundle the native library for Windows/Linux desktop builds — otherwise a future dependency cleanup might see it as unused (since nothing calls it directly in Dart code) and remove it, reintroducing this exact crash.
+- The release packaging script (wherever it lives — the GitHub Actions workflow mentioned in the OTA spec, or a local script) gets a comment stating explicitly that it must archive the full build output directory, cross-referencing this bug as the reason.
+- `Runner.rc`'s version fields get a comment noting they should be kept in sync with `pubspec.yaml`'s version — ideally automated in the release workflow rather than hand-edited per release.
 
 ---
 
-## 7. Files Changed
+## 4. Acceptance Checklist
 
-```
-lib/
-  core/
-    auth/
-      pin_lookup.dart              // NEW — isPinTaken() + findUserByPin(), the only PIN-scan logic in the app
-    database/
-      repositories/
-        waiter_repository.dart     // MODIFIED — waiter create/edit now calls isPinTaken() before writing a hash
-  features/
-    auth/
-      login_page.dart              // MODIFIED — no role toggle, single PinKeypadField, auto-submits on completion
-      providers/
-        auth_provider.dart         // MODIFIED — login({pin}) instead of login({role, username, pin})
-        login_form_provider.dart   // MODIFIED — drops username/role state
-      widgets/
-        login_form.dart            // MODIFIED — role toggle and username field removed
-        role_segmented_control.dart  // DELETE — no longer used anywhere
-  features/
-    onboarding/
-      providers/
-        onboarding_provider.dart   // MODIFIED — PIN step now also calls isPinTaken() (see §3.2)
-```
-
----
-
-## 8. Documentation Requirements
-
-- `pin_lookup.dart` gets a file-level comment explaining §3.1–§3.2 in full — specifically *why* there's no database `UNIQUE` constraint doing this work, so a future maintainer doesn't "helpfully" add one and assume it's covering a case it can't actually catch.
-- `auth_provider.dart`'s doc comment updates to reflect the simplified single-parameter `login()` — remove any stale reference to role-based lookup.
-- Any screen that sets or changes a PIN gets a one-line comment noting it calls `isPinTaken()` before persisting, so the requirement doesn't silently get skipped in a future waiter-management screen someone builds without re-reading this spec.
-
----
-
-## 9. Acceptance Checklist
-
-- [ ] Login screen shows only a PIN keypad — no role toggle, no username field
-- [ ] Entering a full PIN auto-submits (no separate "Log in" button needed) and routes to the correct dashboard based on the matched user's role
-- [ ] Wrong/unrecognized PIN shows a generic "Incorrect PIN" message and shakes the dot row, same animation as before
-- [ ] Onboarding's admin PIN step calls `isPinTaken()` before writing the hash
-- [ ] Waiter creation/edit calls `isPinTaken()` before writing a hash, and correctly excludes the waiter's own current PIN when editing without changing it
-- [ ] Attempting to set a duplicate PIN anywhere shows a specific "That PIN is already in use" error, not a generic failure
-- [ ] No `UNIQUE` constraint was added on any PIN-hash database column — confirm the enforcement is application-level per §3.2
-- [ ] Display names (formerly "username") still show correctly on receipts, Sales Log, and Cashout Logs — confirming removal from the login form didn't remove the underlying data
-- [ ] `RoleSegmentedControl` and the "last used role" preference are fully deleted, not just unused
-- [ ] (If implemented) attempt throttling locks out input after 5 consecutive failures and recovers automatically after the cooldown
+- [ ] `sqlite3_flutter_libs` added to `pubspec.yaml`; `flutter build windows --release` output now includes `sqlite3.dll` next to the exe
+- [ ] `flutter build linux --release` output includes `libsqlite3.so` in the bundle
+- [ ] Android build unaffected — still launches and reads/writes the database correctly (confirms adding the package didn't regress the platform that already worked)
+- [ ] The actual distributed `.zip`/`.tar.gz` (not just the raw build folder) contains the SQLite native library — verified by inspecting the archive contents directly, not assumed
+- [ ] App launches successfully from that archive on a clean Windows machine with no Flutter SDK ever installed
+- [ ] App launches successfully from that archive on a clean/different Linux machine
+- [ ] `Runner.rc` shows correct Company/Product/Description/Version in Explorer's Properties → Details tab
+- [ ] Confirmed (not assumed) that the UAC "Unknown Publisher" prompt is unaffected by the metadata fix alone — expected, not a regression
+- [ ] (Optional) Linux `.desktop` file shows correct name/icon in the file manager/app launcher

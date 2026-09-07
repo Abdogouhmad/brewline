@@ -145,6 +145,12 @@ jobs:
 
       # Linux bundle: the whole build/linux/x64/release/bundle/ directory,
       # archived next to the upload glob (build/linux/x64/release/*.tar.gz).
+      #
+      # MUST archive the ENTIRE bundle directory — NOT a hand-picked subset of
+      # files. `sqflite_common_ffi` loads the native sqlite3 library (bundled
+      # via sqlite3_flutter_libs build output) over dart:ffi, and a packaging
+      # step that drops it silently reintroduces the desktop launch crash
+      # (error code 126 / sqlite3_initialize). See improve.md.
       - name: Package Linux
         if: runner.os == 'Linux'
         shell: bash
@@ -153,6 +159,12 @@ jobs:
 
       # Windows: package the runner Release output with PowerShell (7z is not
       # guaranteed to be on PATH).
+      #
+      # MUST archive the ENTIRE Release/ directory — NOT a hand-picked subset
+      # of files. `sqflite_common_ffi` loads the native sqlite3 library
+      # (bundled via sqlite3_flutter_libs build output) over dart:ffi, and a
+      # packaging step that drops it silently reintroduces the desktop launch
+      # crash (error code 126 / sqlite3_initialize). See improve.md.
       - name: Package Windows
         if: runner.os == 'Windows'
         shell: pwsh
