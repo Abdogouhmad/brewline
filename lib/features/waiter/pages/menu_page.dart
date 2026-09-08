@@ -5,7 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/features/waiter/providers/order_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/product_image.dart';
@@ -81,7 +81,7 @@ class MenuPage extends ConsumerWidget {
                           title: product.name,
                           actions: [
                             UiText(
-                              formatPrice(product.price),
+                              formatPriceCents(product.priceCents),
                               fontWeight: FontWeight.w700,
                             ),
                           ],

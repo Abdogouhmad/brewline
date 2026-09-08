@@ -81,14 +81,14 @@ void main() {
         id: 1,
         createdAt: now,
         waiterUsername: 'waiter1',
-        total: 18,
+        totalCents: 1800,
         items: const [
           // 2 × Espresso → 36 g beans, 2 cups
           OrderLineItem(
             productId: 'p-001',
             name: 'Espresso',
             quantity: 2,
-            unitPrice: 9,
+            unitPriceCents: 900,
           ),
         ],
       ),
@@ -116,13 +116,13 @@ void main() {
         id: 1,
         createdAt: now,
         waiterUsername: 'waiter1',
-        total: 5,
+        totalCents: 500,
         items: const [
           OrderLineItem(
             productId: 'p-005',
             name: 'Water',
             quantity: 3,
-            unitPrice: 5,
+            unitPriceCents: 500,
           ),
         ],
       ),
@@ -138,13 +138,13 @@ void main() {
         id: 1,
         createdAt: now,
         waiterUsername: 'w',
-        total: 18,
+        totalCents: 1800,
         items: const [
           OrderLineItem(
             productId: 'p-001',
             name: 'Espresso',
             quantity: 2,
-            unitPrice: 9,
+            unitPriceCents: 900,
           ),
         ],
       ),
@@ -163,7 +163,7 @@ void main() {
         OrderItemAdjustment(
           orderItemId: line.id,
           originalQuantity: 2,
-          unitPrice: 9,
+          unitPriceCents: 900,
           newQuantity: 1,
         ),
       ],
@@ -188,13 +188,13 @@ void main() {
         id: 1,
         createdAt: now,
         waiterUsername: 'w',
-        total: 18,
+        totalCents: 1800,
         items: const [
           OrderLineItem(
             productId: 'p-001',
             name: 'Espresso',
             quantity: 2,
-            unitPrice: 9,
+            unitPriceCents: 900,
           ),
         ],
       ),

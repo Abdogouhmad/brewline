@@ -10,7 +10,8 @@ import 'package:brewline/core/repositories/stock_movement_repository.dart';
 
 /// Aggregated totals for a period, computed from the order journal.
 class PeriodStats {
-  final double revenue;
+  /// Net revenue in integer cents (sum of `orders.total_cents` minus refunds).
+  final int revenue;
   final int orderCount;
   final int itemCount;
 
@@ -20,13 +21,14 @@ class PeriodStats {
     required this.itemCount,
   });
 
-  double get avgOrderValue => orderCount == 0 ? 0 : revenue / orderCount;
+  /// Average order value in integer cents (rounded to the nearest cent).
+  int get avgOrderValue => orderCount == 0 ? 0 : (revenue / orderCount).round();
 }
 
 /// One point on the revenue-over-time series (bucketed per local day).
 class DailyRevenue {
   final DateTime day;
-  final double revenue;
+  final int revenue;
   final int orderCount;
 
   const DailyRevenue({
@@ -41,7 +43,7 @@ class ProductSold {
   final String productId;
   final String name;
   final int quantity;
-  final double revenue;
+  final int revenue;
 
   const ProductSold({
     required this.productId,
@@ -56,7 +58,7 @@ class ProductSold {
 class HourBucket {
   final int hour;
   final int orderCount;
-  final double revenue;
+  final int revenue;
 
   const HourBucket({
     required this.hour,
@@ -68,7 +70,7 @@ class HourBucket {
 /// Per-waiter sales totals within a period.
 class WaiterSales {
   final String username;
-  final double revenue;
+  final int revenue;
   final int orderCount;
 
   const WaiterSales({
@@ -82,7 +84,7 @@ class WaiterSales {
 /// falling back to "Other" for lines whose product no longer exists).
 class CategoryRevenue {
   final String category;
-  final double revenue;
+  final int revenue;
   final int quantity;
 
   const CategoryRevenue({
@@ -112,7 +114,10 @@ class OrderJournalRepository {
 
   /// Local-timezone offset in ms, applied so day bucketing matches the
   /// café's own clock rather than UTC.
-  static final int _tzOffsetMs = DateTime.now().timeZoneOffset.inMilliseconds;
+  ///
+  /// A getter (not a `static final` field) so a timezone or DST change mid-session
+  /// is picked up on the next query instead of being frozen at first load.
+  static int get _tzOffsetMs => DateTime.now().timeZoneOffset.inMilliseconds;
 
   const OrderJournalRepository(this._db);
 
@@ -195,7 +200,7 @@ class OrderJournalRepository {
         'id': order.id,
         'created_at': order.createdAt.millisecondsSinceEpoch,
         'waiter_username': order.waiterUsername,
-        'total': order.total,
+        'total_cents': order.totalCents,
         'order_number': number,
       });
       for (final OrderLineItem item in order.items) {
@@ -204,7 +209,7 @@ class OrderJournalRepository {
           'product_id': item.productId,
           'name': item.name,
           'quantity': item.quantity,
-          'unit_price': item.unitPrice,
+          'unit_price_cents': item.unitPriceCents,
         });
 
         // Stock deduction (stock.md §3.1) — inside the same transaction as the
@@ -239,13 +244,14 @@ class OrderJournalRepository {
   /// revenue sum isn't inflated by the join.
   Future<PeriodStats> statsBetween(DateTime from, DateTime to) async {
     final rows = await _db.rawQuery(
-      'SELECT IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'SELECT IFNULL(SUM(o.total_cents), 0) - IFNULL(SUM(r.refund), 0) '
+      '  AS revenue, '
       'IFNULL(SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END), 0) '
       '  AS order_count, '
       'IFNULL(SUM(oi.items), 0) AS items '
       'FROM orders o '
       'LEFT JOIN ('
-      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  SELECT order_id, SUM(amount_cents) AS refund '
       '  FROM order_refunds GROUP BY order_id'
       ') r ON r.order_id = o.id '
       'LEFT JOIN ('
@@ -257,7 +263,7 @@ class OrderJournalRepository {
     );
     final row = rows.first;
     return PeriodStats(
-      revenue: (row['revenue'] as num).toDouble(),
+      revenue: (row['revenue'] as num).toInt(),
       orderCount: (row['order_count'] as num).toInt(),
       itemCount: (row['items'] as num).toInt(),
     );
@@ -270,11 +276,11 @@ class OrderJournalRepository {
   Future<List<DailyRevenue>> revenuePerDay(DateTime from, DateTime to) async {
     final rows = await _db.rawQuery(
       'SELECT ((o.created_at + ?) / 86400000) AS day_key, '
-      'IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'IFNULL(SUM(o.total_cents), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
       'SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END) AS orders '
       'FROM orders o '
       'LEFT JOIN ('
-      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  SELECT order_id, SUM(amount_cents) AS refund '
       '  FROM order_refunds GROUP BY order_id'
       ') r ON r.order_id = o.id '
       'WHERE o.created_at >= ? AND o.created_at < ? '
@@ -287,7 +293,7 @@ class OrderJournalRepository {
           day: DateTime.fromMillisecondsSinceEpoch(
             (row['day_key'] as num).toInt() * 86400000 - _tzOffsetMs,
           ),
-          revenue: (row['revenue'] as num).toDouble(),
+          revenue: (row['revenue'] as num).toInt(),
           orderCount: (row['orders'] as num).toInt(),
         ),
     ];
@@ -304,7 +310,7 @@ class OrderJournalRepository {
     final rows = await _db.rawQuery(
       'SELECT oi.product_id, oi.name, '
       'SUM(oi.quantity) AS quantity, '
-      'SUM(oi.quantity * oi.unit_price) AS revenue '
+      'SUM(oi.quantity * oi.unit_price_cents) AS revenue '
       'FROM order_items oi '
       'JOIN orders o ON o.id = oi.order_id '
       'WHERE o.is_voided = 0 '
@@ -319,7 +325,7 @@ class OrderJournalRepository {
           productId: row['product_id'] as String,
           name: row['name'] as String,
           quantity: (row['quantity'] as num).toInt(),
-          revenue: (row['revenue'] as num).toDouble(),
+          revenue: (row['revenue'] as num).toInt(),
         ),
     ];
   }
@@ -332,11 +338,11 @@ class OrderJournalRepository {
     final rows = await _db.rawQuery(
       'SELECT CAST(STRFTIME(\'%H\', o.created_at / 1000, '
       '\'unixepoch\', \'localtime\') AS INTEGER) AS hour, '
-      'IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'IFNULL(SUM(o.total_cents), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
       'SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END) AS orders '
       'FROM orders o '
       'LEFT JOIN ('
-      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  SELECT order_id, SUM(amount_cents) AS refund '
       '  FROM order_refunds GROUP BY order_id'
       ') r ON r.order_id = o.id '
       'WHERE o.created_at >= ? AND o.created_at < ? '
@@ -348,7 +354,7 @@ class OrderJournalRepository {
         HourBucket(
           hour: (row['hour'] as num).toInt(),
           orderCount: (row['orders'] as num).toInt(),
-          revenue: (row['revenue'] as num).toDouble(),
+          revenue: (row['revenue'] as num).toInt(),
         ),
     ];
   }
@@ -359,11 +365,11 @@ class OrderJournalRepository {
   Future<List<WaiterSales>> salesByWaiter(DateTime from, DateTime to) async {
     final rows = await _db.rawQuery(
       'SELECT o.waiter_username AS username, '
-      'IFNULL(SUM(o.total), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
+      'IFNULL(SUM(o.total_cents), 0) - IFNULL(SUM(r.refund), 0) AS revenue, '
       'SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END) AS orders '
       'FROM orders o '
       'LEFT JOIN ('
-      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  SELECT order_id, SUM(amount_cents) AS refund '
       '  FROM order_refunds GROUP BY order_id'
       ') r ON r.order_id = o.id '
       'WHERE o.created_at >= ? AND o.created_at < ? '
@@ -376,7 +382,7 @@ class OrderJournalRepository {
       for (final row in rows)
         WaiterSales(
           username: row['username'] as String,
-          revenue: (row['revenue'] as num).toDouble(),
+          revenue: (row['revenue'] as num).toInt(),
           orderCount: (row['orders'] as num).toInt(),
         ),
     ];
@@ -395,7 +401,7 @@ class OrderJournalRepository {
     final rows = await _db.rawQuery(
       'SELECT CASE WHEN COALESCE(p.category, \'\') = \'\' '
       'THEN \'Other\' ELSE p.category END AS category, '
-      'IFNULL(SUM(oi.quantity * oi.unit_price), 0) AS revenue, '
+      'IFNULL(SUM(oi.quantity * oi.unit_price_cents), 0) AS revenue, '
       'IFNULL(SUM(oi.quantity), 0) AS quantity '
       'FROM order_items oi '
       'JOIN orders o ON o.id = oi.order_id '
@@ -409,7 +415,7 @@ class OrderJournalRepository {
       for (final row in rows)
         CategoryRevenue(
           category: row['category'] as String,
-          revenue: (row['revenue'] as num).toDouble(),
+          revenue: (row['revenue'] as num).toInt(),
           quantity: (row['quantity'] as num).toInt(),
         ),
     ];

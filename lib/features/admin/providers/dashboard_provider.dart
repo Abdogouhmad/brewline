@@ -6,10 +6,10 @@ import 'package:brewline/features/admin/providers/dashboard_period.dart';
 /// The headline numbers on the dashboard with their delta vs an equal-length
 /// previous window. Recomputes whenever the period or the journal changes.
 class PeriodKpis {
-  final double revenue;
+  final int revenue;
   final int orderCount;
   final int itemCount;
-  final double avgOrderValue;
+  final int avgOrderValue;
 
   /// Fractional change vs. the previous window (see [deltaPercent]).
   final double revenueDelta;
@@ -54,11 +54,11 @@ final dashboardKpisProvider = FutureProvider<PeriodKpis>((ref) async {
     orderCount: current.orderCount,
     itemCount: current.itemCount,
     avgOrderValue: current.avgOrderValue,
-    revenueDelta: deltaPercent(current.revenue, past.revenue),
+    revenueDelta: deltaPercent(current.revenue.toDouble(), past.revenue.toDouble()),
     orderDelta: deltaPercent(
       current.orderCount.toDouble(),
       past.orderCount.toDouble(),
     ),
-    avgDelta: deltaPercent(current.avgOrderValue, past.avgOrderValue),
+    avgDelta: deltaPercent(current.avgOrderValue.toDouble(), past.avgOrderValue.toDouble()),
   );
 });

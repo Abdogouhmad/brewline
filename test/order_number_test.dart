@@ -21,12 +21,12 @@ void main() {
 
     tearDown(() => db.close());
 
-    OrderRecord order(int id, DateTime at, {double total = 10}) => OrderRecord(
+    OrderRecord order(int id, DateTime at, {int total = 1000}) => OrderRecord(
       id: id,
       createdAt: at,
-      total: total,
+      totalCents: total,
       items: const [
-        OrderLineItem(productId: 'x', name: 'Item', quantity: 1, unitPrice: 10),
+        OrderLineItem(productId: 'x', name: 'Item', quantity: 1, unitPriceCents: 1000),
       ],
     );
 
@@ -67,7 +67,7 @@ void main() {
           id: 1,
           createdAt: at,
           orderNumber: 42,
-          total: 10,
+          totalCents: 1000,
           items: const [],
         ),
       );
@@ -79,7 +79,7 @@ void main() {
     test('seed/historical rows keep orderNumber 0', () async {
       final at = DateTime(2026, 8, 29, 18);
       final seeded = await journal.addOrder(
-        OrderRecord(id: 1, createdAt: at, total: 10, items: const []),
+        OrderRecord(id: 1, createdAt: at, totalCents: 1000, items: const []),
       );
       expect(seeded.orderNumber, 1); // fresh orders always get a number
       // Simulated historical import: pass an explicit 0 AND a completed number.
@@ -88,7 +88,7 @@ void main() {
           id: 2,
           createdAt: at,
           orderNumber: 0,
-          total: 10,
+          totalCents: 1000,
           items: const [],
         ),
       );
@@ -101,7 +101,7 @@ void main() {
       final saved = await Future.wait([
         for (var i = 1; i <= 25; i++)
           journal.addOrder(
-            OrderRecord(id: i, createdAt: at, total: 5, items: const []),
+            OrderRecord(id: i, createdAt: at, totalCents: 500, items: const []),
           ),
       ]);
       final numbers = saved.map((o) => o.orderNumber).toList()..sort();

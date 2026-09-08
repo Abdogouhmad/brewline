@@ -24,7 +24,7 @@ class ShiftSummary {
 
   final int orderCount;
 
-  /// Gross sales in integer cents (`orders.total` is REAL; converted × 100).
+  /// Gross sales in integer cents (sum of `orders.total_cents`).
   final int totalSalesCents;
 
   const ShiftSummary({

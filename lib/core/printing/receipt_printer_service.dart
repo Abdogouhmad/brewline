@@ -60,6 +60,38 @@ class ReceiptPrinterService {
     await _transport().send(bytes);
   }
 
+  /// Prints the kitchen ticket and/or client receipt for a freshly charged
+  /// order using **one** transport instance (see [withTransport]).
+  ///
+  /// [printKitchen] / [printClient] decide which receipts are emitted, honoring
+  /// the per-receipt toggles. A single shared transport avoids opening a second
+  /// TCP connection when both receipts are enabled.
+  Future<void> printOrder(
+    OrderRecord order, {
+    required bool printKitchen,
+    required bool printClient,
+  }) =>
+      withTransport((transport) async {
+        final bytes = <List<int>>[];
+        if (printKitchen) {
+          bytes.add(await KitchenTicketTemplate(order: order).build());
+        }
+        if (printClient) {
+          bytes.add(await ClientReceiptTemplate(order: order).build());
+        }
+        for (final b in bytes) {
+          await transport.send(b);
+        }
+      });
+
+  /// Runs [body] with a single [PrinterTransport] resolved from the current
+  /// [PrinterSettings], so several print jobs in one batch share one connection.
+  Future<void> withTransport(
+    Future<void> Function(PrinterTransport transport) body,
+  ) async {
+    await body(_transport());
+  }
+
   /// Shift report (88mm) for a final cash-out *or* an interim preview — the
   /// report itself tells the printer apart via [ShiftReportData.isFinal].
   Future<void> printShiftReport(ShiftReportData data) async {

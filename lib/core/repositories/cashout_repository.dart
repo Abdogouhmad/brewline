@@ -66,11 +66,11 @@ class CashoutRepository {
     final rows = await _db.rawQuery(
       'SELECT '
       'IFNULL(SUM(CASE WHEN o.is_voided = 0 THEN 1 ELSE 0 END), 0) AS orders, '
-      'IFNULL(SUM(o.total), 0) '
+      'IFNULL(SUM(o.total_cents), 0) '
       '  - IFNULL(SUM(r.refund), 0) AS revenue '
       'FROM orders o '
       'LEFT JOIN ('
-      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  SELECT order_id, SUM(amount_cents) AS refund '
       '  FROM order_refunds GROUP BY order_id'
       ') r ON r.order_id = o.id '
       'WHERE o.waiter_username = ? '
@@ -87,7 +87,7 @@ class CashoutRepository {
       shiftStart: shiftStart,
       shiftEnd: shiftEnd,
       orderCount: (row['orders'] as num).toInt(),
-      totalSalesCents: ((row['revenue'] as num).toDouble() * 100).round(),
+      totalSalesCents: (row['revenue'] as num).toInt(),
     );
   }
 

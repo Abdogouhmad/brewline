@@ -1,4 +1,4 @@
-import 'package:brewline/widgets/shared/logout_button.dart';
+import 'package:brewline/shared/widgets/logout_button.dart';
 import 'package:brewline/shared/widgets/profile_chip.dart';
 import 'package:flutter/material.dart';
 import 'package:brewline/features/waiter/pages/settings_page.dart';

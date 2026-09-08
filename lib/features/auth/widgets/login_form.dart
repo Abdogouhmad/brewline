@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/features/auth/providers/login_form_provider.dart';
-import 'package:brewline/shared/widgets/shared/pin_keypad_field.dart';
+import 'package:brewline/shared/widgets/pin_keypad_field.dart';
 
 /// The login form: PIN-only entry with auto-submit on completion.
 ///

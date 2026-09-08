@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/auth/pin_lookup.dart';
+import 'package:brewline/core/repositories/staff_repository.dart';
+import 'package:brewline/core/security/credential_store.dart';
 import 'package:brewline/core/security/password_hash.dart';
 import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
@@ -9,13 +11,6 @@ import 'onboarding_state.dart';
 
 /// SharedPreferences key marking that one-time onboarding has been completed.
 const String kOnboardingCompleteKey = 'onboarding_complete';
-
-/// SharedPreferences key holding the admin's username (see admin_pin_hash).
-const String kAdminUsernameKey = 'admin_username';
-
-/// SharedPreferences key holding the hashed admin PIN (see hashPin in
-/// core/security/password_hash.dart).
-const String kAdminPinHashKey = 'admin_pin_hash';
 
 /// Whether onboarding has been completed (persisted).
 final onboardingCompleteProvider = Provider<bool>((ref) {
@@ -66,7 +61,13 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
 
     try {
       // Enforce global PIN uniqueness before persisting (§3.2).
-      final taken = await ref.read(isPinTakenProvider)(state.pin);
+      final credentials = ref.read(credentialStoreProvider);
+      final staffRepo = await ref.read(staffRepositoryProvider.future);
+      final taken = await isPinTaken(
+        state.pin,
+        credentials: credentials,
+        staffRepo: staffRepo,
+      );
       if (taken) {
         state = state.copyWith(
           isSubmitting: false,
@@ -75,9 +76,15 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
         return;
       }
 
+      final salt = generateSalt();
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setString(kAdminUsernameKey, state.username.trim());
-      await prefs.setString(kAdminPinHashKey, hashPin(state.pin));
+      await credentials.write(
+        AdminCredential(
+          username: state.username.trim(),
+          pinHash: hashPin(state.pin, salt),
+          pinSalt: salt,
+        ),
+      );
       await prefs.setBool(kOnboardingCompleteKey, true);
       ref.invalidate(onboardingCompleteProvider);
       state = state.copyWith(isSubmitting: false);

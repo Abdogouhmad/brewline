@@ -6,7 +6,7 @@ import 'package:brewline/core/models/product.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/features/admin/widgets/availability_toggle.dart';
 import 'package:brewline/features/admin/widgets/product_form_sheet.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/features/waiter/providers/stock_status_provider.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -120,7 +120,7 @@ class _ProductCard extends ConsumerWidget {
                     ),
                     SizedBox(width: Space.md),
                     UiText(
-                      formatPrice(product.price),
+                      formatPriceCents(product.priceCents),
                       type: UiTextType.titleSmall,
                       fontWeight: FontWeight.w800,
                     ),

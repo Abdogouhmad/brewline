@@ -28,10 +28,10 @@ void main() {
           id: 1,
           createdAt: now,
           waiterUsername: 'waiter1',
-          total: 24,
+          totalCents: 2400,
           items: const [
-            OrderLineItem(productId: 'coffee-1', name: 'Espresso', quantity: 2, unitPrice: 9),
-            OrderLineItem(productId: 'drink-1', name: 'Cola', quantity: 1, unitPrice: 6),
+            OrderLineItem(productId: 'coffee-1', name: 'Espresso', quantity: 2, unitPriceCents: 900),
+            OrderLineItem(productId: 'drink-1', name: 'Cola', quantity: 1, unitPriceCents: 600),
           ],
         ),
       );
@@ -40,9 +40,9 @@ void main() {
           id: 2,
           createdAt: now,
           waiterUsername: 'waiter1',
-          total: 15,
+          totalCents: 1500,
           items: const [
-            OrderLineItem(productId: 'drink-1', name: 'Cola', quantity: 1, unitPrice: 15),
+            OrderLineItem(productId: 'drink-1', name: 'Cola', quantity: 1, unitPriceCents: 1500),
           ],
         ),
       );
@@ -76,7 +76,7 @@ void main() {
           OrderItemAdjustment(
             orderItemId: espressoLine.id,
             originalQuantity: 2,
-            unitPrice: 9,
+            unitPriceCents: 900,
             newQuantity: 0,
           ),
         ],
@@ -91,7 +91,7 @@ void main() {
       expect(updated.items.singleWhere((i) => i.productId == 'drink-1').quantity, 1);
       // orders.total keeps the original charged amount (the net is derived
       // as total − refund), so the refund amount isn't double-subtracted.
-      expect(updated.total, closeTo(24, 0.001));
+      expect(updated.totalCents, 2400);
 
       // One partial refund row logged.
       final refundsLogged = await refunds.getRefundsForOrder(1);
@@ -110,7 +110,7 @@ void main() {
         now.subtract(const Duration(hours: 1)),
         now.add(const Duration(hours: 1)),
       );
-      expect(stats.revenue, closeTo(21, 0.001)); // 24+15 - 18 refund
+      expect(stats.revenue, 2100); // 24+15 - 18 refund
       expect(stats.orderCount, 2);
     });
 
@@ -129,7 +129,7 @@ void main() {
       final order = await refunds.getOrder(1);
       expect(order!.isVoided, isTrue);
       expect(order.items, hasLength(2));
-      expect(order.total, closeTo(24, 0.001));
+      expect(order.totalCents, 2400);
 
       // Full refund row logged.
       final refundsLogged = await refunds.getRefundsForOrder(1);
@@ -145,7 +145,7 @@ void main() {
         now.subtract(const Duration(hours: 1)),
         now.add(const Duration(hours: 1)),
       );
-      expect(stats.revenue, closeTo(15, 0.001)); // only order 2 survives
+      expect(stats.revenue, 1500); // only order 2 survives
       expect(stats.orderCount, 1);
 
       final heat = await sales.ordersByWeekdayHour(
@@ -171,7 +171,7 @@ void main() {
           OrderItemAdjustment(
             orderItemId: espressoLine.id,
             originalQuantity: 2,
-            unitPrice: 9,
+            unitPriceCents: 900,
             newQuantity: 1,
           ),
         ],
@@ -184,7 +184,7 @@ void main() {
       ), isTrue);
       final voidedRow = rows.singleWhere((r) => r.orderId == 2);
       expect(voidedRow.refundState, SalesRefundState.voided);
-      expect(voidedRow.netTotal, 0);
+      expect(voidedRow.netTotalCents, 0);
     });
 
     test('partial refund refuses to increase a quantity (decrease-only)',
@@ -201,7 +201,7 @@ void main() {
             OrderItemAdjustment(
               orderItemId: line.id,
               originalQuantity: 2,
-              unitPrice: 9,
+              unitPriceCents: 900,
               newQuantity: 3,
             ),
           ],
@@ -225,7 +225,7 @@ void main() {
           OrderItemAdjustment(
             orderItemId: espresso.id,
             originalQuantity: 2,
-            unitPrice: 9,
+            unitPriceCents: 900,
             newQuantity: 1,
           ),
         ],
@@ -238,7 +238,7 @@ void main() {
           OrderItemAdjustment(
             orderItemId: cola.id,
             originalQuantity: 1,
-            unitPrice: 6,
+            unitPriceCents: 600,
             newQuantity: 0,
           ),
         ],

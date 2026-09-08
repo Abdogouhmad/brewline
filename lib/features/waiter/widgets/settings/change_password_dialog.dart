@@ -7,13 +7,10 @@ import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/models/user_role.dart';
 import 'package:brewline/core/repositories/audit_repository.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
+import 'package:brewline/core/security/credential_store.dart';
 import 'package:brewline/core/security/password_hash.dart';
-import 'package:brewline/core/theme/theme_controller.dart'
-    show sharedPreferencesProvider;
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/auth_state.dart';
-import 'package:brewline/features/onboarding/providers/onboarding_provider.dart'
-    show kAdminPinHashKey;
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -89,9 +86,13 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     // Enforce PIN uniqueness before persisting (§3.2).
     // Exclude the current user so their own unchanged PIN doesn't flag itself.
     final excludingId = session.role == Role.admin ? 'admin' : session.userId;
-    final taken = await ref.read(isPinTakenProvider)(
+    final credentials = ref.read(credentialStoreProvider);
+    final staffRepo = await ref.read(staffRepositoryProvider.future);
+    final taken = await isPinTaken(
       next,
       excludingUserId: excludingId,
+      credentials: credentials,
+      staffRepo: staffRepo,
     );
     if (taken && mounted) {
       setState(() {
@@ -116,20 +117,32 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
   /// human-readable reason to surface (never reveals the stored hash).
   Future<String?> _verifyCurrent(AuthState session, String current) async {
     if (session.role == Role.admin) {
-      final prefs = ref.read(sharedPreferencesProvider);
-      final stored = prefs.getString(kAdminPinHashKey);
-      return stored == hashPin(current) ? null : _wrongPin;
+      final admin = await ref.read(credentialStoreProvider).read();
+      if (admin == null || admin.pinHash != hashPin(current, admin.pinSalt)) {
+        return _wrongPin;
+      }
+      return null;
     }
     final repo = await ref.read(staffRepositoryProvider.future);
     final member = await repo.byUsername(session.username);
-    if (member == null || member.pinHash != hashPin(current)) return _wrongPin;
+    if (member == null || member.pinHash != hashPin(current, member.pinSalt)) {
+      return _wrongPin;
+    }
     return null;
   }
 
   Future<void> _persistNew(AuthState session, String next) async {
+    final salt = generateSalt();
     if (session.role == Role.admin) {
-      final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setString(kAdminPinHashKey, hashPin(next));
+      final store = ref.read(credentialStoreProvider);
+      final existing = await store.read();
+      await store.write(
+        AdminCredential(
+          username: existing?.username ?? session.username,
+          pinHash: hashPin(next, salt),
+          pinSalt: salt,
+        ),
+      );
     } else {
       final repo = await ref.read(staffRepositoryProvider.future);
       final member = await repo.byUsername(session.username);
@@ -138,7 +151,8 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
           StaffMember(
             id: member.id,
             username: member.username,
-            pinHash: hashPin(next),
+            pinHash: hashPin(next, salt),
+            pinSalt: salt,
             name: member.name,
             active: member.active,
             createdAt: member.createdAt,

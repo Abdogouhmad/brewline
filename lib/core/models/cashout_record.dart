@@ -29,7 +29,7 @@ class CashoutRecord {
 
   final int orderCount;
 
-  /// Gross sales in integer cents, converted from the REAL `orders.total`.
+  /// Gross sales in integer cents (sum of `orders.total_cents`).
   final int totalSalesCents;
 
   /// Physically counted drawer cash in integer cents.

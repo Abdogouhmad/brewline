@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:brewline/widgets/shared/auth_screen_layout.dart';
+import 'package:brewline/shared/widgets/auth_screen_layout.dart';
 
 import 'onboarding_form.dart';
 

@@ -117,18 +117,10 @@ class InventoryPage extends ConsumerWidget {
                     ingredient: ingredient,
                     onRestock: () =>
                         showRestockDialog(context, ingredient: ingredient),
-                    onEdit: () async {
-                      final repo = await ref.read(
-                        ingredientRepositoryProvider.future,
-                      );
-                      final history = await repo.byId(ingredient.id);
-                      if (!context.mounted) return;
-                      await showIngredientFormSheet(
-                        context,
-                        ingredient: ingredient,
-                        hasHistory: history != null,
-                      );
-                    },
+                    onEdit: () => showIngredientFormSheet(
+                      context,
+                      ingredient: ingredient,
+                    ),
                     onArchive: () async {
                       final repo = await ref.read(
                         ingredientRepositoryProvider.future,

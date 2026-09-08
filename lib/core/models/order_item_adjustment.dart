@@ -13,8 +13,8 @@ class OrderItemAdjustment {
   /// and to compute the refunded amount).
   final int originalQuantity;
 
-  /// The item's unit price at charge time (snapshot).
-  final double unitPrice;
+  /// The item's unit price at charge time in integer cents (snapshot).
+  final int unitPriceCents;
 
   /// The reduced quantity after the correction. Must be `>= 0` and `<`
   /// [originalQuantity].
@@ -23,11 +23,10 @@ class OrderItemAdjustment {
   const OrderItemAdjustment({
     required this.orderItemId,
     required this.originalQuantity,
-    required this.unitPrice,
+    required this.unitPriceCents,
     required this.newQuantity,
   });
 
   /// The amount refunded by this adjustment, in cents.
-  int get refundedCents =>
-      ((originalQuantity - newQuantity) * unitPrice * 100).round();
+  int get refundedCents => (originalQuantity - newQuantity) * unitPriceCents;
 }

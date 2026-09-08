@@ -4,7 +4,7 @@ import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/core/updates/update_service.dart';
-import 'package:brewline/features/admin/settings/widgets/update_screen.dart';
+import 'package:brewline/features/admin/widgets/settings/update_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

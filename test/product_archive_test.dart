@@ -20,7 +20,7 @@ void main() {
         const Product(
           id: 'coffee-1',
           name: 'Espresso',
-          price: 9,
+          priceCents: 900,
           imagePath: '',
           category: 'Coffee',
           stockQuantity: 2,
@@ -31,7 +31,7 @@ void main() {
         const Product(
           id: 'drink-1',
           name: 'Cola',
-          price: 15,
+          priceCents: 1500,
           imagePath: '',
           category: 'Soft drinks',
         ),
@@ -60,7 +60,7 @@ void main() {
         const Product(
           id: 'coffee-1',
           name: 'Espresso',
-          price: 9,
+          priceCents: 900,
           imagePath: '',
           category: 'Coffee',
           stockQuantity: 10,

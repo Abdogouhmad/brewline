@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/features/admin/providers/sales_trend_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 
 /// Area-filled line chart of the revenue series, painted with [CustomPainter].
 ///
@@ -56,7 +56,7 @@ class _LineChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    final peak = points.fold<double>(
+    final peak = points.fold<int>(
       0,
       (m, p) => p.revenue > m ? p.revenue : m,
     );
@@ -115,7 +115,7 @@ class _LineChartPainter extends CustomPainter {
     if (peak > 0 && highestIndex >= 0) {
       _paintText(
         canvas,
-        formatPrice(peak),
+        formatPriceCents(peak),
         Offset(pointAt(highestIndex).dx, pointAt(highestIndex).dy - 10),
         anchor: _Anchor.bottomCenter,
         color: lineColor,

@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/services/app_info.dart';
+import 'package:brewline/core/updates/update_installer.dart' show UpdateCheckResult;
 import 'package:brewline/core/updates/update_provider.dart';
-import 'package:brewline/features/admin/settings/widgets/update_screen.dart';
+import 'package:brewline/features/admin/widgets/settings/update_screen.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -65,6 +66,12 @@ class UpdateSection extends ConsumerWidget {
 
   /// One-line summary of the current update state for the entry tile.
   static String _summaryText(UpdateState updater) {
+    // A failed background check leaves `status` idle with `checkResult`
+    // checkFailed — surface it instead of a misleading "Up to date".
+    if (updater.checkResult == UpdateCheckResult.checkFailed &&
+        updater.status == UpdateStatus.idle) {
+      return 'Update check failed';
+    }
     return switch (updater.status) {
       UpdateStatus.checking => 'Checking for updates…',
       UpdateStatus.available when updater.hasUpdate => updater.isMandatory

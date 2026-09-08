@@ -8,6 +8,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/product.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/core/services/product_image_store.dart';
+import 'package:brewline/core/utils/id_generator.dart';
 import 'package:brewline/features/admin/widgets/recipe_editor.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
@@ -56,6 +57,11 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   late bool _available;
   late String _imagePath;
 
+  /// Parses the user-typed DH price into major units; any invalid/empty
+  /// input yields 0 so the validator reports "Must be positive".
+  static double _parsePrice(String raw) =>
+      double.tryParse(raw.trim()) ?? 0;
+
   /// The user-picked gallery file awaiting copy into app storage on submit
   /// (never stored by reference — the OS temp path goes stale).
   XFile? _pendingPicked;
@@ -68,7 +74,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final product = widget.product;
     _name = TextEditingController(text: product?.name ?? '');
     _price = TextEditingController(
-      text: product == null ? '' : product.price.toString(),
+      text: product == null
+          ? ''
+          : (product.priceCents / 100).toStringAsFixed(2),
     );
     _category = TextEditingController(text: product?.category ?? '');
     _available = product?.available ?? true;
@@ -88,7 +96,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
 
     setState(() => _saving = true);
     final product = widget.product;
-    final id = product?.id ?? 'p-${DateTime.now().millisecondsSinceEpoch}';
+    final id = product?.id ?? generatePrefixedId('p');
 
     // Copy a gallery pick into the app's own directory before upserting, so
     // `image_path` targets a stable file that survives restarts.
@@ -105,7 +113,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     final updated = Product(
       id: id,
       name: _name.text.trim(),
-      price: double.parse(_price.text.trim()),
+      priceCents: (_parsePrice(_price.text) * 100).round(),
       imagePath: imagePath,
       category: _category.text.trim(),
       available: _available,
@@ -219,11 +227,9 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                         prefixIcon: Icon(Icons.payments_outlined),
                       ),
                       validator: (value) =>
-                          double.tryParse((value ?? '').trim()) == null
-                          ? 'Enter a price'
-                          : (double.parse(value!.trim()) <= 0
-                                ? 'Must be positive'
-                                : null),
+                          _parsePrice(value ?? '') <= 0
+                          ? 'Must be positive'
+                          : null,
                     ),
                   ),
                 ],

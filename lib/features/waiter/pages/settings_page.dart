@@ -5,7 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
-import 'package:brewline/features/admin/settings/widgets/update_section.dart';
+import 'package:brewline/features/admin/widgets/settings/update_section.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';

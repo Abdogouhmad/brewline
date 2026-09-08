@@ -12,7 +12,7 @@ import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/features/waiter/providers/printing_preferences_provider.dart';
 
 /// A single line on the current order: which [Product] and how many.
@@ -22,16 +22,17 @@ class OrderItem {
 
   const OrderItem({required this.product, this.quantity = 1});
 
-  double get totalPrice => product.price * quantity;
-  String get formattedTotal => formatPrice(totalPrice);
+  /// Line total in integer cents.
+  int get totalPriceCents => product.priceCents * quantity;
+  String get formattedTotal => formatPriceCents(totalPriceCents);
 
   OrderItem withQuantity(int quantity) =>
       OrderItem(product: product, quantity: quantity);
 }
 
-/// Sum of all line totals on [items].
-double totalPriceOf(List<OrderItem> items) =>
-    items.fold(0, (sum, item) => sum + item.totalPrice);
+/// Sum of all line totals on [items], in integer cents.
+int totalPriceOf(List<OrderItem> items) =>
+    items.fold(0, (sum, item) => sum + item.totalPriceCents);
 
 /// Total number of units across all lines on [items].
 int totalUnitsOf(List<OrderItem> items) =>
@@ -58,7 +59,7 @@ class OrderController extends Notifier<List<OrderItem>> {
         if (i == index) item.withQuantity(item.quantity + 1) else item,
       if (index == -1) OrderItem(product: product),
     ];
-    _log('Added ${product.name} (${formatPrice(product.price)})');
+    _log('Added ${product.name} (${formatPriceCents(product.priceCents)})');
   }
 
   /// Removes every unit of the line matching [productId].
@@ -77,6 +78,13 @@ class OrderController extends Notifier<List<OrderItem>> {
     state = const [];
   }
 
+  /// Replaces the entire cart with [items] — used by the "Undo clear order"
+  /// snackbar action to restore a cart that was cleared accidentally.
+  void restore(List<OrderItem> items) {
+    state = [...items];
+    _log('Restored order of ${state.length} line(s)');
+  }
+
   /// Persists the order to the order journal, decrements product stock, then
   /// resets the cart and advances the ticket number.
   ///
@@ -90,19 +98,26 @@ class OrderController extends Notifier<List<OrderItem>> {
     final products = await ref.read(productRepositoryProvider.future);
     final auth = ref.read(authProvider).value;
 
+    // Refuse to save an unattributed order: a null session means no waiter can
+    // be recorded, which silently breaks the sales-by-waiter reports.
+    if (auth == null) {
+      _log('Charge aborted: no active session');
+      return;
+    }
+
     final ticket = await journal.nextOrderId();
     final record = OrderRecord(
       id: ticket,
       createdAt: DateTime.now(),
-      waiterUsername: auth?.username,
-      total: totalPriceOf(state),
+      waiterUsername: auth.username,
+      totalCents: totalPriceOf(state),
       items: [
         for (final item in state)
           OrderLineItem(
             productId: item.product.id,
             name: item.product.name,
             quantity: item.quantity,
-            unitPrice: item.product.price,
+            unitPriceCents: item.product.priceCents,
           ),
       ],
     );
@@ -123,7 +138,7 @@ class OrderController extends Notifier<List<OrderItem>> {
     ref.read(orderNumberProvider.notifier).set(saved.orderNumber + 1);
 
     _log(
-      'Charged ${formatPrice(record.total)} '
+      'Charged ${formatPriceCents(record.totalCents)} '
       '(${state.length} line(s), ${totalUnitsOf(state)} item(s)) '
       '-> #$ticket (day #${saved.orderNumber})',
     );
@@ -136,7 +151,8 @@ class OrderController extends Notifier<List<OrderItem>> {
   }
 
   /// Prints the kitchen ticket and/or client receipt for a freshly charged
-  /// order, honouring the per-receipt toggles.
+  /// order. Both receipts ride the same transport so a network printer is only
+  /// connected once per order (the two jobs share a single TCP connection).
   ///
   /// Never throws: every failure (transport unreachable, template/setup error)
   /// is swallowed into a debug log line so an async print glitch can't leak
@@ -144,23 +160,17 @@ class OrderController extends Notifier<List<OrderItem>> {
   Future<void> _printReceipts(OrderRecord order) async {
     final preferences = ref.read(printingPreferencesProvider);
     final service = ref.read(receiptPrinterServiceProvider);
+    if (!preferences.kitchenReceipt && !preferences.clientReceipt) return;
     try {
-      if (preferences.kitchenReceipt) {
-        await service.printKitchenTicket(order);
-      }
+      await service.printOrder(
+        order,
+        printKitchen: preferences.kitchenReceipt,
+        printClient: preferences.clientReceipt,
+      );
     } on PrinterException catch (e) {
-      _log('Kitchen ticket failed: ${e.message}');
+      _log('Receipt printing failed: ${e.message}');
     } catch (e) {
-      _log('Kitchen ticket failed: $e');
-    }
-    try {
-      if (preferences.clientReceipt) {
-        await service.printClientReceipt(order);
-      }
-    } on PrinterException catch (e) {
-      _log('Client receipt failed: ${e.message}');
-    } catch (e) {
-      _log('Client receipt failed: $e');
+      _log('Receipt printing failed: $e');
     }
   }
 
@@ -170,8 +180,8 @@ class OrderController extends Notifier<List<OrderItem>> {
 final orderControllerProvider =
     NotifierProvider<OrderController, List<OrderItem>>(OrderController.new);
 
-/// Running total of the current order.
-final orderTotalProvider = Provider<double>(
+/// Running total of the current order, in integer cents.
+final orderTotalProvider = Provider<int>(
   (ref) => totalPriceOf(ref.watch(orderControllerProvider)),
 );
 

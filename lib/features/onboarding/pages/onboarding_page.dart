@@ -14,18 +14,15 @@ class OnboardingPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final complete = ref.watch(onboardingCompleteProvider);
-
-    // If onboarding was just completed, navigate away.
-    if (complete) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const AdminHomePage()),
-          );
-        }
-      });
-    }
+    // Once onboarding completes, navigate away. `ref.listen` fires exactly once
+    // on the transition (unlike `addPostFrameCallback` in build, which can
+    // double-navigate when the frame is pending through multiple rebuilds).
+    ref.listen<bool>(onboardingCompleteProvider, (previous, complete) {
+      if (!complete) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const AdminHomePage()),
+      );
+    });
 
     return const OnboardingLayout();
   }

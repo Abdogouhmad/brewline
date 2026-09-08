@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/core/services/app_info.dart';
+import 'package:brewline/core/updates/update_installer.dart' show UpdateCheckResult;
 import 'package:brewline/core/updates/update_provider.dart';
+import 'package:brewline/core/utils/date_format.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -71,8 +73,14 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
                   if (state.status == UpdateStatus.checking) ...[
                     const _CheckingCard(),
                   ] else ...[
-                    if (state.status == UpdateStatus.error) ...[
-                      _ErrorCard(message: state.error),
+                    if (state.status == UpdateStatus.error ||
+                        state.checkResult == UpdateCheckResult.checkFailed) ...[
+                      _ErrorCard(
+                        message: state.status == UpdateStatus.error
+                            ? state.error
+                            : 'Could not check for updates. Check the network '
+                                  'connection and try again.',
+                      ),
                       SizedBox(height: Space.lg),
                     ],
                     _VersionCard(state: state),
@@ -121,16 +129,23 @@ class _StatusHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final failed = state.status == UpdateStatus.error ||
+        state.checkResult == UpdateCheckResult.checkFailed;
     final update = state.hasUpdate &&
-        state.status != UpdateStatus.error;
+        state.status != UpdateStatus.error &&
+        !failed;
     final checking = state.status == UpdateStatus.checking;
 
-    final accent = checking
+    final accent = failed
+        ? colorScheme.error
+        : checking
         ? colorScheme.secondaryContainer
         : update
         ? colorScheme.primaryContainer
         : colorScheme.secondaryContainer;
-    final accentFg = checking
+    final accentFg = failed
+        ? colorScheme.onError
+        : checking
         ? colorScheme.onSecondaryContainer
         : update
         ? colorScheme.onPrimaryContainer
@@ -165,6 +180,8 @@ class _StatusHeader extends StatelessWidget {
                   child: Icon(
                     checking
                         ? Icons.sync_rounded
+                        : failed
+                        ? Icons.error_outline_rounded
                         : update
                         ? Icons.system_update_alt_rounded
                         : Icons.check_circle_outline_rounded,
@@ -180,7 +197,7 @@ class _StatusHeader extends StatelessWidget {
         _StatusPill(
           checking: checking,
           update: update,
-          failed: state.status == UpdateStatus.error,
+          failed: failed,
         ),
       ],
     );
@@ -343,8 +360,43 @@ class _VersionCard extends ConsumerWidget {
             value: size,
           ),
         ],
+        _divider(context),
+        _InfoRow(
+          icon: Icons.schedule_rounded,
+          label: 'Last checked',
+          value: _lastCheckedLabel(context, ref),
+        ),
+        _divider(context),
+        _InfoRow(
+          icon: Icons.rule_rounded,
+          label: 'Last result',
+          value: _resultLabel(ref),
+          highlight: _lastResult(ref) == UpdateCheckResult.checkFailed,
+        ),
       ],
     );
+  }
+
+  /// "Never" when no check has ever completed, else the formatted timestamp.
+  static String _lastCheckedLabel(BuildContext context, WidgetRef ref) {
+    final last = ref.watch(lastUpdateCheckProvider);
+    if (last == null) return 'Never';
+    return formatDateWithTime(last);
+  }
+
+  static UpdateCheckResult? _lastResult(WidgetRef ref) =>
+      ref.watch(lastUpdateCheckResultProvider);
+
+  /// Human label for the persisted outcome of the most recent check, so a
+  /// failed background check is visible ("failed") instead of looking "new".
+  static String _resultLabel(WidgetRef ref) {
+    return switch (_lastResult(ref)) {
+      UpdateCheckResult.upToDate => 'Up to date',
+      UpdateCheckResult.updateAvailable => 'Update available',
+      UpdateCheckResult.updateMandatory => 'Update required',
+      UpdateCheckResult.checkFailed => 'Check failed',
+      null => 'Never checked',
+    };
   }
 
   static String? _latestVersion(UpdateState state) {

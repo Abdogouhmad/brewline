@@ -11,7 +11,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/updates/update_provider.dart';
-import 'package:brewline/features/admin/settings/widgets/update_required_screen.dart';
+import 'package:brewline/features/admin/widgets/settings/update_required_screen.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';

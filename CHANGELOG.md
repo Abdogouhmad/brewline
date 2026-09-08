@@ -7,7 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.1] - 2026-09-06
+## [1.7.0] - 2026-09-08
+
+### Added (security hardening)
+
+- **PIN salting** (database v6) — `staff.pin_salt` column: each enabled staff
+  user gets a per-user random salt and their stored PIN hash is now
+  `SHA-256(salt + pin)` instead of a bare PIN digest. Legacy rows (stored as
+  plain `SHA-256(pin)`) are verified against the unsalted hash and transparently
+  upgraded to a salted hash on the next successful login.
+- **Admin credentials moved to OS-secure storage** — the admin sign-in
+  credential (username + salted PIN hash + salt) now lives behind a
+  `CredentialStore` abstraction: `flutter_secure_storage` to the Android
+  Keystore / iOS Keychain on mobile, `SharedPreferences` on desktop. Android
+  `minSdkVersion` is raised to 23 to support it. Call sites (onboarding, login,
+  change-password, staff PIN uniqueness, admin settings) all go through the
+  store's injected `credentialStoreProvider`.
+
+### Changed (money in integer cents)
+
+- **All money is now integer cents (database v7)** — the audit found floats
+  stored in `REAL` columns (`products.price`, `orders.total`,
+  `order_items.unit_price`) could accumulate rounding drift with repeated
+  arithmetic. Migration 7 rebuilds them as `price_cents`, `total_cents` and
+  `unit_price_cents` (values converted with `CAST(ROUND(x * 100) AS INTEGER)`,
+  data preserved). Models, repositories, admin dashboard/reports charts, the
+  waiter order flow, refunds and the client/kitchen receipt templates all now
+  operate on `int` cents; `formatPriceCents(int)` is the canonical formatter.
+  Foreign-key enforcement is now restored in `onOpen` (it cannot be toggled
+  from inside an `onUpgrade` transaction in sqflite).
+
+### Fixed
+
+- **Login lockout could hang** — a failed-sign-in during the 30-second attempt
+  throttle left the keypad disabled with no way back. The lockout
+  (`LockState`) is now surfaced directly in the auth state, an active lockout
+  returns immediately (countdown keeps running from the same expiry), and the
+  PIN that trips the 5-failure threshold raises its error on the attempt that
+  triggers the lock rather than leaving the UI inert.
+- **Desktop Gradle build** — the Gradle daemon crashed with an out-of-memory
+  error on the 8 GB default heap on this machine; the JVM args were lowered to
+  a 2 GB heap so `flutter build apk` succeeds reliably.
+
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.7.0...HEAD
+[1.7.0]: https://github.com/Abdogouhmad/brewline/compare/1.6.1...1.7.0
+[1.6.1]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...1.6.1
 
 ### Fixed
 
@@ -34,9 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   packaging steps in the release workflow now document that they must archive
   the entire build directory recursively, so the native SQLite library can
   never be silently dropped out of the distributed zip/tar.gz again.
-
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.6.1...HEAD
-[1.6.1]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...1.6.1
 
 ## [1.6.0] - 2026-09-06
 
@@ -76,7 +117,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Check automatically" switch from the Settings update card — the toggle
   already lives inside the full OTA update screen.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...HEAD
 [1.6.0]: https://github.com/Abdogouhmad/brewline/compare/1.5.0...1.6.0
 [1.5.0]: https://github.com/Abdogouhmad/brewline/compare/1.4.1...1.5.0
 [1.4.1]: https://github.com/Abdogouhmad/brewline/compare/1.4.0...1.4.1

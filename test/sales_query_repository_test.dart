@@ -32,7 +32,7 @@ void main() {
         const Product(
           id: 'coffee-1',
           name: 'Espresso',
-          price: 9,
+          priceCents: 900,
           imagePath: '',
           category: 'Coffee',
         ),
@@ -41,7 +41,7 @@ void main() {
         const Product(
           id: 'drink-1',
           name: 'Cola',
-          price: 15,
+          priceCents: 1500,
           imagePath: '',
           category: 'Soft drinks',
         ),
@@ -66,19 +66,19 @@ void main() {
           id: 1,
           createdAt: monday,
           waiterUsername: 'waiter1',
-          total: 24,
+          totalCents: 2400,
           items: const [
             OrderLineItem(
               productId: 'coffee-1',
               name: 'Espresso',
               quantity: 2,
-              unitPrice: 9,
+              unitPriceCents: 900,
             ),
             OrderLineItem(
               productId: 'drink-1',
               name: 'Cola',
               quantity: 1,
-              unitPrice: 6,
+              unitPriceCents: 600,
             ),
           ],
         ),
@@ -88,13 +88,13 @@ void main() {
           id: 2,
           createdAt: tuesday,
           waiterUsername: 'waiter1',
-          total: 15,
+          totalCents: 1500,
           items: const [
             OrderLineItem(
               productId: 'drink-1',
               name: 'Cola',
               quantity: 1,
-              unitPrice: 15,
+              unitPriceCents: 1500,
             ),
           ],
         ),
@@ -169,9 +169,9 @@ void main() {
         OrderRecord(
           id: 3,
           createdAt: nextMonday,
-          total: 9,
+          totalCents: 900,
           items: const [
-            OrderLineItem(productId: 'x', name: 'X', quantity: 1, unitPrice: 9),
+            OrderLineItem(productId: 'x', name: 'X', quantity: 1, unitPriceCents: 900),
           ],
         ),
       );

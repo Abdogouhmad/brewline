@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/features/admin/providers/top_products_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -109,7 +109,7 @@ class _ProductRank extends StatelessWidget {
               SizedBox(
                 width: 72,
                 child: UiText(
-                  formatPrice(sold.revenue),
+                  formatPriceCents(sold.revenue),
                   type: UiTextType.labelLarge,
                   fontWeight: FontWeight.w700,
                   textAlign: TextAlign.end,

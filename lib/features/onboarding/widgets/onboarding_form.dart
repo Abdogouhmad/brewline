@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
-import 'package:brewline/shared/widgets/shared/app_text_field.dart';
-import 'package:brewline/shared/widgets/shared/pin_keypad_field.dart';
+import 'package:brewline/shared/widgets/app_text_field.dart';
+import 'package:brewline/shared/widgets/pin_keypad_field.dart';
 
 /// The onboarding form: username → PIN → confirm PIN → finish button.
 ///

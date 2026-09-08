@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/admin/providers/analytics_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -49,7 +49,7 @@ class CategoryMixBars extends ConsumerWidget {
                             ),
                           ),
                           UiText(
-                            formatPrice(item.revenue),
+                            formatPriceCents(item.revenue),
                             type: UiTextType.labelLarge,
                             fontWeight: FontWeight.w700,
                           ),

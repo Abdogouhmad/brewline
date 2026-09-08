@@ -1,6 +1,5 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
-import 'package:brewline/core/models/order_line_item.dart';
 import 'package:brewline/core/models/order_record.dart';
 import 'package:brewline/core/printing/receipt_templates/pos_support.dart';
 import 'package:brewline/core/printing/receipt_templates/receipt_header.dart';
@@ -38,18 +37,18 @@ class ClientReceiptTemplate {
     for (final item in order.items) {
       final line = '${item.quantity} x '
           '${posText(item.name)} '
-          '${formatCentsPrice(_toCents(item.unitPrice))}';
+          '${formatCentsPrice(item.unitPriceCents)}';
       bytes += generator.text(line);
       // Line total is the quantity × unit price, right-aligned under the line.
       bytes += generator.text(
-        '    ${formatCentsPrice(_lineTotal(item))}',
+        '    ${formatCentsPrice(item.totalCents)}',
         styles: const PosStyles(align: PosAlign.right),
       );
     }
 
     bytes += generator.hr();
     bytes += generator.text(
-      'TOTAL ${formatCentsPrice(_toCents(order.total))}',
+      'TOTAL ${formatCentsPrice(order.totalCents)}',
       styles: const PosStyles(bold: true, align: PosAlign.right),
     );
     bytes += generator.feed(2);
@@ -68,9 +67,4 @@ class ClientReceiptTemplate {
         ? 'Order #${orderNumber.toString().padLeft(3, '0')}'
         : 'Order #${order.id}';
   }
-
-  static int _toCents(double value) => (value * 100).round();
-
-  static int _lineTotal(OrderLineItem item) =>
-      _toCents(item.quantity * item.unitPrice);
 }
