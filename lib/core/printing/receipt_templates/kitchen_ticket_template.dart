@@ -53,7 +53,7 @@ class KitchenTicketTemplate {
 
     bytes += generator.hr();
     bytes += generator.text(
-      'TOTAL ${formatCentsPrice(_toCents(order.total))}',
+      'TOTAL ${formatCentsPrice(order.totalCents)}',
       styles: const PosStyles(bold: true),
     );
     bytes += generator.feed(3);
@@ -68,6 +68,4 @@ class KitchenTicketTemplate {
         ? '#${orderNumber.toString().padLeft(3, '0')}'
         : '#${order.id}';
   }
-
-  static int _toCents(double value) => (value * 100).round();
 }

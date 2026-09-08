@@ -80,7 +80,7 @@ class RefundRepository {
       ),
       orderNumber: (order['order_number'] as num).toInt(),
       waiterUsername: order['waiter_username'] as String?,
-      total: (order['total'] as num).toDouble(),
+      totalCents: (order['total_cents'] as num).toInt(),
       isVoided: (order['is_voided'] as num).toInt() != 0,
       items: [
         for (final row in itemRows)
@@ -89,7 +89,7 @@ class RefundRepository {
             productId: row['product_id'] as String,
             name: row['name'] as String,
             quantity: (row['quantity'] as num).toInt(),
-            unitPrice: (row['unit_price'] as num).toDouble(),
+            unitPriceCents: (row['unit_price_cents'] as num).toInt(),
           ),
       ],
     );
@@ -124,7 +124,7 @@ class RefundRepository {
     assert(reason.trim().isNotEmpty, 'Reason is required for a partial refund');
 
     return _db.transaction((txn) async {
-      final originalTotal = await _orderTotal(txn, orderId);
+      final originalTotal = await _orderTotalCents(txn, orderId);
 
       // Ingredient stock restoration (stock.md §3.3): the recipe system shares
       // this same transaction so restored quantity and ledger can't drift.
@@ -146,7 +146,7 @@ class RefundRepository {
             '(line ${adjustment.orderItemId})',
           );
         }
-        final perUnitCents = (adjustment.unitPrice * 100).round();
+        final perUnitCents = adjustment.unitPriceCents;
         final reduced = current - adjustment.newQuantity;
         refundedCents += reduced * perUnitCents;
 
@@ -189,7 +189,7 @@ class RefundRepository {
         throw StateError('Partial refund must remove at least one unit');
       }
 
-      // NOTE: `orders.total` is deliberately NOT rewritten. It keeps the
+      // NOTE: `orders.total_cents` is deliberately NOT rewritten. It keeps the
       // original charged amount; the net figure is derived as
       // `total − refund` (see §4 of improve.md). The correction is expressed
       // entirely through the corrected `order_items` quantities + the
@@ -211,7 +211,7 @@ class RefundRepository {
           'order_id': orderId,
           'refund_id': refundId,
           'old_total': originalTotal,
-          'new_total': originalTotal - refundedCents / 100,
+          'new_total': originalTotal - refundedCents,
           'reason': reason,
         }),
         'created_at': refundAt.millisecondsSinceEpoch,
@@ -242,8 +242,9 @@ class RefundRepository {
     assert(reason.trim().isNotEmpty, 'Reason is required for a full refund');
 
     return _db.transaction((txn) async {
-      final total = await _orderTotal(txn, orderId);
-      final amountCents = (total * 100).round();
+      final totalCents = await _orderTotalCents(txn, orderId);
+      // The full refund equals the original total, already in cents.
+      final amountCents = totalCents;
 
       final createdAt = DateTime.now();
 
@@ -298,7 +299,7 @@ class RefundRepository {
         'metadata': jsonEncode({
           'order_id': orderId,
           'refund_id': refundId,
-          'amount': total,
+          'amount': totalCents,
           'reason': reason,
         }),
         'created_at': createdAt.millisecondsSinceEpoch,
@@ -313,10 +314,10 @@ class RefundRepository {
     });
   }
 
-  Future<double> _orderTotal(DatabaseExecutor txn, int orderId) async {
+  Future<int> _orderTotalCents(DatabaseExecutor txn, int orderId) async {
     final rows = await txn.query(
       'orders',
-      columns: ['total'],
+      columns: ['total_cents'],
       where: 'id = ?',
       whereArgs: [orderId],
       limit: 1,
@@ -324,7 +325,7 @@ class RefundRepository {
     if (rows.isEmpty) {
       throw StateError('Order $orderId not found');
     }
-    return (rows.first['total'] as num).toDouble();
+    return (rows.first['total_cents'] as num).toInt();
   }
 
   Future<Map<String, Object?>?> _line(

@@ -9,6 +9,10 @@ class StaffMember {
   /// SHA-256 digest of the staff PIN (see `core/security/password_hash.dart`).
   final String pinHash;
 
+  /// Per-user hex salt mixed into [pinHash]. `null` for legacy rows created
+  /// before salting landed (they verify against the unsalted hash).
+  final String? pinSalt;
+
   /// Display name shown in shift/performance views.
   final String name;
 
@@ -21,16 +25,36 @@ class StaffMember {
     required this.id,
     required this.username,
     required this.pinHash,
+    this.pinSalt,
     required this.name,
     this.active = true,
     required this.createdAt,
   });
+
+  StaffMember copyWith({
+    String? id,
+    String? username,
+    String? pinHash,
+    String? pinSalt,
+    String? name,
+    bool? active,
+    DateTime? createdAt,
+  }) => StaffMember(
+    id: id ?? this.id,
+    username: username ?? this.username,
+    pinHash: pinHash ?? this.pinHash,
+    pinSalt: pinSalt ?? this.pinSalt,
+    name: name ?? this.name,
+    active: active ?? this.active,
+    createdAt: createdAt ?? this.createdAt,
+  );
 
   /// Column map for SQLite writes (see the `staff` schema).
   Map<String, Object?> toRow() => {
     'id': id,
     'username': username,
     'pin_hash': pinHash,
+    'pin_salt': pinSalt,
     'name': name,
     'active': active ? 1 : 0,
     'created_at': createdAt.millisecondsSinceEpoch,
@@ -41,6 +65,7 @@ class StaffMember {
     id: row['id'] as String,
     username: row['username'] as String,
     pinHash: row['pin_hash'] as String,
+    pinSalt: row['pin_salt'] as String?,
     name: row['name'] as String? ?? row['username'] as String,
     active: (row['active'] as int? ?? 1) == 1,
     createdAt: DateTime.fromMillisecondsSinceEpoch(

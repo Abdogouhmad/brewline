@@ -5,10 +5,11 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
+import 'package:brewline/core/security/credential_store.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
-import 'package:brewline/features/admin/settings/widgets/printer_settings_section.dart';
-import 'package:brewline/features/admin/settings/widgets/update_section.dart';
+import 'package:brewline/features/admin/widgets/settings/printer_settings_section.dart';
+import 'package:brewline/features/admin/widgets/settings/update_section.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
@@ -19,7 +20,7 @@ import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/settings/language_dropdown.dart';
 import 'package:brewline/shared/widgets/settings/theme_segmented_control.dart';
-import 'package:brewline/widgets/shared/logout_button.dart';
+import 'package:brewline/shared/widgets/logout_button.dart';
 
 /// Admin "Settings" tab.
 ///
@@ -35,7 +36,7 @@ class AdminSettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       padding: EdgeInsets.symmetric(
-        horizontal: MediaQuery.of(context).size.width < 600
+        horizontal: Breakpoints.of(context) == ScreenSize.compact
             ? Space.lg
             : Space.full,
         vertical: Space.lg,
@@ -128,37 +129,17 @@ class AdminSettingsPage extends ConsumerWidget {
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const UiText(
-          'Reset business data?',
-          type: UiTextType.titleMedium,
-        ),
-        content: const UiText(
-          'This deletes the admin account and all business data (orders, '
-          'staff, products) and returns you to the setup screen.',
-          type: UiTextType.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          UiButton(
-            'Reset',
-            variant: UiButtonVariant.filled,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
+      builder: (ctx) => const _ResetConfirmDialog(),
     );
 
     if (confirmed != true || !context.mounted) return;
     final prefs = ref.read(sharedPreferencesProvider);
     // Clear the onboarding flag AND the stored credentials the login screen
-    // validates against, so a fresh setup starts from a clean slate.
+    // validates against, so a fresh setup starts from a clean slate. The
+    // credential triple goes through the backend-appropriate store (keychain
+    // on mobile, prefs on desktop).
     await prefs.remove(kOnboardingCompleteKey);
-    await prefs.remove(kAdminUsernameKey);
-    await prefs.remove(kAdminPinHashKey);
+    await ref.read(credentialStoreProvider).clear();
     await deleteAllData(await ref.read(appDatabaseProvider.future));
     await ref.read(authProvider.notifier).logout();
     ref.invalidate(onboardingCompleteProvider);
@@ -169,6 +150,72 @@ class AdminSettingsPage extends ConsumerWidget {
         (_) => false,
       );
     }
+  }
+}
+
+/// Destructive reset dialog that requires the admin to type `RESET` before the
+/// reset button activates — a deliberate second factor that makes an
+/// accidental or UI-glitch-triggered wipe far less likely.
+class _ResetConfirmDialog extends StatefulWidget {
+  const _ResetConfirmDialog();
+
+  @override
+  State<_ResetConfirmDialog> createState() => _ResetConfirmDialogState();
+}
+
+class _ResetConfirmDialogState extends State<_ResetConfirmDialog> {
+  final _controller = TextEditingController();
+
+  static const _confirmation = 'RESET';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canConfirm = _controller.text == _confirmation;
+    return AlertDialog(
+      title: const UiText(
+        'Reset business data?',
+        type: UiTextType.titleMedium,
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const UiText(
+            'This deletes the admin account and all business data (orders, '
+            'staff, products) and returns you to the setup screen.',
+            type: UiTextType.bodyMedium,
+          ),
+          SizedBox(height: Space.lg),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              labelText: 'Type RESET to confirm',
+              helperText: 'This cannot be undone',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        UiButton(
+          'Reset',
+          variant: UiButtonVariant.destructive,
+          onPressed: canConfirm ? () => Navigator.of(context).pop(true) : null,
+        ),
+      ],
+    );
   }
 }
 

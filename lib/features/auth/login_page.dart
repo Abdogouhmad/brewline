@@ -4,9 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/models/user_role.dart';
 import 'package:brewline/features/admin/pages/admin_home_page.dart';
 import 'package:brewline/features/waiter/pages/waiter_home_page.dart';
-import 'package:brewline/widgets/shared/auth_screen_layout.dart';
+import 'package:brewline/shared/widgets/auth_screen_layout.dart';
 
 import 'providers/auth_provider.dart';
+import 'providers/auth_state.dart';
 import 'widgets/login_form.dart';
 
 /// Entry screen after onboarding: PIN-only login that auto-routes to the
@@ -21,12 +22,13 @@ class LoginPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authProvider).value;
-
     // Successful login -> replace this screen with the role's dashboard.
-    if (session != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
+    // A `ref.listen` (not `addPostFrameCallback` in build) reacts exactly once
+    // to the session appearing, avoiding double-navigation on rebuilds.
+    ref.listen<AuthState?>(
+      authProvider.select((s) => s.value),
+      (previous, session) {
+        if (session == null) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => session.role == Role.admin
@@ -34,8 +36,8 @@ class LoginPage extends ConsumerWidget {
                 : const WaiterHomePage(),
           ),
         );
-      });
-    }
+      },
+    );
 
     return Scaffold(
       body: AuthScreenLayout(

@@ -6,7 +6,7 @@ import 'package:brewline/core/models/user_role.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/auth_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
-import 'package:brewline/widgets/shared/logout_button.dart';
+import 'package:brewline/shared/widgets/logout_button.dart';
 
 /// Compact account row pinned to the bottom of the expanded (desktop) sidebar:
 /// avatar + the signed-in user's label and role, with a logout shortcut.

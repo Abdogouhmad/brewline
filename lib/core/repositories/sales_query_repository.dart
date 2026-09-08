@@ -48,12 +48,14 @@ class SalesEntry {
   final String productName;
   final int quantity;
 
-  /// Line total = `quantity * unit_price` (snapshot price at charge time).
-  final double lineTotal;
+  /// Line total = `quantity * unit_price_cents` (snapshot price at charge
+  /// time), in integer cents.
+  final int lineTotalCents;
 
   /// The line's share of the order's partial refunds, subtracted from
-  /// [lineTotal] to give [netTotal]. `0` when the order has no refund.
-  final double lineRefund;
+  /// [lineTotalCents] to give [netTotalCents]. `0` when the order has no
+  /// refund. In cents.
+  final int lineRefundCents;
 
   /// This order's refund state (partial / voided / none) — drives the badge.
   final SalesRefundState refundState;
@@ -70,8 +72,8 @@ class SalesEntry {
     required this.createdAt,
     required this.productName,
     required this.quantity,
-    required this.lineTotal,
-    this.lineRefund = 0,
+    required this.lineTotalCents,
+    this.lineRefundCents = 0,
     this.refundState = SalesRefundState.none,
     this.waiterUsername,
     this.waiterName,
@@ -80,23 +82,24 @@ class SalesEntry {
   /// Best display name for the Waiter column.
   String get waiter => waiterName ?? waiterUsername ?? '—';
 
-  /// Net line value after subtracting this line's share of any partial
-  /// refund. Never goes below zero.
-  double get netTotal => (lineTotal - lineRefund).clamp(0, double.maxFinite);
+  /// Net line value in integer cents after subtracting this line's share of
+  /// any partial refund. Never goes below zero.
+  int get netTotalCents =>
+      lineTotalCents > lineRefundCents ? lineTotalCents - lineRefundCents : 0;
 
   /// Parses one joined row from `getSales`.
   static SalesEntry fromRow(Map<String, Object?> row) {
-    final lineTotal = (row['line_total'] as num).toDouble();
-    final orderRefund = (row['order_refund'] as num).toDouble();
+    final lineTotalCents = (row['line_total'] as num).toInt();
+    final orderRefundCents = (row['order_refund'] as num).toInt();
     final isVoided = (row['is_voided'] as num).toInt() != 0;
     final refundState = isVoided
         ? SalesRefundState.voided
-        : orderRefund > 0
+        : orderRefundCents > 0
             ? SalesRefundState.partial
             : SalesRefundState.none;
     // A void refunds the whole order (net = 0 per line); a partial refund
     // leaves the corrected, already-reduced line value as its net.
-    final lineRefund = isVoided ? lineTotal : 0.0;
+    final lineRefundCents = isVoided ? lineTotalCents : 0;
 
     return SalesEntry(
       orderId: row['order_id'] as int,
@@ -104,8 +107,8 @@ class SalesEntry {
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
       productName: row['product_name'] as String,
       quantity: (row['quantity'] as num).toInt(),
-      lineTotal: lineTotal,
-      lineRefund: lineRefund,
+      lineTotalCents: lineTotalCents,
+      lineRefundCents: lineRefundCents,
       refundState: refundState,
       waiterUsername: row['waiter_username'] as String?,
       waiterName: row['waiter_name'] as String?,
@@ -161,6 +164,9 @@ class SalesQueryRepository {
     int limit = 100,
     int offset = 0,
   }) async {
+    assert(limit > 0, 'limit must be positive');
+    assert(offset >= 0, 'offset must be non-negative');
+
     final clauses = <String>[];
     final args = <Object?>[];
     if (from != null) {
@@ -185,13 +191,13 @@ class SalesQueryRepository {
       'SELECT o.id AS order_id, '
       'o.created_at, o.order_number, oi.product_id, o.is_voided, '
       'oi.name AS product_name, oi.quantity, '
-      '(oi.quantity * oi.unit_price) AS line_total, '
+      '(oi.quantity * oi.unit_price_cents) AS line_total, '
       'IFNULL(COALESCE(r.refund, 0), 0) AS order_refund, '
       'o.waiter_username, s.name AS waiter_name '
       'FROM order_items oi '
       'JOIN orders o ON o.id = oi.order_id '
       'LEFT JOIN ('
-      '  SELECT order_id, SUM(amount_cents) / 100.0 AS refund '
+      '  SELECT order_id, SUM(amount_cents) AS refund '
       '  FROM order_refunds GROUP BY order_id'
       ') r ON r.order_id = o.id '
       'LEFT JOIN staff s ON s.username = o.waiter_username '

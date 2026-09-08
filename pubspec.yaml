@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.6.1+14
+version: 1.7.0+15
 
 environment:
   sdk: ^3.13.1
@@ -37,9 +37,14 @@ dependencies:
   crypto: ^3.0.6
   google_fonts: ^8.2.1
   package_info_plus: ">=8.0.0 <9.0.0"
-  dynamic_color: 1.9.0
+  dynamic_color: ^1.9.0
   sqflite: ^2.4.3
   sqflite_common_ffi: ^2.4.2+1
+  # Bundles the native sqlite3 binary for Windows/Linux desktop builds.
+  # sqflite_common_ffi talks to SQLite via dart:ffi but doesn't ship the
+  # library itself — without this, the DLL/so is missing on clean installs
+  # and the app crashes on launch (error code 126 / sqlite3_initialize).
+  sqlite3_flutter_libs: ^0.5.0
   path: ^1.9.1
   image_picker: ^1.2.3
   path_provider: ^2.1.6
@@ -49,6 +54,7 @@ dependencies:
   archive: ^3.6.1
   pub_semver: ^2.2.1
   android_package_installer: ^0.0.3
+  flutter_secure_storage: ^10.3.1
 
 dev_dependencies:
   flutter_test:

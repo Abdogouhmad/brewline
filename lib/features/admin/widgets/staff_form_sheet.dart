@@ -5,7 +5,9 @@ import 'package:brewline/core/auth/pin_lookup.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
+import 'package:brewline/core/security/credential_store.dart';
 import 'package:brewline/core/security/password_hash.dart';
+import 'package:brewline/core/utils/id_generator.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -80,9 +82,12 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
 
     // Enforce PIN uniqueness before writing (§3.2).
     if (newPin.isNotEmpty) {
-      final taken = await ref.read(isPinTakenProvider)(
+      final credentials = ref.read(credentialStoreProvider);
+      final taken = await isPinTaken(
         newPin,
         excludingUserId: member?.id,
+        credentials: credentials,
+        staffRepo: repo,
       );
       if (taken && mounted) {
         setState(() {
@@ -93,12 +98,15 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
       }
     }
 
+    // A fresh per-user salt is generated whenever the PIN is set or changed
+    // (never reused, even when two accounts pick the same PIN).
+    final salt = newPin.isNotEmpty ? generateSalt() : null;
+
     final updated = StaffMember(
-      id: member?.id ?? 'staff-${DateTime.now().millisecondsSinceEpoch}',
+      id: member?.id ?? generatePrefixedId('staff'),
       username: _username.text.trim(),
-      pinHash: newPin.isEmpty
-          ? (member?.pinHash ?? hashPin(newPin))
-          : hashPin(newPin),
+      pinHash: newPin.isNotEmpty ? hashPin(newPin, salt) : member!.pinHash,
+      pinSalt: newPin.isNotEmpty ? salt : member?.pinSalt,
       name: _name.text.trim(),
       active: member?.active ?? true,
       createdAt: member?.createdAt ?? DateTime.now(),

@@ -17,7 +17,9 @@ class OrderRecord {
   final int orderNumber;
 
   final String? waiterUsername;
-  final double total;
+
+  /// Charged total in integer cents.
+  final int totalCents;
   final List<OrderLineItem> items;
 
   /// True when the order has been fully voided (a full refund). The order and
@@ -30,7 +32,7 @@ class OrderRecord {
     required this.createdAt,
     this.orderNumber = 0,
     this.waiterUsername,
-    required this.total,
+    required this.totalCents,
     required this.items,
     this.isVoided = false,
   });
@@ -40,7 +42,7 @@ class OrderRecord {
     createdAt: createdAt,
     orderNumber: orderNumber ?? this.orderNumber,
     waiterUsername: waiterUsername,
-    total: total,
+    totalCents: totalCents,
     items: items,
     isVoided: isVoided,
   );

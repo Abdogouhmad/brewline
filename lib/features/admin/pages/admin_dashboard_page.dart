@@ -14,7 +14,7 @@ import 'package:brewline/features/admin/widgets/revenue_trend_chart.dart';
 import 'package:brewline/features/admin/widgets/shift_status_card.dart';
 import 'package:brewline/features/admin/widgets/stock_overview_card.dart';
 import 'package:brewline/features/admin/widgets/top_products_list.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Admin landing tab: live KPIs, revenue trend, top sellers and stock alerts
@@ -55,7 +55,7 @@ class AdminDashboardPage extends ConsumerWidget {
   }
 
   double _contentPadding(BuildContext context) =>
-      MediaQuery.of(context).size.width < 600 ? Space.lg : Space.full;
+      Breakpoints.of(context) == ScreenSize.compact ? Space.lg : Space.full;
 }
 
 /// Revenue overview (wide) beside the shift status + quick actions rail.
@@ -159,10 +159,10 @@ class _KpiGrid extends ConsumerWidget {
 
     final (revenue, orders, items, avg) = switch (kpis) {
       AsyncData(:final value) => (
-        formatPrice(value.revenue),
+        formatPriceCents(value.revenue),
         '${value.orderCount}',
         '${value.itemCount}',
-        formatPrice(value.avgOrderValue),
+        formatPriceCents(value.avgOrderValue),
       ),
       _ => ('—', '—', '—', '—'),
     };
@@ -229,7 +229,7 @@ class _RevenueSection extends ConsumerWidget {
       icon: Icons.show_chart_rounded,
       trailing: trend.when(
         data: (points) => UiText(
-          formatPrice(points.fold<double>(0, (s, p) => s + p.revenue)),
+          formatPriceCents(points.fold<int>(0, (s, p) => s + p.revenue)),
           type: UiTextType.titleMedium,
           fontWeight: FontWeight.w800,
           color: Theme.of(context).colorScheme.primary,

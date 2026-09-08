@@ -19,13 +19,13 @@ void main() {
     required int id,
     required DateTime createdAt,
     required String waiterUsername,
-    required double total,
+    required int totalCents,
   }) {
     return db.insert('orders', {
       'id': id,
       'created_at': createdAt.millisecondsSinceEpoch,
       'waiter_username': waiterUsername,
-      'total': total,
+      'total_cents': totalCents,
       'order_number': id,
     });
   }
@@ -83,25 +83,25 @@ void main() {
         id: 1,
         createdAt: DateTime(2026, 8, 29, 7, 0), // before cashout → excluded
         waiterUsername: 'john',
-        total: 99,
+        totalCents: 9900,
       );
       await insertOrder(
         id: 2,
         createdAt: DateTime(2026, 8, 29, 9, 0),
         waiterUsername: 'john',
-        total: 12.5,
+        totalCents: 1250,
       );
       await insertOrder(
         id: 3,
         createdAt: DateTime(2026, 8, 29, 10, 30),
         waiterUsername: 'john',
-        total: 7.0,
+        totalCents: 700,
       );
       await insertOrder(
         id: 4,
         createdAt: DateTime(2026, 8, 29, 12, 0), // after `end` → excluded
         waiterUsername: 'john',
-        total: 5,
+        totalCents: 500,
       );
 
       final summary = await cashout.currentShiftSummary(
@@ -132,13 +132,13 @@ void main() {
         id: 1,
         createdAt: DateTime(2026, 8, 29, 9, 0), // before re-login
         waiterUsername: 'john',
-        total: 12.5,
+        totalCents: 1250,
       );
       await insertOrder(
         id: 2,
         createdAt: DateTime(2026, 8, 29, 13, 0), // after re-login
         waiterUsername: 'john',
-        total: 7.0,
+        totalCents: 700,
       );
 
       final summary = await cashout.currentShiftSummary(
@@ -157,7 +157,7 @@ void main() {
         id: 1,
         createdAt: DateTime(2026, 8, 29, 20, 0),
         waiterUsername: 'john',
-        total: 10,
+        totalCents: 1000,
       );
 
       final summary = await cashout.currentShiftSummary(

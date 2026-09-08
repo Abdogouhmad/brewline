@@ -92,22 +92,17 @@ class ProductRepository {
   }
 
   /// Inserts a new product or updates an existing one (matched by id).
+  ///
+  /// `ConflictAlgorithm.replace` turns the insert into an upsert on the `id`
+  /// primary key in a single statement, so there's no need to `SELECT` first —
+  /// one DB round-trip instead of two, and no TOCTOU race between the check
+  /// and the write.
   Future<void> upsert(Product product) async {
-    final existing = await byId(product.id);
-    if (existing == null) {
-      await _db.insert(
-        'products',
-        product.toRow(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    } else {
-      await _db.update(
-        'products',
-        product.toRow(),
-        where: 'id = ?',
-        whereArgs: [product.id],
-      );
-    }
+    await _db.insert(
+      'products',
+      product.toRow(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// Removes a product from the catalog via the `is_archived` soft-delete

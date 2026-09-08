@@ -5,10 +5,13 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/cashout_record.dart';
 import 'package:brewline/core/repositories/cashout_repository.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
+import 'package:brewline/core/utils/date_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
+import 'package:brewline/shared/widgets/date_filter_input.dart';
 
 /// Admin "Cashout log": one row per **finalized** shift close.
 ///
@@ -54,7 +57,6 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
       if (reset) {
         _records = [];
         _offset = 0;
-        _hasMore = true;
       }
     });
     try {
@@ -106,7 +108,7 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
       onRefresh: () => _load(reset: true),
       child: ListView(
         padding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width < 600
+          horizontal: Breakpoints.of(context) == ScreenSize.compact
               ? Space.lg
               : Space.full,
           vertical: Space.lg,
@@ -179,7 +181,7 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
           const minFilterWidth = 190.0;
           final fitsPair = constraints.maxWidth >= 2 * minFilterWidth + spacing;
 
-          final date = _DateFilterInput(
+          final date = DateFilterInput(
             range: _range,
             onTap: _pickRange,
             onClear: clearRange,
@@ -242,50 +244,6 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
   }
 }
 
-/// Read-only date-window control that opens the range picker on tap.
-class _DateFilterInput extends StatelessWidget {
-  final DateTimeRange? range;
-  final VoidCallback onTap;
-  final VoidCallback onClear;
-
-  const _DateFilterInput({
-    required this.range,
-    required this.onTap,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: 'Date range',
-        prefixIcon: Icon(Icons.date_range_outlined),
-      ),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        title: Text(
-          range == null
-              ? 'All dates'
-              : '${_formatDate(range!.start)} – ${_formatDate(range!.end)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: range == null
-            ? null
-            : IconButton(
-                tooltip: 'Clear dates',
-                icon: const Icon(Icons.close_rounded, size: 18),
-                onPressed: onClear,
-              ),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  static String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
-}
-
 /// Horizontally scrollable table of finalized [CashoutRecord] rows.
 class _CashoutTable extends StatelessWidget {
   final List<CashoutRecord> records;
@@ -312,6 +270,8 @@ class _CashoutTable extends StatelessWidget {
                 DataColumn(label: Text('Orders Made')),
                 DataColumn(label: Text('Waiter Name')),
                 DataColumn(label: Text('Total Made')),
+                DataColumn(label: Text('Cash Counted')),
+                DataColumn(label: Text('Variance')),
               ],
               rows: [
                 for (final r in records)
@@ -328,8 +288,20 @@ class _CashoutTable extends StatelessWidget {
                       ),
                       DataCell(
                         Text(
-                          formatPrice(r.totalSalesCents / 100),
+                          formatPriceCents(r.totalSalesCents),
                           style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      DataCell(Text(formatPriceCents(r.cashCountedCents))),
+                      DataCell(
+                        Text(
+                          formatPriceCents(r.cashVarianceCents),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: r.cashVarianceCents < 0
+                                ? colorScheme.error
+                                : colorScheme.primary,
+                          ),
                         ),
                       ),
                     ],
@@ -342,25 +314,8 @@ class _CashoutTable extends StatelessWidget {
     );
   }
 
-  static String _dateTime(DateTime d) =>
-      '${d.day} ${_months[d.month - 1]} ${d.year} · '
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  static String _dateTime(DateTime d) => formatDateWithTime(d);
 }
-
-const List<String> _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
 
 class _Loader extends StatelessWidget {
   const _Loader();

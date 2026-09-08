@@ -83,11 +83,17 @@ class UpdateService {
       // The release exists but has nothing this device can install.
       return const UpdateCheckOutcome(null, null, UpdateCheckResult.checkFailed);
     }
-    final result = installerForCurrentPlatform().checkForUpdate(
-      release,
-      currentInfo,
-    );
-    return UpdateCheckOutcome(release, asset, result);
+    try {
+      final result = installerForCurrentPlatform().checkForUpdate(
+        release,
+        currentInfo,
+      );
+      return UpdateCheckOutcome(release, asset, result);
+    } on UnsupportedError {
+      // macOS/iOS have no OTA installer — treat as "nothing to check"
+      // rather than letting the caller crash on an unsupported platform.
+      return const UpdateCheckOutcome(null, null, UpdateCheckResult.checkFailed);
+    }
   }
 }
 

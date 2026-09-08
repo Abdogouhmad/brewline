@@ -7,11 +7,14 @@ import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/core/repositories/sales_query_repository.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
+import 'package:brewline/core/utils/date_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
-import 'package:brewline/widgets/shared/refund_action_sheet.dart';
+import 'package:brewline/shared/widgets/date_filter_input.dart';
+import 'package:brewline/shared/widgets/refund_action_sheet.dart';
 
 /// Admin "Sales Log": a filterable, paginated line-level history of every
 /// sale.
@@ -67,7 +70,6 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
       if (reset) {
         _entries = [];
         _offset = 0;
-        _hasMore = true;
       }
     });
     try {
@@ -133,7 +135,7 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
       onRefresh: () => _load(reset: true),
       child: ListView(
         padding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width < 600
+          horizontal: Breakpoints.of(context) == ScreenSize.compact
               ? Space.lg
               : Space.full,
           vertical: Space.lg,
@@ -208,11 +210,12 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
       content: LayoutBuilder(
         builder: (context, constraints) {
           final filters = <Widget>[
-            _DateFilterInput(
+            DateFilterInput(
               range: _range,
               onTap: _pickRange,
               onClear: _clearRange,
               onToday: _showToday,
+              showTodayButton: true,
             ),
             _buildProductFilter(products.value),
             _buildWaiterFilter(staff.value),
@@ -340,61 +343,6 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
   }
 }
 
-/// Read-only date-window control that opens the range picker on tap.
-class _DateFilterInput extends StatelessWidget {
-  final DateTimeRange? range;
-  final VoidCallback onTap;
-  final VoidCallback onClear;
-  final VoidCallback onToday;
-
-  const _DateFilterInput({
-    required this.range,
-    required this.onTap,
-    required this.onClear,
-    required this.onToday,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: 'Date range',
-        prefixIcon: Icon(Icons.date_range_outlined),
-      ),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        title: Text(
-          range == null
-              ? 'All dates'
-              : '${_formatDate(range!.start)} – ${_formatDate(range!.end)}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (range == null)
-              TextButton(
-                onPressed: onToday,
-                child: const Text('Today'),
-              ),
-            if (range != null)
-              IconButton(
-                tooltip: 'Show all dates',
-                icon: const Icon(Icons.close_rounded, size: 18),
-                onPressed: onClear,
-              ),
-          ],
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  static String _formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
-}
-
 /// Horizontally scrollable data table of [SalesEntry] rows.
 class _SalesTable extends StatelessWidget {
   final List<SalesEntry> entries;
@@ -405,7 +353,7 @@ class _SalesTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final totalNet = entries.fold<double>(0, (sum, e) => sum + e.netTotal);
+    final totalNet = entries.fold<int>(0, (sum, e) => sum + e.netTotalCents);
 
     return Column(
       children: [
@@ -449,7 +397,7 @@ class _SalesTable extends StatelessWidget {
                           ),
                           DataCell(Text('${e.quantity}')),
                           DataCell(Text(e.waiter)),
-                          DataCell(Text(formatPrice(e.netTotal))),
+                          DataCell(Text(formatPriceCents(e.netTotalCents))),
                           DataCell(
                             IconButton(
                               tooltip: 'Refund this order',
@@ -493,7 +441,7 @@ class _SalesTable extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
               UiText(
-                formatPrice(totalNet),
+                formatPriceCents(totalNet),
                 type: UiTextType.titleMedium,
                 fontWeight: FontWeight.w800,
                 color: colorScheme.primary,
@@ -510,9 +458,7 @@ class _SalesTable extends StatelessWidget {
       ? '#${e.orderNumber.toString().padLeft(3, '0')}'
       : '#${e.orderId}';
 
-  static String _dateTime(DateTime d) =>
-      '${d.day} ${_months[d.month - 1]} ${d.year} · '
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  static String _dateTime(DateTime d) => formatDateWithTime(d);
 }
 
 /// Small visual badge showing which refund state a row is in, so a voided or
@@ -554,21 +500,6 @@ class _RefundBadge extends StatelessWidget {
     );
   }
 }
-
-const List<String> _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
 
 class _Loader extends StatelessWidget {
   const _Loader();

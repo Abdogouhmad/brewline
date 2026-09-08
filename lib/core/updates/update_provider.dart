@@ -20,6 +20,10 @@ import 'package:brewline/core/updates/update_service.dart';
 const String kAutoCheckUpdatesKey = 'auto_check_updates';
 const String kLastUpdateCheckKey = 'last_update_check_ms';
 
+/// Result of the most recent check (as `UpdateCheckResult.name`), so the admin
+/// can distinguish "never checked" from "check failed" in the UI.
+const String kLastUpdateCheckResultKey = 'last_update_check_result';
+
 /// Whether the app auto-checks for updates in the background on launch and on
 /// entering the admin/waiter home. Defaults to `true` — a POS should surface
 /// updates without the admin having to remember to look.
@@ -43,8 +47,8 @@ class AutoCheckUpdatesNotifier extends Notifier<bool> {
   }
 }
 
-/// Timestamp of the last successful update check, for the "last checked"
-/// label in the settings section. `null` when never checked.
+/// Timestamp of the last update check (successful or failed), for the "last
+/// checked" label in the settings section. `null` when never checked.
 final lastUpdateCheckProvider =
     NotifierProvider<LastUpdateCheckNotifier, DateTime?>(
       LastUpdateCheckNotifier.new,
@@ -58,12 +62,42 @@ class LastUpdateCheckNotifier extends Notifier<DateTime?> {
     return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
   }
 
-  Future<void> markChecked() async {
+  /// Records the timestamp for the check that just ran (whatever its outcome)
+  /// alongside its [result], so the UI can show "Last checked: … · failed" vs
+  /// "never checked".
+  Future<void> markChecked(UpdateCheckResult result) async {
     final now = DateTime.now();
     state = now;
     await ref
         .read(sharedPreferencesProvider)
         .setInt(kLastUpdateCheckKey, now.millisecondsSinceEpoch);
+    await ref
+        .read(lastUpdateCheckResultProvider.notifier)
+        .markResult(result);
+  }
+}
+
+/// Outcome of the most recent update check as persisted across launches.
+/// `null` means the app has never completed a check.
+final lastUpdateCheckResultProvider = NotifierProvider<
+  LastUpdateCheckResultNotifier,
+  UpdateCheckResult?
+>(LastUpdateCheckResultNotifier.new);
+
+class LastUpdateCheckResultNotifier extends Notifier<UpdateCheckResult?> {
+  @override
+  UpdateCheckResult? build() {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    final name = prefs.getString(kLastUpdateCheckResultKey);
+    if (name == null) return null;
+    return UpdateCheckResult.values.asNameMap()[name];
+  }
+
+  Future<void> markResult(UpdateCheckResult result) async {
+    state = result;
+    await ref
+        .read(sharedPreferencesProvider)
+        .setString(kLastUpdateCheckResultKey, result.name);
   }
 }
 
@@ -159,6 +193,11 @@ class UpdateNotifier extends Notifier<UpdateState> {
       currentInfo: appInfo,
     );
     if (outcome.result == UpdateCheckResult.checkFailed) {
+      // A failed check is still a check: persist the timestamp + "failed"
+      // result so the admin can tell "check failed" from "never checked".
+      await ref.read(lastUpdateCheckProvider.notifier).markChecked(
+        UpdateCheckResult.checkFailed,
+      );
       state = state.copyWith(
         status: UpdateStatus.idle,
         checkResult: UpdateCheckResult.checkFailed,
@@ -175,7 +214,9 @@ class UpdateNotifier extends Notifier<UpdateState> {
       clearProgress: true,
       error: null,
     );
-    await ref.read(lastUpdateCheckProvider.notifier).markChecked();
+    await ref
+        .read(lastUpdateCheckProvider.notifier)
+        .markChecked(outcome.result);
   }
 
   /// Downloads and installs the update for the current platform.

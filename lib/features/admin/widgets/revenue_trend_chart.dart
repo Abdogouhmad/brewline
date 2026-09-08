@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/features/admin/providers/sales_trend_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 
 /// Dependency-free bar chart of the revenue series, painted with
 /// [CustomPainter] so no charting package is required.
@@ -15,14 +15,14 @@ class RevenueTrendChart extends StatelessWidget {
 
   /// Formats the peak value label above the tallest bar. Defaults to a price
   /// (currency); reports pass an order-count formatter when the series isn't
-  /// money (e.g. busiest hours).
-  final String Function(double value) valueFormatter;
+  /// money (e.g. busiest hours). Values are integer cents.
+  final String Function(int value) valueFormatter;
 
   const RevenueTrendChart({
     super.key,
     required this.points,
     this.height = 180,
-    this.valueFormatter = formatPrice,
+    this.valueFormatter = formatPriceCents,
   });
 
   @override
@@ -52,7 +52,7 @@ class _BarChartPainter extends CustomPainter {
   final Color mutedBarColor;
   final Color labelColor;
   final Color gridColor;
-  final String Function(double value) valueFormatter;
+  final String Function(int value) valueFormatter;
 
   static const double _topPad = 12;
   static const double _bottomPad = 22;
@@ -70,7 +70,7 @@ class _BarChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    final peak = points.fold<double>(
+    final peak = points.fold<int>(
       0,
       (m, p) => p.revenue > m ? p.revenue : m,
     );

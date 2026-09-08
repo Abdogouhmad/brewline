@@ -72,10 +72,18 @@ Future<Database> openAppDatabase({
     options: OpenDatabaseOptions(
       // Bump this when a schema change lands and add the matching
       // step to [kMigrations]. See the migration history below.
-      version: 5,
-      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
-      onCreate: _onCreate,
+      version: 7,
+      // Foreign keys are enabled *after* the upgrade transaction completes
+      // (onOpen), not in onConfigure. PRAGMA foreign_keys is a silent no-op
+      // inside a transaction, and migration 7 rebuilds the FK parents
+      // (`orders`), which SQLite can't do while FKs are enforced. Keeping
+      // them off during the upgrade lets the create→copy→drop→rename dance
+      // run; onOpen re-enables enforcement for the app session so CASCADE
+      // (order_items ↔ orders) and NO ACTION (order_refunds ↔ orders) still
+      // hold. Drop/re-enable symmetry is why this lives in one callback.
       onUpgrade: _onUpgrade,
+      onCreate: _onCreate,
+      onOpen: (db) => db.execute('PRAGMA foreign_keys = ON'),
     ),
   );
 }
@@ -102,6 +110,16 @@ Future<Database> openAppDatabase({
 ///            quantities in a fixed smallest unit), `product_recipes` (per
 ///            product ingredient→quantity mapping), `stock_movements` (the
 ///            append-only ledger explaining how each live quantity got there). |
+/// | 6       | Per-user PIN salts (§3 of the audit): `staff.pin_salt` holds a
+///            per-user random salt mixed into the SHA-256 PIN hash. Existing
+///            rows keep a NULL salt and still verify against the legacy
+///            unsalted hash; new writes always set a salt. |
+/// | 7       | Money as integer cents (§2 of the audit): `products.price`,
+///            `orders.total` and `order_items.unit_price` are rebuilt into
+///            `*_cents INTEGER` via ROUND(x * 100), dropping the float ever
+///            representing DH. Runs with foreign keys off so the `orders`
+///            parent rebuild can't trip its children's constraints; onOpen
+///            re-enables them for the session. |
 ///
 /// Keep this table up to date — it is the traceable record of every schema
 /// change for `openAppDatabase()` callers (migration tests, feature dev).
@@ -239,6 +257,72 @@ const Map<int, List<String>> kMigrations = {
     'CREATE INDEX IF NOT EXISTS idx_product_recipes_product_id '
         'ON product_recipes(product_id)',
   ],
+  // 6 adds per-user PIN salts. `pin_salt` is NULL for legacy rows; those
+  // verify against the old unsalted hash until their PIN is next changed.
+  6: [
+    'ALTER TABLE staff ADD COLUMN pin_salt TEXT',
+  ],
+  // 7 migrates every money column from price floats to integer cents —
+  // `products.price`, `orders.total`, `order_items.unit_price` become
+  // `*_cents INTEGER`, rebuilt (with ROUND(x*100)) via the standard
+  // create→copy→drop→rename dance. The audit's store-money-as-integer-cents
+  // fix; see price_format.dart for the DH formatting that paired with it.
+  // The whole migration runs with foreign keys OFF (see [openAppDatabase])
+  // because `orders` is an FK parent, so no CASCADE fires while rebuilding.
+  7: [
+    // products — no table references it via FK, so a plain three-step rebuild.
+    'CREATE TABLE products_new ('
+        'id TEXT PRIMARY KEY,'
+        'name TEXT NOT NULL,'
+        'price_cents INTEGER NOT NULL,'
+        'image_path TEXT NOT NULL,'
+        "category TEXT NOT NULL DEFAULT '',"
+        'available INTEGER NOT NULL DEFAULT 1,'
+        'stock_quantity INTEGER NOT NULL DEFAULT 0,'
+        'low_stock_threshold INTEGER NOT NULL DEFAULT 0,'
+        'is_archived INTEGER NOT NULL DEFAULT 0'
+        ')',
+    'INSERT INTO products_new (id, name, price_cents, image_path, category, '
+        'available, stock_quantity, low_stock_threshold, is_archived) '
+        'SELECT id, name, CAST(ROUND(price * 100) AS INTEGER), image_path, '
+        'category, available, stock_quantity, low_stock_threshold, '
+        'is_archived FROM products',
+    'DROP TABLE products',
+    'ALTER TABLE products_new RENAME TO products',
+    // order_items — must be dropped before `orders` is rebuilt: it is the
+    // ON DELETE CASCADE child, so keeping it through the orders rebuild would
+    // cascade-nuke its rows the moment `orders` is dropped.
+    'CREATE TABLE order_items_new ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        'order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,'
+        'product_id TEXT NOT NULL,'
+        'name TEXT NOT NULL,'
+        'quantity INTEGER NOT NULL,'
+        'unit_price_cents INTEGER NOT NULL'
+        ')',
+    'INSERT INTO order_items_new (id, order_id, product_id, name, quantity, '
+        'unit_price_cents) SELECT id, order_id, product_id, name, quantity, '
+        'CAST(ROUND(unit_price * 100) AS INTEGER) FROM order_items',
+    'DROP TABLE order_items',
+    'ALTER TABLE order_items_new RENAME TO order_items',
+    // orders — the FK parent. FKs are OFF during this migration (see
+    // [openAppDatabase]), so dropping it can't trip the NO ACTION
+    // constraints from `order_refunds` / `stock_movements`.
+    'CREATE TABLE orders_new ('
+        'id INTEGER PRIMARY KEY,'
+        'created_at INTEGER NOT NULL,'
+        'waiter_username TEXT,'
+        'total_cents INTEGER NOT NULL,'
+        'order_number INTEGER NOT NULL DEFAULT 0,'
+        'is_voided INTEGER NOT NULL DEFAULT 0'
+        ')',
+    'INSERT INTO orders_new (id, created_at, waiter_username, total_cents, '
+        'order_number, is_voided) SELECT id, created_at, waiter_username, '
+        'CAST(ROUND(total * 100) AS INTEGER), order_number, is_voided '
+        'FROM orders',
+    'DROP TABLE orders',
+    'ALTER TABLE orders_new RENAME TO orders',
+  ],
 };
 
 /// Every lookup the dashboards actually run, indexed so the fast paths in
@@ -284,7 +368,8 @@ Future<void> _onCreate(Database db, int version) async {
 }
 
 Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-  for (final version in kMigrations.keys) {
+  final versions = kMigrations.keys.toList()..sort();
+  for (final version in versions) {
     if (version > oldVersion && version <= newVersion) {
       for (final migration in kMigrations[version]!) {
         await db.execute(migration);
@@ -301,7 +386,7 @@ Future<void> _createSchema(Database db) async {
     CREATE TABLE products (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      price REAL NOT NULL,
+      price_cents INTEGER NOT NULL,
       image_path TEXT NOT NULL,
       category TEXT NOT NULL DEFAULT '',
       available INTEGER NOT NULL DEFAULT 1,
@@ -315,7 +400,7 @@ Future<void> _createSchema(Database db) async {
       id INTEGER PRIMARY KEY,
       created_at INTEGER NOT NULL,
       waiter_username TEXT,
-      total REAL NOT NULL,
+      total_cents INTEGER NOT NULL,
       order_number INTEGER NOT NULL DEFAULT 0,
       is_voided INTEGER NOT NULL DEFAULT 0
     )
@@ -329,7 +414,7 @@ Future<void> _createSchema(Database db) async {
       product_id TEXT NOT NULL,
       name TEXT NOT NULL,
       quantity INTEGER NOT NULL,
-      unit_price REAL NOT NULL
+      unit_price_cents INTEGER NOT NULL
     )
   ''');
   // order_refunds: one row per partial/full refund. A dedicated table (not
@@ -354,6 +439,7 @@ Future<void> _createSchema(Database db) async {
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
       pin_hash TEXT NOT NULL,
+      pin_salt TEXT,
       name TEXT NOT NULL,
       active INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL
@@ -442,35 +528,35 @@ const List<Product> _defaultProducts = [
   Product(
     id: 'p-001',
     name: 'Espresso',
-    price: 9.00,
+    priceCents: 900,
     imagePath: 'assets/stack_imgs/expresso.jpg',
     category: 'Coffee',
   ),
   Product(
     id: 'p-002',
     name: 'Coca-Cola',
-    price: 15.00,
+    priceCents: 1500,
     imagePath: 'assets/stack_imgs/coca.jpg',
     category: 'Soft drinks',
   ),
   Product(
     id: 'p-003',
     name: 'Milk',
-    price: 9.00,
+    priceCents: 900,
     imagePath: 'assets/stack_imgs/milk.jpg',
     category: 'Dairy',
   ),
   Product(
     id: 'p-004',
     name: 'Tea',
-    price: 9.00,
+    priceCents: 900,
     imagePath: 'assets/stack_imgs/tea.jpg',
     category: 'Coffee',
   ),
   Product(
     id: 'p-005',
     name: 'Water',
-    price: 2.00,
+    priceCents: 200,
     imagePath: 'assets/stack_imgs/water.png',
     category: 'Soft drinks',
   ),
@@ -497,16 +583,25 @@ Future<void> seedDefaultProducts(Database db) async {
 
 /// Wipes all business rows (used by "Reset onboarding" and tests), leaving a
 /// truly empty database so the admin can set everything up from zero again.
+///
+/// Runs in a single transaction so a crash mid-reset can never leave the
+/// database in a half-wiped state — either every table is cleared or none is.
 Future<void> deleteAllData(Database db) async {
-  await db.delete('stock_movements');
-  await db.delete('product_recipes');
-  await db.delete('ingredients');
-  await db.delete('order_refunds');
-  await db.delete('order_items');
-  await db.delete('orders');
-  await db.delete('order_counters');
-  await db.delete('audit_events');
-  await db.delete('cashout_logs');
-  await db.delete('staff');
-  await db.delete('products');
+  await db.transaction((txn) async {
+    for (final table in [
+      'stock_movements',
+      'product_recipes',
+      'ingredients',
+      'order_refunds',
+      'order_items',
+      'orders',
+      'order_counters',
+      'audit_events',
+      'cashout_logs',
+      'staff',
+      'products',
+    ]) {
+      await txn.delete(table);
+    }
+  });
 }

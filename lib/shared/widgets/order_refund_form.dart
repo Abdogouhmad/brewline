@@ -9,8 +9,8 @@ import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/core/repositories/refund_repository.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/core/responsive/responsive.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
-import 'package:brewline/shared/widgets/shared/app_text_field.dart';
+import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/shared/widgets/app_text_field.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
@@ -111,26 +111,26 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
   /// True when the order has already been voided (nothing left to refund).
   bool get _alreadyVoided => _order?.isVoided ?? false;
 
-  /// Sum of the current (edited) line totals.
-  double get _currentTotal =>
-      _order?.items.fold<double>(
+  /// Sum of the current (edited) line totals, in integer cents.
+  int get _currentTotalCents =>
+      _order?.items.fold<int>(
         0,
-        (sum, i) => sum + (_qty[i.id] ?? 0) * i.unitPrice,
+        (sum, i) => sum + (_qty[i.id] ?? 0) * i.unitPriceCents,
       ) ??
       0;
 
   /// Refund amount in correct mode: original total minus current total.
-  double get _correctRefund =>
-      ((_order?.total ?? 0) - _currentTotal).clamp(0, double.maxFinite);
+  int get _correctRefundCents => ((_order?.totalCents ?? 0) - _currentTotalCents)
+      .clamp(0, 1 << 62);
 
   /// Whether at least one line has actually been reduced in correct mode.
   bool get _hasChanges =>
       _order?.items.any((i) => (_qty[i.id] ?? 0) < (_originalQty[i.id] ?? 0)) ??
       false;
 
-  /// Target refund amount for the confirm label.
-  double get _refundAmount =>
-      _mode == _RefundMode.voidOrder ? _order?.total ?? 0 : _correctRefund;
+  /// Target refund amount for the confirm label, in integer cents.
+  int get _refundAmountCents =>
+      _mode == _RefundMode.voidOrder ? _order?.totalCents ?? 0 : _correctRefundCents;
 
   /// Confirm is enabled only when there's a non-empty reason and, in correct
   /// mode, at least one real reduction has been made.
@@ -139,7 +139,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
       !_alreadyVoided &&
       _reason.trim().isNotEmpty &&
       (_mode == _RefundMode.voidOrder || _hasChanges) &&
-      _refundAmount > 0;
+      _refundAmountCents > 0;
 
   Future<void> _submit() async {
     if (!_canConfirm) return;
@@ -160,7 +160,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
               OrderItemAdjustment(
                 orderItemId: item.id,
                 originalQuantity: _originalQty[item.id]!,
-                unitPrice: item.unitPrice,
+                unitPriceCents: item.unitPriceCents,
                 newQuantity: _qty[item.id]!,
               ),
         ];
@@ -310,7 +310,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
           SizedBox(height: Space.md),
           _totalRow(
             'Current total',
-            _currentTotal,
+            _currentTotalCents,
             isCurrent: true,
             colorScheme: colorScheme,
           ),
@@ -318,7 +318,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
             SizedBox(height: Space.xs),
             _totalRow(
               'Refund amount',
-              _correctRefund,
+              _correctRefundCents,
               isRefund: true,
               colorScheme: colorScheme,
             ),
@@ -337,14 +337,14 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
         children: [
           _totalRow(
             'Original total',
-            order.total,
+            order.totalCents,
             isCurrent: true,
             colorScheme: colorScheme,
           ),
           SizedBox(height: Space.xs),
           _totalRow(
             'Refund amount',
-            order.total,
+            order.totalCents,
             isRefund: true,
             colorScheme: colorScheme,
           ),
@@ -362,7 +362,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
 
   Widget _totalRow(
     String label,
-    double amount, {
+    int amountCents, {
     ColorScheme? colorScheme,
     bool isCurrent = false,
     bool isRefund = false,
@@ -376,7 +376,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
         children: [
           UiText(label, type: UiTextType.bodyMedium),
           UiText(
-            formatPrice(amount),
+            formatPriceCents(amountCents),
             type: UiTextType.bodyMedium,
             fontWeight: FontWeight.w700,
             color: color,
@@ -387,17 +387,17 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
   }
 
   Widget _confirmButton() {
-    final refund = _refundAmount;
+    final refund = _refundAmountCents;
     final label = _mode == _RefundMode.voidOrder
-        ? 'Void & refund ${formatPrice(refund)}'
-        : 'Refund ${formatPrice(refund)}';
+        ? 'Void & refund ${formatPriceCents(refund)}'
+        : 'Refund ${formatPriceCents(refund)}';
     return UiButton(
       _busy ? 'Processing…' : label,
       icon: _mode == _RefundMode.voidOrder
           ? Icons.delete_outline_rounded
           : Icons.currency_exchange_rounded,
       variant: _mode == _RefundMode.voidOrder
-          ? UiButtonVariant.filled
+          ? UiButtonVariant.destructive
           : UiButtonVariant.filled,
       expand: true,
       onPressed: _canConfirm ? _submit : null,
@@ -440,7 +440,7 @@ class _OrderSummary extends StatelessWidget {
                     ),
                   ),
                   UiText(
-                    formatPrice(item.quantity * item.unitPrice),
+                    formatPriceCents(item.totalCents),
                     type: UiTextType.bodySmall,
                     color: colorScheme.onSurfaceVariant,
                   ),
@@ -457,7 +457,7 @@ class _OrderSummary extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
               UiText(
-                formatPrice(order.total),
+                formatPriceCents(order.totalCents),
                 type: UiTextType.bodyMedium,
                 fontWeight: FontWeight.w800,
                 color: colorScheme.primary,
@@ -506,7 +506,7 @@ class _LineRow extends StatelessWidget {
               children: [
                 UiText(item.name, type: UiTextType.bodyMedium),
                 UiText(
-                  formatPrice(item.unitPrice),
+                  formatPriceCents(item.unitPriceCents),
                   type: UiTextType.bodySmall,
                   color: colorScheme.onSurfaceVariant,
                 ),

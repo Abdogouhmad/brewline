@@ -10,8 +10,9 @@ class Product {
   final String id;
   final String name;
 
-  /// Unit price in major currency units (e.g. DH).
-  final double price;
+  /// Unit price in integer cents (DH 1.00 == 100). Money is never stored as
+  /// a float — see price_format.dart for conversions to/from display text.
+  final int priceCents;
 
   /// Asset path of the product photo under `assets/stack_imgs/`.
   final String imagePath;
@@ -35,7 +36,7 @@ class Product {
   const Product({
     required this.id,
     required this.name,
-    required this.price,
+    required this.priceCents,
     required this.imagePath,
     this.category = '',
     this.available = true,
@@ -47,11 +48,33 @@ class Product {
   bool get isLowStock =>
       available && stockQuantity > 0 && stockQuantity <= lowStockThreshold;
 
+  Product copyWith({
+    String? id,
+    String? name,
+    int? priceCents,
+    String? imagePath,
+    String? category,
+    bool? available,
+    int? stockQuantity,
+    int? lowStockThreshold,
+    bool? isArchived,
+  }) => Product(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    priceCents: priceCents ?? this.priceCents,
+    imagePath: imagePath ?? this.imagePath,
+    category: category ?? this.category,
+    available: available ?? this.available,
+    stockQuantity: stockQuantity ?? this.stockQuantity,
+    lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
+    isArchived: isArchived ?? this.isArchived,
+  );
+
   /// Column map for SQLite writes (see the `products` schema).
   Map<String, Object?> toRow() => {
     'id': id,
     'name': name,
-    'price': price,
+    'price_cents': priceCents,
     'image_path': imagePath,
     'category': category,
     'available': available ? 1 : 0,
@@ -64,7 +87,7 @@ class Product {
   static Product fromRow(Map<String, Object?> row) => Product(
     id: row['id'] as String,
     name: row['name'] as String,
-    price: (row['price'] as num).toDouble(),
+    priceCents: row['price_cents'] as int,
     imagePath: row['image_path'] as String? ?? '',
     category: row['category'] as String? ?? '',
     available: (row['available'] as int? ?? 1) == 1,

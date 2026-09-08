@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/waiter/providers/order_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_list.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -32,19 +32,23 @@ class OrdersPage extends ConsumerWidget {
       if (!context.mounted) return;
       showUiSnackBar(
         context,
-        'Charged ${formatPrice(charged)}',
+        'Charged ${formatPriceCents(charged)}',
         type: UiSnackBarType.success,
       );
     }
 
-    /// Empties the order without charging.
+    /// Empties the order without charging. Keeps a backup so the snackbar's
+    /// Undo can restore the cart if the tap was accidental.
     void clear() {
+      final backup = [...ref.read(orderControllerProvider)];
       order.clear();
       showUiSnackBar(
         context,
         'Order cleared',
         icon: Icons.delete_sweep_outlined,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 4),
+        label: 'Undo',
+        onLabelPressed: () => order.restore(backup),
       );
     }
 
@@ -97,7 +101,7 @@ class OrdersPage extends ConsumerWidget {
                     fontWeight: FontWeight.w700,
                   ),
                   UiText(
-                    formatPrice(total),
+                    formatPriceCents(total),
                     type: UiTextType.titleMedium,
                     fontWeight: FontWeight.w800,
                     color: colorScheme.primary,
@@ -106,7 +110,7 @@ class OrdersPage extends ConsumerWidget {
               ),
               SizedBox(height: Space.xl),
               UiButton(
-                'Charge ${formatPrice(total)}',
+                'Charge ${formatPriceCents(total)}',
                 expand: true,
                 onPressed: total <= 0 ? null : charge,
               ),

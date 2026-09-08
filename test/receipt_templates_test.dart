@@ -83,13 +83,13 @@ void main() {
       id: 42,
       createdAt: DateTime(2026, 8, 29, 14, 30),
       orderNumber: 7,
-      total: 18.0,
+      totalCents: 1800,
       items: const [
         OrderLineItem(
           productId: 'p-001',
           name: 'Espresso',
           quantity: 2,
-          unitPrice: 9.0,
+          unitPriceCents: 900,
         ),
       ],
     );

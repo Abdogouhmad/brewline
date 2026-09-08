@@ -7,7 +7,7 @@ import 'package:brewline/core/printing/receipt_templates/refund_receipt_template
 import 'package:brewline/core/repositories/refund_repository.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -92,7 +92,7 @@ class _RefundFlowState extends ConsumerState<_RefundFlow> {
 
       await printer.printRefundReceipt(
         RefundReceiptData(
-          originalTotalCents: ((order?.total ?? 0) * 100).round(),
+          originalTotalCents: order?.totalCents ?? 0,
           refundedCents: result.amountCents,
           reason: '',
           adminName: adminId,
@@ -182,7 +182,7 @@ class _RefundSuccessView extends ConsumerWidget {
           SizedBox(height: Space.md),
           UiText(
             '${result.isFull ? 'Voided and refunded' : 'Refunded'} '
-            '${formatPrice(result.amountCents / 100)} on order #$orderId.',
+            '${formatPriceCents(result.amountCents)} on order #$orderId.',
             type: UiTextType.bodyMedium,
             textAlign: TextAlign.center,
             color: colorScheme.onSurfaceVariant,

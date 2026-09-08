@@ -6,7 +6,7 @@ import 'package:brewline/features/admin/providers/dashboard_period.dart';
 /// One bar on the revenue chart — a label plus the amount for that bucket.
 class TrendPoint {
   final String label;
-  final double revenue;
+  final int revenue;
 
   const TrendPoint({required this.label, required this.revenue});
 }

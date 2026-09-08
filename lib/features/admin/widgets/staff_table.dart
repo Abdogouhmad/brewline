@@ -184,7 +184,7 @@ Future<bool> _confirmDelete(BuildContext context, StaffMember member) async {
 }
 
 Color _activeDotColor(BuildContext context, bool active) => active
-    ? Colors.green.shade600
+    ? Theme.of(context).colorScheme.primary
     : Theme.of(context).colorScheme.outlineVariant;
 
 class _StaffCard extends ConsumerWidget {

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 
-enum UiButtonVariant { filled, tonal, outlined, text }
+enum UiButtonVariant { filled, tonal, outlined, text, destructive }
 
 /// M3 button that scales padding, min size and text style by device type.
 ///
@@ -71,6 +71,12 @@ class UiButton extends StatelessWidget {
         foregroundColor: foreground ?? Theme.of(context).colorScheme.secondary,
         backgroundColor:
             background ?? Theme.of(context).colorScheme.secondaryContainer,
+        elevation: 0,
+      ),
+      UiButtonVariant.destructive => FilledButton.styleFrom(
+        foregroundColor:
+            foreground ?? Theme.of(context).colorScheme.onError,
+        backgroundColor: background ?? Theme.of(context).colorScheme.error,
         elevation: 0,
       ),
       UiButtonVariant.outlined => OutlinedButton.styleFrom(

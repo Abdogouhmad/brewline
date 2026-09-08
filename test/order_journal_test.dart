@@ -27,7 +27,7 @@ void main() {
         const Product(
           id: 'coffee-1',
           name: 'Espresso',
-          price: 9,
+          priceCents: 900,
           imagePath: '',
           category: 'Coffee',
         ),
@@ -36,7 +36,7 @@ void main() {
         const Product(
           id: 'drink-1',
           name: 'Cola',
-          price: 15,
+          priceCents: 1500,
           imagePath: '',
           category: 'Soft drinks',
         ),
@@ -47,7 +47,7 @@ void main() {
 
     OrderRecord order({
       required int id,
-      required double total,
+      required int total,
       DateTime? at,
       String? waiter,
       List<OrderLineItem> items = const [],
@@ -55,7 +55,7 @@ void main() {
       id: id,
       createdAt: at ?? now,
       waiterUsername: waiter,
-      total: total,
+      totalCents: total,
       items: items,
     );
 
@@ -63,20 +63,20 @@ void main() {
       await journal.addOrder(
         order(
           id: 1,
-          total: 24,
+          total: 2400,
           waiter: 'waiter1',
           items: const [
             OrderLineItem(
               productId: 'coffee-1',
               name: 'Espresso',
               quantity: 2,
-              unitPrice: 9,
+              unitPriceCents: 900,
             ),
             OrderLineItem(
               productId: 'drink-1',
               name: 'Cola',
               quantity: 1,
-              unitPrice: 6,
+              unitPriceCents: 600,
             ),
           ],
         ),
@@ -84,14 +84,14 @@ void main() {
       await journal.addOrder(
         order(
           id: 2,
-          total: 15,
+          total: 1500,
           waiter: 'waiter2',
           items: const [
             OrderLineItem(
               productId: 'drink-1',
               name: 'Cola',
               quantity: 1,
-              unitPrice: 15,
+              unitPriceCents: 1500,
             ),
           ],
         ),
@@ -101,7 +101,7 @@ void main() {
         now.subtract(const Duration(hours: 1)),
         now.add(const Duration(hours: 1)),
       );
-      expect(stats.revenue, closeTo(39, 0.001));
+      expect(stats.revenue, 3900);
       expect(stats.orderCount, 2);
       expect(stats.itemCount, 4);
 
@@ -117,8 +117,8 @@ void main() {
       'nextOrderId continues from the highest ticket, not a counter',
       () async {
         expect(await journal.nextOrderId(), 1);
-        await journal.addOrder(order(id: 1, total: 10));
-        await journal.addOrder(order(id: 5, total: 20));
+        await journal.addOrder(order(id: 1, total: 1000));
+        await journal.addOrder(order(id: 5, total: 2000));
         expect(await journal.nextOrderId(), 6);
       },
     );
@@ -127,19 +127,19 @@ void main() {
       await journal.addOrder(
         order(
           id: 1,
-          total: 24,
+          total: 2400,
           items: const [
             OrderLineItem(
               productId: 'coffee-1',
               name: 'Espresso',
               quantity: 3,
-              unitPrice: 9,
+              unitPriceCents: 900,
             ),
             OrderLineItem(
               productId: 'drink-1',
               name: 'Cola',
               quantity: 1,
-              unitPrice: 15,
+              unitPriceCents: 1500,
             ),
           ],
         ),
@@ -147,13 +147,13 @@ void main() {
       await journal.addOrder(
         order(
           id: 2,
-          total: 15,
+          total: 1500,
           items: const [
             OrderLineItem(
               productId: 'drink-1',
               name: 'Cola',
               quantity: 1,
-              unitPrice: 15,
+              unitPriceCents: 1500,
             ),
           ],
         ),
@@ -169,8 +169,8 @@ void main() {
     });
 
     test('revenueByHour buckets orderCount by local hour', () async {
-      await journal.addOrder(order(id: 1, total: 10, at: now));
-      await journal.addOrder(order(id: 2, total: 20, at: now));
+      await journal.addOrder(order(id: 1, total: 1000, at: now));
+      await journal.addOrder(order(id: 2, total: 2000, at: now));
 
       final buckets = await journal.revenueByHour(
         now.subtract(const Duration(hours: 1)),
@@ -178,13 +178,13 @@ void main() {
       );
       final slot = buckets.singleWhere((b) => b.hour == now.hour);
       expect(slot.orderCount, 2);
-      expect(slot.revenue, closeTo(30, 0.001));
+      expect(slot.revenue, 3000);
     });
 
     test('salesByWaiter credits each waiter from the journal header', () async {
-      await journal.addOrder(order(id: 1, total: 30, waiter: 'waiter1'));
-      await journal.addOrder(order(id: 2, total: 15, waiter: 'waiter1'));
-      await journal.addOrder(order(id: 3, total: 60, waiter: 'waiter2'));
+      await journal.addOrder(order(id: 1, total: 3000, waiter: 'waiter1'));
+      await journal.addOrder(order(id: 2, total: 1500, waiter: 'waiter1'));
+      await journal.addOrder(order(id: 3, total: 6000, waiter: 'waiter2'));
 
       final sales = await journal.salesByWaiter(
         now.subtract(const Duration(hours: 1)),
@@ -192,10 +192,10 @@ void main() {
       );
       expect(sales, hasLength(2));
       expect(sales.first.username, 'waiter2');
-      expect(sales.first.revenue, closeTo(60, 0.001));
+      expect(sales.first.revenue, 6000);
       final second = sales.singleWhere((s) => s.username == 'waiter1');
       expect(second.orderCount, 2);
-      expect(second.revenue, closeTo(45, 0.001));
+      expect(second.revenue, 4500);
     });
 
     test(
@@ -204,13 +204,13 @@ void main() {
         await journal.addOrder(
           order(
             id: 1,
-            total: 18,
+            total: 1800,
             items: const [
               OrderLineItem(
                 productId: 'coffee-1',
                 name: 'Espresso',
                 quantity: 2,
-                unitPrice: 9,
+                unitPriceCents: 900,
               ),
             ],
           ),
@@ -218,13 +218,13 @@ void main() {
         await journal.addOrder(
           order(
             id: 2,
-            total: 15,
+            total: 1500,
             items: const [
               OrderLineItem(
                 productId: 'drink-1',
                 name: 'Cola',
                 quantity: 1,
-                unitPrice: 15,
+                unitPriceCents: 1500,
               ),
             ],
           ),
@@ -232,13 +232,13 @@ void main() {
         await journal.addOrder(
           order(
             id: 3,
-            total: 5,
+            total: 500,
             items: const [
               OrderLineItem(
                 productId: 'gone-1',
                 name: 'Deleted snack',
                 quantity: 1,
-                unitPrice: 5,
+                unitPriceCents: 500,
               ),
             ],
           ),
@@ -249,11 +249,11 @@ void main() {
           now.add(const Duration(hours: 1)),
         );
         final coffee = mix.singleWhere((c) => c.category == 'Coffee');
-        expect(coffee.revenue, closeTo(18, 0.001));
+        expect(coffee.revenue, 1800);
         final drinks = mix.singleWhere((c) => c.category == 'Soft drinks');
-        expect(drinks.revenue, closeTo(15, 0.001));
+        expect(drinks.revenue, 1500);
         final other = mix.singleWhere((c) => c.category == 'Other');
-        expect(other.revenue, closeTo(5, 0.001));
+        expect(other.revenue, 500);
       },
     );
 
@@ -261,13 +261,13 @@ void main() {
       await journal.addOrder(
         order(
           id: 1,
-          total: 9,
+          total: 900,
           items: const [
             OrderLineItem(
               productId: 'coffee-1',
               name: 'Espresso',
               quantity: 1,
-              unitPrice: 9,
+              unitPriceCents: 900,
             ),
           ],
         ),

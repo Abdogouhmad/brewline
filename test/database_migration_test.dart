@@ -17,7 +17,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   sqfliteFfiInit();
 
-  test('v1 database upgrades without losing data (ends at current schema v5)',
+  test('v1 database upgrades without losing data (ends at current schema v7)',
     () async {
     final dir = await Directory.systemTemp.createTemp('brewline_migrate_');
     final path = p.join(dir.path, 'brewline.db');
@@ -98,7 +98,7 @@ void main() {
     final db2 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db2.close());
 
-    expect(await db2.getVersion(), 5);
+    expect(await db2.getVersion(), 7);
     await db2.rawQuery('SELECT is_archived FROM products'); // column now exists
     await db2.rawQuery('SELECT order_number FROM orders'); // column now exists
     await db2.rawQuery('SELECT * FROM cashout_logs'); // table now exists
@@ -107,6 +107,10 @@ void main() {
     await db2.rawQuery('SELECT * FROM ingredients'); // v5 table now exists
     await db2.rawQuery('SELECT * FROM product_recipes'); // v5 table now exists
     await db2.rawQuery('SELECT * FROM stock_movements'); // v5 table now exists
+    await db2.rawQuery('SELECT pin_salt FROM staff'); // v6 column now exists
+    await db2.rawQuery('SELECT price_cents FROM products'); // v7 column now exists
+    await db2.rawQuery('SELECT total_cents FROM orders'); // v7 column now exists
+    await db2.rawQuery('SELECT unit_price_cents FROM order_items'); // v7 column now exists
 
     // Existing rows were not touched by the upgrade.
     final products = ProductRepository(db2);
@@ -123,13 +127,13 @@ void main() {
       OrderRecord(
         id: 2,
         createdAt: DateTime(2026, 8, 29, 12),
-        total: 9,
+        totalCents: 900,
         items: const [
           OrderLineItem(
             productId: 'p-001',
             name: 'Espresso',
             quantity: 1,
-            unitPrice: 9,
+            unitPriceCents: 900,
           ),
         ],
       ),
@@ -141,7 +145,7 @@ void main() {
     expect(await audit.recent(), hasLength(1));
   });
 
-  test('v2 database upgrades to v5: cashout_logs + widened audit CHECK + refunds + stock',
+  test('v2 database upgrades to v7: cashout_logs + widened audit CHECK + refunds + stock + PIN salts + cents',
     () async {
     final dir = await Directory.systemTemp.createTemp('brewline_migrate_');
     final path = p.join(dir.path, 'brewline.db');
@@ -222,12 +226,21 @@ void main() {
     final db3 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db3.close());
 
-    expect(await db3.getVersion(), 5);
+    expect(await db3.getVersion(), 7);
     await db3.rawQuery('SELECT * FROM cashout_logs'); // table now exists
     await db3.rawQuery('SELECT * FROM order_refunds'); // v4 table now exists
     await db3.rawQuery('SELECT * FROM ingredients'); // v5 table now exists
     await db3.rawQuery('SELECT * FROM product_recipes'); // v5 table now exists
     await db3.rawQuery('SELECT * FROM stock_movements'); // v5 table now exists
+    await db3.rawQuery('SELECT pin_salt FROM staff'); // v6 column now exists
+
+    // Legacy staff rows were migrated with a NULL salt so they keep verifying
+    // against the unsalted hash.
+    expect(
+      (await db3.query('staff', where: 'id = ?', whereArgs: ['s-1']))[0]
+          ['pin_salt'],
+      isNull,
+    );
 
     // Existing audit rows survived both CHECK-constraint table rebuilds.
     expect(await db3.query('audit_events'), hasLength(1));

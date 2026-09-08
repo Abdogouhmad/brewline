@@ -10,7 +10,7 @@ import 'package:brewline/features/admin/widgets/dashboard_card.dart';
 import 'package:brewline/features/admin/widgets/period_selector.dart';
 import 'package:brewline/features/admin/widgets/revenue_line_chart.dart';
 import 'package:brewline/features/admin/widgets/team_performance.dart';
-import 'package:brewline/features/waiter/providers/price_format.dart';
+import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Admin "Reports" tab: revenue over time, category mix, busiest hours and
@@ -108,7 +108,7 @@ class _RevenueTrendCard extends ConsumerWidget {
       icon: Icons.show_chart_rounded,
       trailing: trend.when(
         data: (points) => UiText(
-          formatPrice(points.fold<double>(0, (s, p) => s + p.revenue)),
+          formatPriceCents(points.fold<int>(0, (s, p) => s + p.revenue)),
           type: UiTextType.titleMedium,
           fontWeight: FontWeight.w800,
           color: Theme.of(context).colorScheme.primary,
