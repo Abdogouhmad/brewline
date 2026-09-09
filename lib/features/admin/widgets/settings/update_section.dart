@@ -6,8 +6,8 @@ import 'package:brewline/core/services/app_info.dart';
 import 'package:brewline/core/updates/update_installer.dart' show UpdateCheckResult;
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/features/admin/widgets/settings/update_screen.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
+import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
+import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Settings card for OTA updates. It's the **entry point** to the dedicated
@@ -31,6 +31,7 @@ class UpdateSection extends ConsumerWidget {
     );
 
     return SettingsSectionCard(
+      titleHeader: 'System',
       icon: Icons.system_update_alt_rounded,
       title: 'Update',
       subtitle: 'Keep this terminal on the latest version',

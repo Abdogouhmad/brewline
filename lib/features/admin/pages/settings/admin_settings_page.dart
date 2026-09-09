@@ -14,8 +14,8 @@ import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_footer.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
+import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
+import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/settings/language_dropdown.dart';
@@ -50,8 +50,8 @@ class AdminSettingsPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _ProfileHeader(),
-                SizedBox(height: Space.x2l),
+                // const _ProfileHeader(),
+                // SizedBox(height: Space.x2l),
                 // Section cards: a 2-column grid on desktop (≥ 905dp) so the
                 // settings use the wide screen without stretching a single
                 // stacked column; stacked single-column on phones/tablets.
@@ -103,11 +103,11 @@ class AdminSettingsPage extends ConsumerWidget {
                         SizedBox(height: Space.lg),
                         const PrinterSettingsSection(),
                         SizedBox(height: Space.lg),
-                        const UpdateSection(),
-                        SizedBox(height: Space.lg),
                         _AccountCard(
                           onReset: () => _confirmReset(context, ref),
                         ),
+                        SizedBox(height: Space.lg),
+                        const UpdateSection(),
                       ],
                     );
                   },
@@ -178,10 +178,7 @@ class _ResetConfirmDialogState extends State<_ResetConfirmDialog> {
   Widget build(BuildContext context) {
     final canConfirm = _controller.text == _confirmation;
     return AlertDialog(
-      title: const UiText(
-        'Reset business data?',
-        type: UiTextType.titleMedium,
-      ),
+      title: const UiText('Reset business data?', type: UiTextType.titleMedium),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,6 +226,7 @@ class _GeneralCard extends ConsumerWidget {
     final themePref = ref.watch(themeControllerProvider);
 
     return SettingsSectionCard(
+      titleHeader: "Preferences",
       icon: Icons.tune_rounded,
       title: 'General',
       subtitle: 'Language and appearance',
@@ -254,108 +252,6 @@ class _GeneralCard extends ConsumerWidget {
   }
 }
 
-/// Hero card: avatar + the signed-in admin's username + role badge.
-class _ProfileHeader extends ConsumerWidget {
-  const _ProfileHeader();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(authProvider).value;
-    final colorScheme = Theme.of(context).colorScheme;
-    final username = session?.username ?? '…';
-    final role = session?.role.label ?? 'Admin';
-
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Rounded.x2l),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(Space.xl),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: colorScheme.primaryContainer,
-              foregroundColor: colorScheme.onPrimaryContainer,
-              child: UiText(
-                _initials(username),
-                type: UiTextType.titleLarge,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            SizedBox(width: Space.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  UiText(
-                    username,
-                    type: UiTextType.headlineSmall,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  SizedBox(height: Space.sm),
-                  Wrap(
-                    spacing: Space.md,
-                    runSpacing: Space.xs,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      _Badge(colorScheme: colorScheme, label: role),
-                      Icon(
-                        Icons.schedule_rounded,
-                        size: AppSizes.iconSm + 2,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      SizedBox(width: Space.xs),
-                      UiText(
-                        'On shift',
-                        type: UiTextType.bodySmall,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static String _initials(String username) {
-    if (username.isEmpty || username == '…') return 'A';
-    return username[0].toUpperCase();
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String label;
-  final ColorScheme colorScheme;
-
-  const _Badge({required this.label, required this.colorScheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
-      decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(Rounded.full),
-      ),
-      child: UiText(
-        label,
-        type: UiTextType.labelMedium,
-        fontWeight: FontWeight.w700,
-        color: colorScheme.onSecondaryContainer,
-      ),
-    );
-  }
-}
-
 /// Account section: the signed-in credential, change PIN, logout and the
 /// destructive database reset.
 class _AccountCard extends ConsumerWidget {
@@ -368,6 +264,7 @@ class _AccountCard extends ConsumerWidget {
     final username = ref.watch(authProvider).value?.username ?? '…';
 
     return SettingsSectionCard(
+      titleHeader: 'Security',
       icon: Icons.person_rounded,
       title: 'Account',
       subtitle: 'Your sign-in and session',

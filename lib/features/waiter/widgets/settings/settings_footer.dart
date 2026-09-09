@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/services/app_info.dart';
-import 'package:brewline/core/theme/app_theme.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Small settings footer: brand + version line that doubles as a button
@@ -21,53 +20,58 @@ class SettingsFooter extends ConsumerWidget {
       orElse: () => '…',
     );
 
-    return Column(
-      children: [
-        Divider(
-          height: 1,
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-        ),
-        SizedBox(height: Space.lg),
-        InkWell(
-          onTap: () => showAppInfoSheet(context),
-          borderRadius: BorderRadius.circular(Rounded.md),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: Space.md,
-              vertical: Space.sm,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.local_cafe_rounded,
-                  size: AppSizes.iconSm + 4,
-                  color: colorScheme.primary,
-                ),
-                SizedBox(width: Space.sm),
-                Flexible(
-                  child: UiText(
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: Space.xl),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => showAppInfoSheet(context),
+            borderRadius: BorderRadius.circular(Rounded.lg),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: Space.lg,
+                vertical: Space.md,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: AppSizes.iconLg,
+                    height: AppSizes.iconLg,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(Rounded.md),
+                    ),
+                    child: Icon(
+                      Icons.local_cafe_rounded,
+                      size: AppSizes.iconSm + 2,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  SizedBox(width: Space.md),
+                  UiText(
                     'BrewLine',
-                    type: UiTextType.labelLarge,
+                    type: UiTextType.titleSmall,
                     fontWeight: FontWeight.w700,
                   ),
-                ),
-                SizedBox(width: Space.sm),
-                UiText(
-                  versionLabel,
-                  type: UiTextType.bodySmall,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ],
+                  SizedBox(width: Space.sm),
+                  UiText(
+                    versionLabel,
+                    type: UiTextType.bodySmall,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        UiText(
-          '© ${DateTime.now().year} BrewLine',
-          type: UiTextType.bodySmall,
-          color: colorScheme.onSurfaceVariant,
-        ),
-      ],
+          SizedBox(height: Space.sm),
+          UiText(
+            '© ${DateTime.now().year} BrewLine',
+            type: UiTextType.labelSmall,
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -95,10 +99,18 @@ class _AppInfoSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.local_cafe_rounded,
-              size: AppSizes.iconLg + 16,
-              color: kSeedColor,
+            Container(
+              width: AppSizes.iconLg + 24,
+              height: AppSizes.iconLg + 24,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(Rounded.xl),
+              ),
+              child: Icon(
+                Icons.local_cafe_rounded,
+                size: AppSizes.iconLg + 8,
+                color: colorScheme.onPrimaryContainer,
+              ),
             ),
             SizedBox(height: Space.sm),
             const Center(

@@ -11,7 +11,7 @@ import 'package:brewline/core/repositories/cashout_repository.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/features/auth/login_page.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
+import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';

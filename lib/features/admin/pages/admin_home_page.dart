@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/navigation/admin_destinations.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/features/admin/pages/admin_dashboard_page.dart';
-import 'package:brewline/features/admin/pages/admin_settings_page.dart';
+import 'package:brewline/features/admin/pages/settings/admin_settings_page.dart';
 import 'package:brewline/features/admin/pages/cashout_logs_page.dart';
 import 'package:brewline/features/admin/pages/inventory_page.dart';
 import 'package:brewline/features/admin/pages/menu_products_page.dart';

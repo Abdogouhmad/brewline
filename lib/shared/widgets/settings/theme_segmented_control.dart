@@ -28,11 +28,18 @@ class ThemeSegmentedControl extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (!compact) ...[
-          CircleAvatar(
-            radius: AppSizes.iconMd / 2 + 2,
-            backgroundColor: colorScheme.secondaryContainer,
-            foregroundColor: colorScheme.onSecondaryContainer,
-            child: Icon(Icons.brightness_6_rounded, size: AppSizes.iconSm + 4),
+          Container(
+            width: AppSizes.iconLg * 1.5,
+            height: AppSizes.iconLg * 1.5,
+            decoration: BoxDecoration(
+              color: colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(Rounded.xl),
+            ),
+            child: Icon(
+              Icons.brightness_6_rounded,
+              size: AppSizes.iconMd,
+              color: colorScheme.onSecondaryContainer,
+            ),
           ),
           SizedBox(width: Space.lg),
         ],
@@ -40,6 +47,7 @@ class ThemeSegmentedControl extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              SizedBox(height: Space.lg),
               UiText(
                 'Theme',
                 type: UiTextType.titleSmall,
