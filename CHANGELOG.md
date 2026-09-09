@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-09
+
+### Changed (UI)
+
+- **Menu & Products management UI** — the product catalog cards, add/edit
+  sheet and staff management table were restyled for a cleaner, more consistent
+  look (`menu_products_page.dart`, `staff_management_page.dart`,
+  `staff_table.dart`).
+- **Inventory UI styled** — the inventory page was rebuilt into a polished
+  ingredient list (`ingredient_tile.dart`) with an expandable floating action
+  button (`inventory_expandable_fab.dart`) for adding ingredients.
+
 ## [1.7.0] - 2026-09-08
 
 ### Added (security hardening)
@@ -49,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error on the 8 GB default heap on this machine; the JVM args were lowered to
   a 2 GB heap so `flutter build apk` succeeds reliably.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.7.0...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.8.0...HEAD
+[1.8.0]: https://github.com/Abdogouhmad/brewline/compare/1.7.0...1.8.0
 [1.7.0]: https://github.com/Abdogouhmad/brewline/compare/1.6.1...1.7.0
 [1.6.1]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...1.6.1
 
