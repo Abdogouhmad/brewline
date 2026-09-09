@@ -14,24 +14,23 @@ enum SettingsAccent {
 
   ({Color background, Color foreground, Color borderColor}) resolve(
     ColorScheme scheme,
-  ) =>
-      switch (this) {
-        primary => (
-          background: scheme.primaryContainer,
-          foreground: scheme.onPrimaryContainer,
-          borderColor: scheme.primary,
-        ),
-        secondary => (
-          background: scheme.secondaryContainer,
-          foreground: scheme.onSecondaryContainer,
-          borderColor: scheme.secondary,
-        ),
-        tertiary => (
-          background: scheme.tertiaryContainer,
-          foreground: scheme.onTertiaryContainer,
-          borderColor: scheme.tertiary,
-        ),
-      };
+  ) => switch (this) {
+    primary => (
+      background: scheme.primaryContainer,
+      foreground: scheme.onPrimaryContainer,
+      borderColor: scheme.primary,
+    ),
+    secondary => (
+      background: scheme.secondaryContainer,
+      foreground: scheme.onSecondaryContainer,
+      borderColor: scheme.secondary,
+    ),
+    tertiary => (
+      background: scheme.tertiaryContainer,
+      foreground: scheme.onTertiaryContainer,
+      borderColor: scheme.tertiary,
+    ),
+  };
 }
 
 /// Big settings section card: tinted icon badge + title header followed by
@@ -77,8 +76,9 @@ class SettingsSectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final (:background, :foreground, :borderColor) =
-        accent.resolve(colorScheme);
+    final (:background, :foreground, :borderColor) = accent.resolve(
+      colorScheme,
+    );
     final padding = responsiveValue(
       context,
       mobile: Space.lg,
@@ -89,22 +89,17 @@ class SettingsSectionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(Rounded.x2l),
+        borderRadius: BorderRadius.circular(Rounded.xl),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(Rounded.x2l),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(Rounded.xl)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
             // Accent top-border stripe.
-            Container(
-              height: 3,
-              decoration: BoxDecoration(color: borderColor),
-            ),
+            Container(height: 3, decoration: BoxDecoration(color: borderColor)),
             // Title header eyebrow (optional).
             if (titleHeader != null)
               _TitleHeader(title: titleHeader!, accentColor: borderColor),
@@ -167,9 +162,7 @@ class _TitleHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: Space.xl, vertical: Space.sm),
-      decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.06),
-      ),
+      decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.06)),
       child: UiText(
         title.toUpperCase(),
         type: UiTextType.labelSmall,
