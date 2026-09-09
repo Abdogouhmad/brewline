@@ -32,14 +32,19 @@ class RevenueTrendChart extends StatelessWidget {
     return SizedBox(
       height: height,
       width: double.infinity,
-      child: CustomPaint(
-        painter: _BarChartPainter(
-          points: points,
-          barColor: colorScheme.primary,
-          mutedBarColor: colorScheme.primary.withValues(alpha: 0.35),
-          labelColor: colorScheme.onSurfaceVariant,
-          gridColor: colorScheme.outlineVariant.withValues(alpha: 0.6),
-          valueFormatter: valueFormatter,
+      // Belt-and-suspenders: the painter now clamps every label fully
+      // inside the canvas, but clip anyway so nothing can ever bleed into
+      // whatever sits above this chart.
+      child: ClipRect(
+        child: CustomPaint(
+          painter: _BarChartPainter(
+            points: points,
+            barColor: colorScheme.primary,
+            mutedBarColor: colorScheme.primary.withValues(alpha: 0.35),
+            labelColor: colorScheme.onSurfaceVariant,
+            gridColor: colorScheme.outlineVariant.withValues(alpha: 0.6),
+            valueFormatter: valueFormatter,
+          ),
         ),
       ),
     );
@@ -54,8 +59,11 @@ class _BarChartPainter extends CustomPainter {
   final Color gridColor;
   final String Function(int value) valueFormatter;
 
-  static const double _topPad = 12;
+  // Reserves room above the tallest bar for its peak-value label.
+  static const double _topPad = 26;
   static const double _bottomPad = 22;
+  // Gap between the bar's top edge and the label sitting above it.
+  static const double _labelGap = 4;
 
   _BarChartPainter({
     required this.points,
@@ -70,16 +78,12 @@ class _BarChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    final peak = points.fold<int>(
-      0,
-      (m, p) => p.revenue > m ? p.revenue : m,
-    );
+    final peak = points.fold<int>(0, (m, p) => p.revenue > m ? p.revenue : m);
     final chartHeight = size.height - _topPad - _bottomPad;
     final slot = size.width / points.length;
     final barWidth = (slot * 0.6).clamp(4.0, 32.0).toDouble();
     final baselineY = size.height - _bottomPad;
 
-    // Baseline so the chart reads as a series even with quiet days.
     canvas.drawLine(
       Offset(0, baselineY),
       Offset(size.width, baselineY),
@@ -110,12 +114,16 @@ class _BarChartPainter extends CustomPainter {
         );
       }
 
-      // Peak value label above the tallest bar.
+      // Peak value label above the tallest bar. Centered on the bar's x,
+      // then clamped (inside _paintText) so it never runs past the canvas
+      // edges — matters most when the peak bar sits near the left/right
+      // side, e.g. an hourly series where only the current hour has data.
       if (i == highestIndex && peak > 0) {
         _paintText(
           canvas,
           valueFormatter(peak),
-          Offset(x + barWidth / 2, baselineY - barHeight - _topPad),
+          Offset(x + barWidth / 2, baselineY - barHeight - _labelGap),
+          canvasWidth: size.width,
           color: barColor,
           anchor: _Anchor.bottomCenter,
           bold: true,
@@ -123,7 +131,6 @@ class _BarChartPainter extends CustomPainter {
       }
     }
 
-    // X labels, only as many as fit comfortably.
     final labelEvery = points.length > 14 ? (points.length / 10).ceil() : 1;
     for (var i = 0; i < points.length; i += labelEvery) {
       final x = slot * i + slot / 2;
@@ -131,6 +138,7 @@ class _BarChartPainter extends CustomPainter {
         canvas,
         points[i].label,
         Offset(x, baselineY + 6),
+        canvasWidth: size.width,
         color: labelColor,
         anchor: _Anchor.topCenter,
         size: 10,
@@ -143,6 +151,7 @@ class _BarChartPainter extends CustomPainter {
     String text,
     Offset center, {
     required _Anchor anchor,
+    required double canvasWidth,
     Color color = Colors.black,
     double size = 11,
     bool bold = false,
@@ -159,14 +168,20 @@ class _BarChartPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final offset = switch (anchor) {
-      _Anchor.topCenter => Offset(center.dx - painter.width / 2, center.dy),
-      _Anchor.bottomCenter => Offset(
-        center.dx - painter.width / 2,
-        center.dy - painter.height,
-      ),
+    var dx = center.dx - painter.width / 2;
+    // Clamp horizontally so the label stays fully on-canvas even when its
+    // anchor point (the bar it labels) sits close to an edge. Without this,
+    // a wide label centered on a bar near the right side gets its tail cut
+    // off — which is exactly what "DH 162" (missing ".00") was.
+    final maxDx = canvasWidth - painter.width;
+    dx = dx.clamp(0.0, maxDx < 0 ? 0.0 : maxDx);
+
+    final dy = switch (anchor) {
+      _Anchor.topCenter => center.dy,
+      _Anchor.bottomCenter => center.dy - painter.height,
     };
-    painter.paint(canvas, offset);
+
+    painter.paint(canvas, Offset(dx, dy));
   }
 
   @override
