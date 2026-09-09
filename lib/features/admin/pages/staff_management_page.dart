@@ -20,63 +20,73 @@ class StaffManagementPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
     final compact = Breakpoints.of(context) == ScreenSize.compact;
 
-    return ListView(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? Space.lg : Space.full,
-        vertical: Space.lg,
-      ),
-      children: [
-        if (compact)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              UiText(
-                'Team',
-                type: UiTextType.headlineSmall,
-                fontWeight: FontWeight.w800,
-              ),
-              SizedBox(height: Space.xs),
-              const _TeamSummary(),
-              SizedBox(height: Space.md),
-              UiButton(
-                'Add staff',
-                icon: Icons.person_add_alt_1_rounded,
-                variant: UiButtonVariant.filled,
-                onPressed: () => showStaffFormSheet(context),
-              ),
-            ],
-          )
-        else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    UiText(
-                      'Team',
-                      type: UiTextType.headlineSmall,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    SizedBox(height: Space.xs),
-                    const _TeamSummary(),
-                  ],
+    return Scaffold(
+      body: ListView(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? Space.lg : Space.full,
+          vertical: Space.lg,
+        ),
+        children: [
+          if (compact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                UiText(
+                  'Team',
+                  type: UiTextType.headlineSmall,
+                  fontWeight: FontWeight.w800,
                 ),
+                SizedBox(height: Space.xs),
+                const _TeamSummary(),
+                SizedBox(height: Space.lg),
+                const StaffTable(),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      UiText(
+                        'Team',
+                        type: UiTextType.headlineSmall,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      SizedBox(height: Space.xs),
+                      const _TeamSummary(),
+                    ],
+                  ),
+                ),
+                UiButton(
+                  'Add staff',
+                  icon: Icons.person_add_alt_1_rounded,
+                  variant: UiButtonVariant.outlined,
+                  onPressed: () => showStaffFormSheet(context),
+                ),
+              ],
+            ),
+          if (!compact) ...[SizedBox(height: Space.xl), const StaffTable()],
+        ],
+      ),
+      floatingActionButton: compact
+          ? FloatingActionButton(
+              onPressed: () => showStaffFormSheet(context),
+              tooltip: 'Add staff',
+              backgroundColor: colorScheme.primaryContainer,
+              foregroundColor: colorScheme.onPrimaryContainer,
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Rounded.lg),
               ),
-              UiButton(
-                'Add staff',
-                icon: Icons.person_add_alt_1_rounded,
-                variant: UiButtonVariant.filled,
-                onPressed: () => showStaffFormSheet(context),
-              ),
-            ],
-          ),
-        SizedBox(height: Space.xl),
-        const StaffTable(),
-      ],
+              child: const Icon(Icons.person_add_alt_1_rounded),
+            )
+          : null,
     );
   }
 }
