@@ -21,69 +21,75 @@ class MenuProductsPage extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final compact = Breakpoints.of(context) == ScreenSize.compact;
 
-    return ListView(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? Space.lg : Space.full,
-        vertical: Space.lg,
-      ),
-      children: [
-        if (compact)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              UiText(
-                'Catalog',
-                type: UiTextType.headlineSmall,
-                fontWeight: FontWeight.w800,
-              ),
-              SizedBox(height: Space.xs),
-              UiText(
-                'Manage prices, stock and availability across the menu.',
-                type: UiTextType.bodyMedium,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              SizedBox(height: Space.md),
-              UiButton(
-                'Add product',
-                icon: Icons.add_box_rounded,
-                variant: UiButtonVariant.filled,
-                onPressed: () => showProductFormSheet(context),
-              ),
-            ],
-          )
-        else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    UiText(
-                      'Catalog',
-                      type: UiTextType.headlineSmall,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    SizedBox(height: Space.xs),
-                    UiText(
-                      'Manage prices, stock and availability across the menu.',
-                      type: UiTextType.bodyMedium,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ],
+    return Scaffold(
+      body: ListView(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? Space.lg : Space.full,
+          vertical: Space.lg,
+        ),
+        children: [
+          if (compact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                UiText(
+                  'Manage prices, stock and availability across the menu.',
+                  type: UiTextType.bodyMedium,
+                  color: colorScheme.onSurfaceVariant,
                 ),
-              ),
-              UiButton(
-                'Add product',
-                icon: Icons.add_box_rounded,
-                variant: UiButtonVariant.filled,
-                onPressed: () => showProductFormSheet(context),
-              ),
-            ],
-          ),
-        SizedBox(height: Space.xl),
-        const ProductTable(),
-      ],
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      UiText(
+                        'Catalog',
+                        type: UiTextType.headlineSmall,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      SizedBox(height: Space.xs),
+                      UiText(
+                        'Manage prices, stock and availability across the menu.',
+                        type: UiTextType.bodyMedium,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+                UiButton(
+                  'Add product',
+                  icon: Icons.add_box_rounded,
+                  radius: Rounded.xl,
+                  variant: UiButtonVariant.outlined,
+                  onPressed: () => showProductFormSheet(context),
+                ),
+              ],
+            ),
+          SizedBox(height: Space.xl),
+          const ProductTable(),
+        ],
+      ),
+      floatingActionButton: compact ? _fabButton(context: context) : null,
     );
   }
+}
+
+Widget? _fabButton({required BuildContext context}) {
+  final colorScheme = Theme.of(context).colorScheme;
+
+  return FloatingActionButton(
+    onPressed: () => showProductFormSheet(context),
+    backgroundColor: colorScheme.primaryContainer,
+    foregroundColor: colorScheme.onPrimaryContainer,
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(Rounded.xl),
+    ),
+    child: const Icon(Icons.add_rounded),
+  );
 }

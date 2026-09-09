@@ -18,6 +18,7 @@ class UiButton extends StatelessWidget {
   final bool expand;
   final Color? foreground;
   final Color? background;
+  final double? radius;
 
   const UiButton(
     this.label, {
@@ -28,6 +29,7 @@ class UiButton extends StatelessWidget {
     this.expand = false,
     this.foreground,
     this.background,
+    this.radius,
   });
 
   @override
@@ -74,8 +76,7 @@ class UiButton extends StatelessWidget {
         elevation: 0,
       ),
       UiButtonVariant.destructive => FilledButton.styleFrom(
-        foregroundColor:
-            foreground ?? Theme.of(context).colorScheme.onError,
+        foregroundColor: foreground ?? Theme.of(context).colorScheme.onError,
         backgroundColor: background ?? Theme.of(context).colorScheme.error,
         elevation: 0,
       ),
@@ -92,7 +93,9 @@ class UiButton extends StatelessWidget {
       ),
       textStyle: WidgetStatePropertyAll(textStyle),
       shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rounded.xl)),
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius ?? Rounded.xl),
+        ),
       ),
     );
 

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
-import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -60,7 +59,7 @@ class StaffTable extends ConsumerWidget {
               children: [
                 for (final member in sorted)
                   Padding(
-                    padding: EdgeInsets.only(bottom: Space.md),
+                    padding: EdgeInsets.only(bottom: Space.sm),
                     child: _StaffCard(member: member),
                   ),
               ],
@@ -197,42 +196,77 @@ class _StaffCard extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final isActive = member.active;
 
-    return UiCard(
-      title: member.name,
-      subtitle: '@${member.username}',
-      titleColor: isActive ? null : colorScheme.onSurfaceVariant,
-      leading: CircleAvatar(
-        backgroundColor: isActive
-            ? colorScheme.primaryContainer
-            : colorScheme.surfaceContainerHighest,
-        foregroundColor: isActive
-            ? colorScheme.onPrimaryContainer
-            : colorScheme.onSurfaceVariant,
-        child: UiText(
-          _initials(member),
-          type: UiTextType.labelMedium,
-          fontWeight: FontWeight.w800,
+    return Card(
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.4),
+      margin: EdgeInsets.zero,
+      color: colorScheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Rounded.xl),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.sm),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: isActive
+                  ? colorScheme.primaryContainer
+                  : colorScheme.surfaceContainerHighest,
+              foregroundColor: isActive
+                  ? colorScheme.onPrimaryContainer
+                  : colorScheme.onSurfaceVariant,
+              child: UiText(
+                _initials(member),
+                type: UiTextType.labelSmall,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(width: Space.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  UiText(
+                    member.name,
+                    type: UiTextType.titleSmall,
+                    fontWeight: FontWeight.w600,
+                    color: isActive ? null : colorScheme.onSurfaceVariant,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  UiText(
+                    '@${member.username}',
+                    type: UiTextType.bodySmall,
+                    color: colorScheme.onSurfaceVariant,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (!isActive) ...[
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: Space.xs,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(Rounded.xl),
+                ),
+                child: UiText(
+                  'Inactive',
+                  type: UiTextType.labelSmall,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              SizedBox(width: Space.xs),
+            ],
+            _rowMenu(context, ref, member),
+          ],
         ),
       ),
-      actions: [
-        if (!isActive)
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: Space.sm,
-              vertical: Space.xs,
-            ),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(Rounded.full),
-            ),
-            child: UiText(
-              'Inactive',
-              type: UiTextType.labelSmall,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-        _rowMenu(context, ref, member),
-      ],
     );
   }
 }
@@ -247,74 +281,120 @@ class _StaffDataTable extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      elevation: 0,
-      color: colorScheme.surfaceContainerLow,
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.4),
+      clipBehavior: Clip.antiAlias,
+      color: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Rounded.x2l),
-        side: BorderSide(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(Rounded.xl),
       ),
-      child: DataTable(
-        headingRowColor: WidgetStatePropertyAll(
-          colorScheme.surfaceContainerHigh,
-        ),
-        headingTextStyle: TextStyle(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w700,
-        ),
-        columns: const [
-          DataColumn(label: Text('Name')),
-          DataColumn(label: Text('Username')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Actions')),
-        ],
-        rows: [
-          for (final member in members)
-            DataRow(
-              cells: [
-                DataCell(
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor: member.active
-                            ? colorScheme.primaryContainer
-                            : colorScheme.surfaceContainerHighest,
-                        foregroundColor: member.active
-                            ? colorScheme.onPrimaryContainer
-                            : colorScheme.onSurfaceVariant,
-                        child: UiText(
-                          _initials(member),
-                          type: UiTextType.labelSmall,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      SizedBox(width: Space.md),
-                      UiText(member.name, type: UiTextType.titleSmall),
-                    ],
-                  ),
-                ),
-                DataCell(
-                  UiText('@${member.username}', type: UiTextType.bodySmall),
-                ),
-                DataCell(
-                  member.active
-                      ? Row(
-                          children: [
-                            Icon(
-                              Icons.circle,
-                              size: 10,
-                              color: _activeDotColor(context, true),
-                            ),
-                            SizedBox(width: Space.xs),
-                            UiText('Active', type: UiTextType.labelMedium),
-                          ],
+      child: Theme(
+        data: Theme.of(context)
+            .copyWith(dividerColor: colorScheme.outlineVariant),
+        child: DataTable(
+          headingRowHeight: 52,
+          dataRowMinHeight: 60,
+          dataRowMaxHeight: 60,
+          columnSpacing: Space.x2l,
+          horizontalMargin: Space.lg,
+          headingRowColor: WidgetStatePropertyAll(
+            colorScheme.surfaceContainerHighest,
+          ),
+          headingTextStyle: TextStyle(
+            color: colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
+          columns: const [
+            DataColumn(label: Text('Name')),
+            DataColumn(label: Text('Username')),
+            DataColumn(label: Text('Status')),
+            DataColumn(label: Text('Actions')),
+          ],
+          rows: [
+            for (final (index, member) in members.indexed)
+              DataRow(
+                color: WidgetStatePropertyAll(
+                  index.isOdd
+                      ? colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.35,
                         )
-                      : UiText('Inactive', type: UiTextType.labelMedium),
+                      : Colors.transparent,
                 ),
-                DataCell(_rowMenu(context, ref, member)),
-              ],
-            ),
-        ],
+                cells: [
+                  DataCell(
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 15,
+                          backgroundColor: member.active
+                              ? colorScheme.primaryContainer
+                              : colorScheme.surfaceContainerHighest,
+                          foregroundColor: member.active
+                              ? colorScheme.onPrimaryContainer
+                              : colorScheme.onSurfaceVariant,
+                          child: UiText(
+                            _initials(member),
+                            type: UiTextType.labelSmall,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(width: Space.md),
+                        UiText(
+                          member.name,
+                          type: UiTextType.titleSmall,
+                          fontWeight: FontWeight.w600,
+                          color: member.active
+                              ? null
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
+                  ),
+                  DataCell(
+                    UiText(
+                      '@${member.username}',
+                      type: UiTextType.bodySmall,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  DataCell(
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Space.sm,
+                        vertical: Space.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: member.active
+                            ? colorScheme.primaryContainer.withValues(
+                                alpha: 0.4,
+                              )
+                            : colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(Rounded.full),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: _activeDotColor(context, member.active),
+                          ),
+                          SizedBox(width: Space.xs),
+                          UiText(
+                            member.active ? 'Active' : 'Inactive',
+                            type: UiTextType.labelMedium,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  DataCell(_rowMenu(context, ref, member)),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }

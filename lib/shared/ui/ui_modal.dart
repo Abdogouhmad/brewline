@@ -51,6 +51,14 @@ Future<T?> showUiAdaptiveModal<T>(
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(Rounded.x2l)),
     ),
+    // Smoother open/close: a touch slower going up (feels deliberate),
+    // snappier coming back down (feels responsive on dismiss).
+    sheetAnimationStyle: const AnimationStyle(
+      duration: Duration(milliseconds: 320),
+      reverseDuration: Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    ),
     builder: (_) =>
         FractionallySizedBox(heightFactor: heightFactor, child: content),
   );
