@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-09
+
+### Added (UI)
+
+- **Settings section card headers** — `SettingsSectionCard` gained a
+  `titleHeader` eyebrow label; every settings card now carries a grouping
+  header (PREFERENCES, SESSION, SECURITY, HARDWARE, SYSTEM, RECEIPTS) so
+  related sections read as one group across the admin and waiter pages.
+- **Settings widgets promoted to shared** — `SettingsSectionCard`,
+  `SettingsTile` and `SettingsAccent` moved from
+  `features/waiter/widgets/settings/` to `shared/widgets/settings/` (legacy
+  imports kept as re-exports), so the admin and waiter settings pages (and
+  `cashout_button`, `print_report_button`, printer/update sections) all reuse
+  the same vocabulary.
+
+### Changed (UI)
+
+- **Settings section cards redesigned** — each card now carries a thin
+  accent-colored top-border stripe (primary/secondary/tertiary) that matches
+  its icon badge, an uppercase letterspaced eyebrow label on a tinted band,
+  finer hairline dividers aligned to the badge column, and a reduced card
+  radius for a crisper outline.
+- **Settings rows (tile) feel interactive** — `SettingsTile` gained
+  hover/press ink feedback (subtle splash + highlight), consistent rounded
+  icon badges (matching the section header), a softer default chevron and more
+  vertical breathing room.
+- **Theme segmented control** aligned to the new badge style (leading icon now
+  matches the section icon badges instead of a circular avatar).
+- **Language placeholder restyled** — the not-yet-wired language preference is
+  now a muted pill chip with a translate icon instead of a bordered label.
+- **Settings footer polished** — cleaner brand mark (tinted icon tile), no
+  dividing rule above it, and a quieter copyright line.
+- **Waiter profile header** — now shares the card language: primary accent
+  top-border stripe, standardised avatar panel and tightened status row.
+
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.9.0...HEAD
+[1.9.0]: https://github.com/Abdogouhmad/brewline/compare/1.8.0...1.9.0
+
 ## [1.8.0] - 2026-09-09
 
 ### Changed (UI)
@@ -61,7 +99,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   error on the 8 GB default heap on this machine; the JVM args were lowered to
   a 2 GB heap so `flutter build apk` succeeds reliably.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.8.0...HEAD
 [1.8.0]: https://github.com/Abdogouhmad/brewline/compare/1.7.0...1.8.0
 [1.7.0]: https://github.com/Abdogouhmad/brewline/compare/1.6.1...1.7.0
 [1.6.1]: https://github.com/Abdogouhmad/brewline/compare/1.6.0...1.6.1

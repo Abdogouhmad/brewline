@@ -7,7 +7,7 @@ import 'package:brewline/core/printing/receipt_templates/shift_report_template.d
 import 'package:brewline/core/repositories/audit_repository.dart';
 import 'package:brewline/core/repositories/cashout_repository.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
+import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 
 /// The interim "Print Report" action — a live preview of the current shift,

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/printing/printer_settings.dart';
 import 'package:brewline/core/printing/printer_transport.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
+import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -26,7 +26,8 @@ class PrinterSettingsSection extends ConsumerStatefulWidget {
       _PrinterSettingsSectionState();
 }
 
-class _PrinterSettingsSectionState extends ConsumerState<PrinterSettingsSection> {
+class _PrinterSettingsSectionState
+    extends ConsumerState<PrinterSettingsSection> {
   late final TextEditingController _ipController;
   late final TextEditingController _portController;
 
@@ -55,10 +56,9 @@ class _PrinterSettingsSectionState extends ConsumerState<PrinterSettingsSection>
       );
       return;
     }
-    await ref.read(printerSettingsProvider.notifier).setNetworkAddress(
-      ipAddress: _ipController.text,
-      port: port,
-    );
+    await ref
+        .read(printerSettingsProvider.notifier)
+        .setNetworkAddress(ipAddress: _ipController.text, port: port);
     if (!mounted) return;
     showUiSnackBar(
       context,
@@ -74,6 +74,7 @@ class _PrinterSettingsSectionState extends ConsumerState<PrinterSettingsSection>
     final isNetwork = settings.connectionType == PrinterConnectionType.network;
 
     return SettingsSectionCard(
+      titleHeader: 'Hardware',
       icon: Icons.print_rounded,
       title: 'Printer',
       subtitle: 'Which receipt printer this terminal uses',
@@ -120,8 +121,7 @@ class _PrinterSettingsSectionState extends ConsumerState<PrinterSettingsSection>
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
                     labelText: 'Port',
-                    helperText:
-                        'Raw ESC/POS port (default 9100, JetDirect)',
+                    helperText: 'Raw ESC/POS port (default 9100, JetDirect)',
                     prefixIcon: Icon(Icons.numbers_rounded),
                   ),
                 ),

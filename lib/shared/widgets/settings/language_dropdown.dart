@@ -9,7 +9,7 @@ import 'package:brewline/shared/ui/ui_text.dart';
 /// The stored `AppLanguage` choice used to be presented as an interactive
 /// dropdown, but [localeControllerProvider] is not connected to `MaterialApp`
 /// yet (no `.arb`/Intl delegate), so switching the dropdown had zero visual
-/// effect. It is rendered as a muted, disabled "Coming soon" label until
+/// effect. It is rendered as a muted, disabled "Coming soon" chip until
 /// localization lands — an honest placeholder instead of a control that lies.
 class LanguageDropdown extends StatelessWidget {
   final AppLanguage value;
@@ -25,20 +25,28 @@ class LanguageDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    // Render the actual dropdown the moment `MaterialApp.locale` follows
-    // [localeControllerProvider]. Until then: a disabled reminder in the
-    // tile's trailing slot (avoids removing the tile entirely from two
-    // settings pages).
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: Space.sm, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: Space.sm, vertical: Space.xs),
       decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(Rounded.lg),
+        borderRadius: BorderRadius.circular(Rounded.full),
       ),
-      child: UiText(
-        '${value.label} · Coming soon',
-        type: UiTextType.labelMedium,
-        color: colorScheme.outline,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.translate_rounded,
+            size: AppSizes.iconSm,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          SizedBox(width: Space.xs),
+          UiText(
+            '${value.label} · Coming soon',
+            type: UiTextType.labelMedium,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ],
       ),
     );
   }

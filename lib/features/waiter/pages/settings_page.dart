@@ -14,8 +14,8 @@ import 'package:brewline/features/waiter/widgets/settings/cashout_button.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
 import 'package:brewline/features/waiter/widgets/settings/print_report_button.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_footer.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_section_card.dart';
-import 'package:brewline/features/waiter/widgets/settings/settings_tile.dart';
+import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
+import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/settings/language_dropdown.dart';
 import 'package:brewline/shared/widgets/settings/theme_segmented_control.dart';
@@ -140,6 +140,7 @@ class SettingsPage extends ConsumerWidget {
     final themePref = ref.watch(themeControllerProvider);
 
     return SettingsSectionCard(
+      titleHeader: 'Preferences',
       icon: _SettingsIcons.general,
       title: _Copy.generalTitle,
       subtitle: _Copy.generalSubtitle,
@@ -166,6 +167,7 @@ class SettingsPage extends ConsumerWidget {
 
   Widget _buildAccountCard(BuildContext context, WidgetRef ref) {
     return SettingsSectionCard(
+      titleHeader: 'Session',
       icon: _SettingsIcons.account,
       title: _Copy.accountTitle,
       subtitle: _Copy.accountSubtitle,
@@ -195,6 +197,7 @@ class SettingsPage extends ConsumerWidget {
     final controller = ref.read(printingPreferencesProvider.notifier);
 
     return SettingsSectionCard(
+      titleHeader: 'Receipts',
       icon: _SettingsIcons.printing,
       title: _Copy.printingTitle,
       subtitle: _Copy.printingSubtitle,
@@ -279,79 +282,91 @@ class _ProfileHeader extends ConsumerWidget {
     if (user == null) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      color: colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Rounded.x2l),
-        side: BorderSide(color: colorScheme.outlineVariant),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(Space.xl),
-        child: Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(Rounded.x2l),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: colorScheme.primaryContainer,
-                  foregroundColor: colorScheme.onPrimaryContainer,
-                  child: UiText(
-                    user.initials,
-                    type: UiTextType.titleLarge,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                // Live shift indicator pinned to the avatar corner.
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade600,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: colorScheme.surfaceContainerLow,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            Container(
+              height: 3,
+              decoration: BoxDecoration(color: colorScheme.primary),
             ),
-            SizedBox(width: Space.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Padding(
+              padding: EdgeInsets.all(Space.xl),
+              child: Row(
                 children: [
-                  UiText(
-                    user.name,
-                    type: UiTextType.headlineSmall,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  SizedBox(height: Space.sm),
-                  Wrap(
-                    spacing: Space.md,
-                    runSpacing: Space.xs,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  Stack(
                     children: [
-                      _RoleBadge(role: user.role),
-                      Icon(
-                        Icons.schedule_rounded,
-                        size: AppSizes.iconSm + 2,
-                        color: colorScheme.onSurfaceVariant,
+                      CircleAvatar(
+                        radius: 30,
+                        backgroundColor: colorScheme.primaryContainer,
+                        foregroundColor: colorScheme.onPrimaryContainer,
+                        child: UiText(
+                          user.initials,
+                          type: UiTextType.titleLarge,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                      SizedBox(width: Space.xs),
-                      UiText(
-                        _Copy.onShift,
-                        type: UiTextType.bodySmall,
-                        color: colorScheme.onSurfaceVariant,
+                      // Live shift indicator pinned to the avatar corner.
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade600,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colorScheme.surfaceContainerLow,
+                              width: 2,
+                            ),
+                          ),
+                        ),
                       ),
                     ],
+                  ),
+                  SizedBox(width: Space.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        UiText(
+                          user.name,
+                          type: UiTextType.headlineSmall,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        SizedBox(height: Space.sm),
+                        Wrap(
+                          spacing: Space.md,
+                          runSpacing: Space.xs,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _RoleBadge(role: user.role),
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: AppSizes.iconSm + 2,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            SizedBox(width: Space.lg),
+                            UiText(
+                              _Copy.onShift,
+                              type: UiTextType.bodySmall,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
