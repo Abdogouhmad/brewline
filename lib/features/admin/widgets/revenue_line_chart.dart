@@ -21,13 +21,15 @@ class RevenueLineChart extends StatelessWidget {
     return SizedBox(
       height: height,
       width: double.infinity,
-      child: CustomPaint(
-        painter: _LineChartPainter(
-          points: points,
-          lineColor: colorScheme.primary,
-          fillColor: colorScheme.primary.withValues(alpha: 0.18),
-          gridColor: colorScheme.outlineVariant.withValues(alpha: 0.5),
-          labelColor: colorScheme.onSurfaceVariant,
+      child: ClipRect(
+        child: CustomPaint(
+          painter: _LineChartPainter(
+            points: points,
+            lineColor: colorScheme.primary,
+            fillColor: colorScheme.primary.withValues(alpha: 0.18),
+            gridColor: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            labelColor: colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -41,8 +43,13 @@ class _LineChartPainter extends CustomPainter {
   final Color gridColor;
   final Color labelColor;
 
-  static const double _topPad = 16;
+  // Reserves enough room above the highest point for its peak label —
+  // was 16, which wasn't enough once the label's own height and the gap
+  // above the point were accounted for; the label was landing above y=0.
+  static const double _topPad = 28;
   static const double _bottomPad = 24;
+  // Gap between the point and the label sitting above it.
+  static const double _labelGap = 4;
 
   _LineChartPainter({
     required this.points,
@@ -56,10 +63,7 @@ class _LineChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
-    final peak = points.fold<int>(
-      0,
-      (m, p) => p.revenue > m ? p.revenue : m,
-    );
+    final peak = points.fold<int>(0, (m, p) => p.revenue > m ? p.revenue : m);
     final chartHeight = size.height - _topPad - _bottomPad;
     final baselineY = size.height - _bottomPad;
     final slot = size.width / (points.length - 1);
@@ -110,13 +114,17 @@ class _LineChartPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round,
     );
 
-    // Peak label above the highest point.
+    // Peak label above the highest point — sits inside the _topPad zone
+    // already reserved by chartHeight, so only a small extra gap is needed
+    // here (not a separate fixed offset on top of it). Clamped horizontally
+    // (inside _paintText) so it also stays fully on-canvas left/right.
     final highestIndex = points.indexWhere((p) => p.revenue == peak);
     if (peak > 0 && highestIndex >= 0) {
       _paintText(
         canvas,
         formatPriceCents(peak),
-        Offset(pointAt(highestIndex).dx, pointAt(highestIndex).dy - 10),
+        Offset(pointAt(highestIndex).dx, pointAt(highestIndex).dy - _labelGap),
+        canvasWidth: size.width,
         anchor: _Anchor.bottomCenter,
         color: lineColor,
         bold: true,
@@ -130,6 +138,7 @@ class _LineChartPainter extends CustomPainter {
         canvas,
         points[i].label,
         Offset(pointAt(i).dx, baselineY + 6),
+        canvasWidth: size.width,
         anchor: _Anchor.topCenter,
         color: labelColor,
         size: 10,
@@ -142,6 +151,7 @@ class _LineChartPainter extends CustomPainter {
     String text,
     Offset center, {
     required _Anchor anchor,
+    required double canvasWidth,
     Color color = Colors.black,
     double size = 11,
     bool bold = false,
@@ -158,14 +168,16 @@ class _LineChartPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    final offset = switch (anchor) {
-      _Anchor.topCenter => Offset(center.dx - painter.width / 2, center.dy),
-      _Anchor.bottomCenter => Offset(
-        center.dx - painter.width / 2,
-        center.dy - painter.height,
-      ),
+    var dx = center.dx - painter.width / 2;
+    final maxDx = canvasWidth - painter.width;
+    dx = dx.clamp(0.0, maxDx < 0 ? 0.0 : maxDx);
+
+    final dy = switch (anchor) {
+      _Anchor.topCenter => center.dy,
+      _Anchor.bottomCenter => center.dy - painter.height,
     };
-    painter.paint(canvas, offset);
+
+    painter.paint(canvas, Offset(dx, dy));
   }
 
   @override

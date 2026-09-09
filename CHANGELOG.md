@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-09-09
+
+### Fixed
+
+- **KPI card overflow on narrow grids** — the delta chip inside `KpiCard`
+  now wraps in a `FittedBox` and the header row adapts its icon/label
+  density via `LayoutBuilder`, so cards squeezed below 150 px wide no
+  longer clip the percentage badge or trend icon.
+- **Revenue line-chart peak label clipped** — the top padding was too
+  tight (16 → 28 px) and labels were not horizontally clamped, so the
+  highest-point price label could paint above the canvas or spill past
+  the right edge. Both charts (`RevenueLineChart`,
+  `RevenueTrendChart`) now clamp every text label inside the canvas
+  bounds and wrap the painter in a `ClipRect` as a safety net.
+
+[1.9.1]: https://github.com/Abdogouhmad/brewline/compare/1.9.0...1.9.1
+
 ## [1.9.0] - 2026-09-09
 
 ### Added (UI)
@@ -42,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Waiter profile header** — now shares the card language: primary accent
   top-border stripe, standardised avatar panel and tightened status row.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.9.0...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.9.1...HEAD
 [1.9.0]: https://github.com/Abdogouhmad/brewline/compare/1.8.0...1.9.0
 
 ## [1.8.0] - 2026-09-09

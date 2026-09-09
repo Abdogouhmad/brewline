@@ -52,53 +52,73 @@ class KpiCard extends StatelessWidget {
       ),
       child: Padding(
         padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // The grid can hand this card less width than the *screen*
+            // breakpoint alone implies (e.g. 4 columns on a desktop window
+            // that isn't quite wide enough) — measure the card itself
+            // rather than trusting Breakpoints for the header row density.
+            final tight = constraints.maxWidth < 150;
+            final headerCompact = size != ScreenSize.expanded || tight;
+            final iconCompact = size == ScreenSize.compact || tight;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: EdgeInsets.all(
-                    size == ScreenSize.compact ? Space.xs : Space.sm,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(Rounded.lg),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: size == ScreenSize.compact
-                        ? AppSizes.iconSm + 2
-                        : AppSizes.iconMd,
-                    color: colorScheme.onSecondaryContainer,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(
+                        iconCompact ? Space.xs : Space.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(Rounded.lg),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: iconCompact
+                            ? AppSizes.iconSm + 2
+                            : AppSizes.iconMd,
+                        color: colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                    const Spacer(),
+                    // Flexible + the chip's own FittedBox (below) is the
+                    // hard guarantee against overflow: even if headerCompact
+                    // picks the wrong density for some width we haven't
+                    // anticipated, the chip shrinks instead of clipping.
+                    Flexible(
+                      child: _DeltaChip(delta: delta, compact: headerCompact),
+                    ),
+                  ],
                 ),
-                Spacer(),
-                _DeltaChip(delta: delta, compact: size != ScreenSize.expanded),
+                SizedBox(
+                  height: size == ScreenSize.expanded ? Space.md : Space.sm,
+                ),
+                UiText(
+                  label,
+                  type: UiTextType.labelLarge,
+                  color: colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                  fontSize: context.responsiveFontSize(14),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: Space.xs),
+                UiText(
+                  value,
+                  type: UiTextType.headlineSmall,
+                  fontWeight: FontWeight.w800,
+                  fontSize: size == ScreenSize.expanded
+                      ? context.responsiveFontSize(26)
+                      : context.responsiveFontSize(18),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
-            ),
-            SizedBox(height: size == ScreenSize.expanded ? Space.md : Space.sm),
-            UiText(
-              label,
-              type: UiTextType.labelLarge,
-              color: colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              fontSize: context.responsiveFontSize(14),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            SizedBox(height: Space.xs),
-            UiText(
-              value,
-              type: UiTextType.headlineSmall,
-              fontWeight: FontWeight.w800,
-              fontSize: size == ScreenSize.expanded
-                  ? context.responsiveFontSize(26)
-                  : context.responsiveFontSize(18),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -150,29 +170,36 @@ class _DeltaChip extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(Rounded.full),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!compact) ...[
-            Icon(
-              switch (direction) {
-                _Direction.up => Icons.trending_up_rounded,
-                _Direction.down => Icons.trending_down_rounded,
-                _Direction.flat => Icons.remove_rounded,
-              },
-              size: AppSizes.iconSm,
+      // Last line of defence: if this chip is still handed less width than
+      // its content needs (icon + "+100%" at any given font scale), shrink
+      // everything to fit rather than let the Row overflow.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!compact) ...[
+              Icon(
+                switch (direction) {
+                  _Direction.up => Icons.trending_up_rounded,
+                  _Direction.down => Icons.trending_down_rounded,
+                  _Direction.flat => Icons.remove_rounded,
+                },
+                size: AppSizes.iconSm,
+                color: foreground,
+              ),
+              SizedBox(width: 2),
+            ],
+            UiText(
+              '${direction == _Direction.up ? '+' : ''}'
+              '${(delta * 100).round()}%',
+              type: UiTextType.labelSmall,
+              fontWeight: FontWeight.w700,
               color: foreground,
             ),
-            SizedBox(width: 2),
           ],
-          UiText(
-            '${direction == _Direction.up ? '+' : ''}'
-            '${(delta * 100).round()}%',
-            type: UiTextType.labelSmall,
-            fontWeight: FontWeight.w700,
-            color: foreground,
-          ),
-        ],
+        ),
       ),
     );
   }
