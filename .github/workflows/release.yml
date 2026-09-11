@@ -125,8 +125,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          curl.exe -L -o "$env:TEMP\innosetup.exe" "https://jrsoftware.org/download.php/is.exe"
-          Start-Process -FilePath "$env:TEMP\innosetup.exe" -ArgumentList "/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES", "/SP-" -Wait
+          winget install --id JRSoftware.InnoSetup --accept-source-agreements --accept-package-agreements
 
       # Builds each requested target. On Windows, verbose output is captured to
       # a log file so the underlying error (GitHub truncates collapsed output)
