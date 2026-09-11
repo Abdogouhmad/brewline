@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/core/utils/date_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 
 /// Read-only date-window control that opens the range picker on tap.
 ///
@@ -25,17 +26,18 @@ class DateFilterInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return InputDecorator(
-      decoration: const InputDecoration(
-        labelText: 'Date range',
-        prefixIcon: Icon(Icons.date_range_outlined),
+      decoration: InputDecoration(
+        labelText: l10n.dateFilterRange,
+        prefixIcon: const Icon(Icons.date_range_outlined),
       ),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         dense: true,
         title: Text(
           range == null
-              ? 'All dates'
+              ? l10n.dateFilterAllDates
               : '${formatDateShort(range!.start)} – '
                     '${formatDateShort(range!.end)}',
           maxLines: 1,
@@ -47,11 +49,11 @@ class DateFilterInput extends StatelessWidget {
             if (range == null && showTodayButton)
               TextButton(
                 onPressed: onToday,
-                child: const Text('Today'),
+                child: Text(l10n.dateFilterToday),
               ),
             if (range != null)
               IconButton(
-                tooltip: 'Show all dates',
+                tooltip: l10n.dateFilterClearTooltip,
                 icon: const Icon(Icons.close_rounded, size: 18),
                 onPressed: onClear,
               ),

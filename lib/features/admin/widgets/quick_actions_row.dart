@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
 
 /// Shortcut tiles that jump to another admin tab. [onNavigate] receives the
 /// destination's position in the shared admin destination list
-/// (Dashboard = 0, Reports = 1, Menu = 2, Staff = 3, Sales log = 4, Settings = 5).
+/// (Dashboard = 0, Reports = 1, Menu = 2, Inventory = 3, Staff = 4,
+/// Sales log = 5, Cashout log = 6, Settings = 7).
 ///
 /// Redesigned as tinted action tiles (icon badge + label + short description)
 /// instead of bare outlined buttons, so the most common jumps read as a
@@ -19,8 +21,10 @@ class QuickActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return DashboardCard(
-      title: 'Quick actions',
+      title: l10n.adminDashboardQuickActions,
       icon: Icons.bolt_rounded,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -35,17 +39,17 @@ class QuickActionsRow extends StatelessWidget {
                 width: columnWidth,
                 child: _QuickAction(
                   icon: Icons.person_add_alt_1_rounded,
-                  label: 'Add staff',
-                  description: 'Invite a team member',
-                  onTap: () => onNavigate(3),
+                  label: l10n.adminDashboardQuickAddStaff,
+                  description: l10n.adminDashboardQuickAddStaffDesc,
+                  onTap: () => onNavigate(4),
                 ),
               ),
               SizedBox(
                 width: columnWidth,
                 child: _QuickAction(
                   icon: Icons.insights_rounded,
-                  label: 'View reports',
-                  description: 'Revenue & performance',
+                  label: l10n.adminDashboardQuickViewReports,
+                  description: l10n.adminDashboardQuickViewReportsDesc,
                   onTap: () => onNavigate(1),
                 ),
               ),
@@ -53,8 +57,8 @@ class QuickActionsRow extends StatelessWidget {
                 width: columnWidth,
                 child: _QuickAction(
                   icon: Icons.add_box_rounded,
-                  label: 'Add product',
-                  description: 'Grow the menu',
+                  label: l10n.adminDashboardQuickAddProduct,
+                  description: l10n.adminDashboardQuickAddProductDesc,
                   onTap: () => onNavigate(2),
                 ),
               ),

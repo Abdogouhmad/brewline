@@ -8,6 +8,7 @@ import 'package:brewline/core/repositories/staff_repository.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/utils/date_format.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -93,7 +94,7 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
       lastDate: DateTime.now().add(const Duration(days: 1)),
       initialDateRange: _range,
       currentDate: _range?.start ?? DateTime.now(),
-      helpText: 'Filter cashouts by date',
+      helpText: AppLocalizations.of(context)!.adminCashoutLogPickRangeHelp,
     );
     if (picked == null || !mounted) return;
     setState(() => _range = picked);
@@ -103,6 +104,7 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return RefreshIndicator(
       onRefresh: () => _load(reset: true),
@@ -118,34 +120,34 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               UiText(
-                'Cashout log',
+                l10n.adminCashoutLogTitle,
                 type: UiTextType.headlineSmall,
                 fontWeight: FontWeight.w800,
               ),
               SizedBox(height: Space.xs),
               UiText(
-                'Every finalized shift close, filterable by date or waiter.',
+                l10n.adminCashoutLogSubtitle,
                 type: UiTextType.bodyMedium,
                 color: colorScheme.onSurfaceVariant,
               ),
             ],
           ),
           SizedBox(height: Space.xl),
-          _buildFilters(context),
+          _buildFilters(context, l10n),
           SizedBox(height: Space.lg),
           if (_error != null)
-            _message(context, 'Couldn\'t load the cashout log.')
+            _message(context, l10n.adminCashoutLogError)
           else if (_loading && _records.isEmpty)
             const _Loader()
           else if (_records.isEmpty)
-            _message(context, 'No cashouts match these filters.')
+            _message(context, l10n.adminCashoutLogEmpty)
           else ...[
             _CashoutTable(records: _records),
             if (_hasMore) ...[
               SizedBox(height: Space.lg),
               Center(
                 child: UiButton(
-                  'Load more',
+                  l10n.actionLoadMore,
                   icon: Icons.expand_more_rounded,
                   onPressed: _loading ? null : () => _load(),
                 ),
@@ -158,7 +160,7 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
   }
 
   /// Same single-line layout rule as the sales log filters.
-  Widget _buildFilters(BuildContext context) {
+  Widget _buildFilters(BuildContext context, AppLocalizations l10n) {
     final staff = ref.watch(staffListProvider);
 
     void clearRange() {
@@ -167,7 +169,7 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
     }
 
     return UiCard(
-      title: 'Filters',
+      title: l10n.adminCashoutLogFilters,
       leading: Icon(
         Icons.filter_list_rounded,
         color: Theme.of(context).colorScheme.primary,
@@ -189,12 +191,15 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
           final waiter = DropdownButtonFormField<String?>(
             initialValue: _waiterUsername,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Waiter',
-              prefixIcon: Icon(Icons.person_outline_rounded),
+            decoration: InputDecoration(
+              labelText: l10n.adminCashoutLogWaiterLabel,
+              prefixIcon: const Icon(Icons.person_outline_rounded),
             ),
             items: [
-              const DropdownMenuItem(value: null, child: Text('All waiters')),
+              DropdownMenuItem(
+                value: null,
+                child: Text(l10n.actionAllWaiters),
+              ),
               for (final s in staff.value ?? [])
                 DropdownMenuItem(
                   value: s.username,
@@ -253,6 +258,7 @@ class _CashoutTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -265,13 +271,13 @@ class _CashoutTable extends StatelessWidget {
                 border: Border.all(color: colorScheme.outline),
                 borderRadius: BorderRadius.circular(Rounded.md),
               ),
-              columns: const [
-                DataColumn(label: Text('Date & Time')),
-                DataColumn(label: Text('Orders Made')),
-                DataColumn(label: Text('Waiter Name')),
-                DataColumn(label: Text('Total Made')),
-                DataColumn(label: Text('Cash Counted')),
-                DataColumn(label: Text('Variance')),
+              columns: [
+                DataColumn(label: Text(l10n.adminCashoutColDateTime)),
+                DataColumn(label: Text(l10n.adminCashoutColOrders)),
+                DataColumn(label: Text(l10n.adminCashoutColWaiter)),
+                DataColumn(label: Text(l10n.adminCashoutColTotal)),
+                DataColumn(label: Text(l10n.adminCashoutColCashCounted)),
+                DataColumn(label: Text(l10n.adminCashoutColVariance)),
               ],
               rows: [
                 for (final r in records)

@@ -7,6 +7,7 @@ import 'package:brewline/core/printing/receipt_templates/shift_report_template.d
 import 'package:brewline/core/repositories/audit_repository.dart';
 import 'package:brewline/core/repositories/cashout_repository.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 
@@ -32,10 +33,11 @@ class _PrintReportButtonState extends ConsumerState<PrintReportButton> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return SettingsTile(
       icon: Icons.print_rounded,
-      title: 'Print report',
-      subtitle: 'Print a preview of your shift, without closing it',
+      title: l10n.printReportSmsTitle,
+      subtitle: l10n.printReportSmsSubtitle,
       onTap: _busy ? null : _printPreview,
     );
   }
@@ -70,7 +72,8 @@ class _PrintReportButtonState extends ConsumerState<PrintReportButton> {
         if (mounted) {
           showUiSnackBar(
             context,
-            'Couldn\'t print the report — check the printer (${e.message})',
+            AppLocalizations.of(context)!
+                .printReportPrintFailed(e.message),
             type: UiSnackBarType.error,
           );
         }
@@ -85,11 +88,12 @@ class _PrintReportButtonState extends ConsumerState<PrintReportButton> {
       }
 
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       showUiSnackBar(
         context,
         summary.orderCount == 0
-            ? 'No orders yet — the report is a placeholder'
-            : 'Report sent to the printer — shift still open',
+            ? l10n.printReportEmpty
+            : l10n.printReportSent,
         type: UiSnackBarType.success,
       );
     } finally {

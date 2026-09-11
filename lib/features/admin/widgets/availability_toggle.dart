@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// In-service toggle for a product card. Writes through
@@ -21,12 +22,13 @@ class AvailabilityToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         UiText(
-          available ? 'On menu' : 'Sold out',
+          available ? l10n.availabilityOnMenu : l10n.availabilitySoldOut,
           type: UiTextType.labelSmall,
           fontWeight: FontWeight.w600,
           color: available ? colorScheme.tertiary : colorScheme.outline,

@@ -5,6 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/user_role.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/auth_state.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/logout_button.dart';
 
@@ -29,9 +30,10 @@ class NavUserFooter extends ConsumerWidget {
     if (session == null) return const SizedBox.shrink();
 
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final roleLabel = session.role == Role.admin
-        ? 'Administrator'
-        : 'Staff member';
+        ? l10n.roleAdmin
+        : l10n.roleStaffMember;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +72,7 @@ class NavUserFooter extends ConsumerWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Log out',
+              tooltip: l10n.logoutTooltip,
               onPressed: () => confirmLogout(context, ref),
               icon: Icon(
                 Icons.logout_rounded,

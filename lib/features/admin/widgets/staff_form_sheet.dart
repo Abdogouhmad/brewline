@@ -8,6 +8,7 @@ import 'package:brewline/core/repositories/staff_repository.dart';
 import 'package:brewline/core/security/credential_store.dart';
 import 'package:brewline/core/security/password_hash.dart';
 import 'package:brewline/core/utils/id_generator.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -92,7 +93,7 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
       if (taken && mounted) {
         setState(() {
           _saving = false;
-          _pinTakenError = 'That PIN is already in use — pick a different one';
+          _pinTakenError = AppLocalizations.of(context)!.changePasswordPinTaken;
         });
         return;
       }
@@ -116,12 +117,13 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
     ref.read(staffMutationProvider.notifier).bump();
 
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     Navigator.of(context).pop();
     showUiSnackBar(
       context,
       widget.isEditing
-          ? '${updated.name} updated'
-          : '${updated.name} added to staff',
+          ? l10n.staffFormUpdatedSnackbar(updated.name)
+          : l10n.staffFormAddedSnackbar(updated.name),
       type: UiSnackBarType.success,
     );
   }
@@ -129,6 +131,7 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Form(
       key: _formKey,
@@ -153,7 +156,9 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
                   ),
                   SizedBox(width: Space.md),
                   UiText(
-                    widget.isEditing ? 'Edit staff member' : 'Add staff member',
+                    widget.isEditing
+                        ? l10n.staffFormEditTitle
+                        : l10n.staffFormAddTitle,
                     type: UiTextType.titleLarge,
                     fontWeight: FontWeight.w700,
                   ),
@@ -163,29 +168,29 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
               TextFormField(
                 controller: _name,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Display name',
-                  helperText: 'Shown on shift and performance views',
-                  prefixIcon: Icon(Icons.badge_outlined),
+                decoration: InputDecoration(
+                  labelText: l10n.staffFormName,
+                  helperText: l10n.staffFormNameHint,
+                  prefixIcon: const Icon(Icons.badge_outlined),
                 ),
                 validator: (value) => (value == null || value.trim().isEmpty)
-                    ? 'Enter a display name'
+                    ? l10n.staffFormNameRequired
                     : null,
               ),
               SizedBox(height: Space.lg),
               TextFormField(
                 controller: _username,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  helperText: 'Used to sign in on the POS',
-                  prefixIcon: Icon(Icons.alternate_email_rounded),
+                decoration: InputDecoration(
+                  labelText: l10n.staffFormUsername,
+                  helperText: l10n.staffFormUsernameHint,
+                  prefixIcon: const Icon(Icons.alternate_email_rounded),
                 ),
                 validator: (value) {
                   final text = value?.trim() ?? '';
-                  if (text.isEmpty) return 'Enter a username';
-                  if (text.length < 3) return 'At least 3 characters';
+                  if (text.isEmpty) return l10n.staffFormUsernameRequired;
+                  if (text.length < 3) return l10n.staffFormUsernameTooShort;
                   if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(text)) {
-                    return 'Letters, numbers and underscores only';
+                    return l10n.staffFormUsernameInvalid;
                   }
                   return null;
                 },
@@ -198,8 +203,8 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
                 maxLength: kAdminPinLength,
                 decoration: InputDecoration(
                   labelText: widget.isEditing
-                      ? 'New PIN (blank keeps current)'
-                      : 'PIN',
+                      ? l10n.staffFormNewPin
+                      : l10n.staffFormPin,
                   counterText: '',
                   prefixIcon: const Icon(Icons.pin_rounded),
                   suffixIcon: IconButton(
@@ -215,7 +220,7 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
                   final text = value ?? '';
                   if (widget.isEditing && text.isEmpty) return null;
                   if (text.length != kAdminPinLength) {
-                    return 'Use exactly $kAdminPinLength digits';
+                    return l10n.staffFormErrorPinLength(kAdminPinLength);
                   }
                   return null;
                 },
@@ -230,14 +235,16 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
               SizedBox(height: Space.sm),
               if (widget.isEditing)
                 Text(
-                  'Account stays active. Deactivate instead to block sign-in.',
+                  l10n.staffFormEditNote,
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
               SizedBox(height: Space.xl),
               UiButton(
                 _saving
-                    ? 'Saving…'
-                    : (widget.isEditing ? 'Save changes' : 'Add member'),
+                    ? l10n.staffFormSaving
+                    : (widget.isEditing
+                        ? l10n.staffFormSaveChanges
+                        : l10n.staffFormAddMember),
                 icon: Icons.check_rounded,
                 variant: UiButtonVariant.filled,
                 expand: true,

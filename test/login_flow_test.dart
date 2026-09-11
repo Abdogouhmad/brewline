@@ -9,6 +9,7 @@ import 'package:brewline/features/auth/providers/login_form_provider.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/waiter/pages/waiter_home_page.dart';
 import 'package:brewline/features/admin/pages/admin_home_page.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,7 +56,11 @@ Future<void> _pumpLogin(WidgetTester tester) async {
           sharedPreferencesProvider.overrideWithValue(prefs),
           appDatabaseProvider.overrideWith((ref) async => _db!),
         ],
-        child: const MaterialApp(home: LoginPage()),
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: LoginPage(),
+        ),
       ),
     );
   });

@@ -7,6 +7,7 @@ import 'package:brewline/core/repositories/staff_repository.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/features/admin/pages/sales_log_page.dart';
 import 'package:brewline/features/admin/widgets/product_form_sheet.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -93,7 +94,11 @@ void main() {
               allProductsProvider.overrideWith((ref) async => _products()),
               staffListProvider.overrideWith((ref) async => _staff()),
             ],
-            child: const MaterialApp(home: Scaffold(body: SalesLogPage())),
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: const Scaffold(body: SalesLogPage()),
+            ),
           ),
         );
         await tester.pumpAndSettle();
@@ -166,6 +171,8 @@ void main() {
             allIngredientsProvider.overrideWith((ref) async => <Ingredient>[]),
           ],
           child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: Builder(
                 builder: (context) => Center(

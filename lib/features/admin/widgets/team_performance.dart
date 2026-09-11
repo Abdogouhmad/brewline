@@ -5,6 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/features/admin/providers/analytics_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -18,19 +19,20 @@ class TeamPerformance extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final waiters = ref.watch(waiterPerformanceProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Team performance',
+      title: l10n.adminTeamPerformanceTitle,
       icon: Icons.groups_outlined,
       child: waiters.when(
         loading: () => const Padding(
           padding: EdgeInsets.all(Space.xl),
           child: Center(child: CircularProgressIndicator()),
         ),
-        error: (_, _) => _message(context, 'Couldn\'t load team sales.'),
+        error: (_, _) => _message(context, l10n.adminTeamPerformanceError),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, 'No waiter-attributed sales this period.');
+            return _message(context, l10n.adminTeamPerformanceEmpty);
           }
           final maxRevenue = items.first.revenue;
 
@@ -66,7 +68,7 @@ class TeamPerformance extends ConsumerWidget {
                           ),
                           SizedBox(width: Space.md),
                           UiText(
-                            '${item.orderCount} orders',
+                            l10n.adminTeamOrders(item.orderCount),
                             type: UiTextType.bodySmall,
                             color: colorScheme.onSurfaceVariant,
                           ),

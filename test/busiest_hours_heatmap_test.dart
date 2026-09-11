@@ -1,5 +1,6 @@
 import 'package:brewline/features/admin/providers/analytics_provider.dart';
 import 'package:brewline/features/admin/widgets/busiest_hours_heatmap.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +33,9 @@ void main() {
           overrides: [
             busiestHoursHeatmapProvider.overrideWith((_) async => _fullGrid()),
           ],
-          child: const MaterialApp(
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
               body: SingleChildScrollView(child: BusiestHoursHeatmap()),
             ),

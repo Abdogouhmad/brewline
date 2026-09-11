@@ -4,6 +4,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/admin/widgets/product_form_sheet.dart';
 import 'package:brewline/features/admin/widgets/product_table.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -20,6 +21,7 @@ class MenuProductsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final compact = Breakpoints.of(context) == ScreenSize.compact;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       body: ListView(
@@ -33,7 +35,7 @@ class MenuProductsPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 UiText(
-                  'Manage prices, stock and availability across the menu.',
+                  l10n.menuSubtitle,
                   type: UiTextType.bodyMedium,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -48,13 +50,13 @@ class MenuProductsPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       UiText(
-                        'Catalog',
+                        l10n.menuCatalogTitle,
                         type: UiTextType.headlineSmall,
                         fontWeight: FontWeight.w800,
                       ),
                       SizedBox(height: Space.xs),
                       UiText(
-                        'Manage prices, stock and availability across the menu.',
+                        l10n.menuSubtitle,
                         type: UiTextType.bodyMedium,
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -62,7 +64,7 @@ class MenuProductsPage extends StatelessWidget {
                   ),
                 ),
                 UiButton(
-                  'Add product',
+                  l10n.menuAddProduct,
                   icon: Icons.add_box_rounded,
                   radius: Rounded.xl,
                   variant: UiButtonVariant.outlined,

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'period_selector.dart';
@@ -18,18 +20,19 @@ class DashboardHeader extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final now = DateTime.now();
     final compact = Breakpoints.of(context) == ScreenSize.compact;
+    final l10n = AppLocalizations.of(context)!;
 
     final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         UiText(
-          _greeting(now.hour),
+          _greeting(l10n, now.hour),
           type: UiTextType.headlineSmall,
           fontWeight: FontWeight.w800,
         ),
         SizedBox(height: Space.xs),
         UiText(
-          _formatDate(now),
+          _formatDate(context, now),
           type: UiTextType.bodyMedium,
           color: colorScheme.onSurfaceVariant,
         ),
@@ -56,27 +59,17 @@ class DashboardHeader extends StatelessWidget {
     );
   }
 
-  static String _greeting(int hour) {
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+  static String _greeting(AppLocalizations l10n, int hour) {
+    if (hour < 12) return l10n.adminDashboardGreetingMorning;
+    if (hour < 18) return l10n.adminDashboardGreetingAfternoon;
+    return l10n.adminDashboardGreetingEvening;
   }
 
-  static String _formatDate(DateTime date) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  /// Today's date in the active locale, e.g. `10 September 2026` (en) or
+  /// `10 septembre 2026` (fr) — via `intl`'s DateFormat rather than a
+  /// hardcoded month list (improve.md §5).
+  static String _formatDate(BuildContext context, DateTime date) {
+    final locale = Localizations.localeOf(context).toString();
+    return DateFormat.yMMMMd(locale).format(date);
   }
 }

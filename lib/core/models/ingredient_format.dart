@@ -41,21 +41,16 @@ int servingsFrom(int stock, int perServing) {
 }
 
 /// A friendly "you bought X → about N servings" hint for the recipe editor,
-/// e.g. `1.0 kg → about 83 cups` for 12 g per cup.
-///
-/// [servingWord] is the noun the admin uses for one unit sold (e.g. 'cup',
-/// 'bottle', 'unit'); the bulk amount come from the in-progress stocking flow
-/// and is a *guide*, not a stored value.
+/// e.g. `1.0 kg → about 83 cups` for 12 g per cup. Renders the *count* only;
+/// the caller builds the full sentence via l10n so the noun and "about" match
+/// the UI language. The bulk amount is a *guide*, not a stored value.
 String bulkYieldHint({
   required int bulkAmount,
   required int perServing,
-  required IngredientUnit unit,
-  required String servingWord,
 }) {
   if (perServing <= 0 || bulkAmount <= 0) return '';
-  final servings = servingsFrom(bulkAmount, perServing);
-  return '${formatStockQuantity(bulkAmount, unit)} → about '
-      '$servings $servingWord${servings == 1 ? '' : 's'}';
+  return '${formatStockQuantity(bulkAmount, IngredientUnit.grams)} → '
+      '${servingsFrom(bulkAmount, perServing)} servings';
 }
 
 /// Whether an ingredient has a friendlier *large* scale to enter/display bulk

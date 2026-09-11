@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/ingredient.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// A card row for a single [ingredient] with restock/edit/archive actions.
@@ -25,6 +26,7 @@ class IngredientTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final low = ingredient.isLowStock;
     final out = ingredient.isOutOfStock;
     final compact = Breakpoints.of(context) == ScreenSize.compact;
@@ -82,7 +84,9 @@ class IngredientTile extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       UiText(
-                        '${ingredient.currentStock} ${ingredient.unit.label} left',
+                        l10n.stockQuantityWithUnitLeft(
+                          '${ingredient.currentStock} ${ingredient.unit.label}',
+                        ),
                         type: UiTextType.bodySmall,
                         color: out || low
                             ? colorScheme.error
@@ -90,7 +94,10 @@ class IngredientTile extends StatelessWidget {
                         fontWeight: (out || low) ? FontWeight.w700 : null,
                       ),
                       if (out || low)
-                        _StockBadge(text: out ? 'Out' : 'Low', out: out),
+                        _StockBadge(
+                          text: out ? l10n.stockBadgeOut : l10n.stockBadgeLow,
+                          out: out,
+                        ),
                     ],
                   ),
                 ],
@@ -99,19 +106,19 @@ class IngredientTile extends StatelessWidget {
             SizedBox(width: Space.sm),
             if (!compact) ...[
               IconButton(
-                tooltip: 'Edit',
+                tooltip: l10n.actionEdit,
                 icon: const Icon(Icons.edit_outlined),
                 onPressed: onEdit,
               ),
               IconButton(
-                tooltip: 'Archive',
+                tooltip: l10n.actionArchive,
                 icon: const Icon(Icons.archive_outlined),
                 onPressed: onArchive,
               ),
               TextButton(
                 onPressed: onRestock,
                 child: UiText(
-                  '+ Restock',
+                  l10n.adminRestockShort,
                   type: UiTextType.labelLarge,
                   color: colorScheme.primary,
                   fontWeight: FontWeight.w700,
@@ -119,7 +126,7 @@ class IngredientTile extends StatelessWidget {
               ),
             ] else
               PopupMenuButton<String>(
-                tooltip: 'Actions',
+                tooltip: l10n.actionActions,
                 onSelected: (value) => switch (value) {
                   'edit' => onEdit(),
                   'restock' => onRestock(),
@@ -127,28 +134,28 @@ class IngredientTile extends StatelessWidget {
                   _ => null,
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'restock',
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.add_box_outlined),
-                      title: Text('Restock'),
+                      leading: const Icon(Icons.add_box_outlined),
+                      title: Text(l10n.restockAction),
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'edit',
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.edit_outlined),
-                      title: Text('Edit'),
+                      leading: const Icon(Icons.edit_outlined),
+                      title: Text(l10n.actionEdit),
                     ),
                   ),
-                  const PopupMenuItem(
+                  PopupMenuItem(
                     value: 'archive',
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.archive_outlined),
-                      title: Text('Archive'),
+                      leading: const Icon(Icons.archive_outlined),
+                      title: Text(l10n.actionArchive),
                     ),
                   ),
                 ],

@@ -9,6 +9,7 @@ import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/features/admin/providers/ingredient_servings_provider.dart';
 import 'package:brewline/features/admin/widgets/dashboard_card.dart';
 import 'package:brewline/features/admin/widgets/restock_dialog.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// At-a-glance overview of **every** non-archived ingredient's on-hand stock,
@@ -27,9 +28,10 @@ class StockOverviewCard extends ConsumerWidget {
     final ingredients = ref.watch(allIngredientsProvider);
     final servingsByIngredient =
         ref.watch(ingredientServingsProvider).value ?? const {};
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Stock overview',
+      title: l10n.adminStockOverviewTitle,
       icon: Icons.inventory_2_outlined,
       trailing: switch (ingredients) {
         AsyncData(:final value) when value.isNotEmpty =>
@@ -41,12 +43,12 @@ class StockOverviewCard extends ConsumerWidget {
           padding: EdgeInsets.all(Space.xl),
           child: Center(child: CircularProgressIndicator()),
         ),
-        error: (_, _) => _message(context, 'Couldn\'t load stock levels.'),
+        error: (_, _) => _message(context, l10n.adminLowStockError),
         data: (items) {
           if (items.isEmpty) {
             return _message(
               context,
-              'No stock items yet — add ingredients to track stock here.',
+              l10n.adminStockOverviewEmpty,
             );
           }
 
@@ -113,6 +115,7 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
@@ -121,7 +124,7 @@ class _StatusPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(Rounded.full),
       ),
       child: UiText(
-        '$issues need restock',
+        l10n.adminStockRestockCount(issues),
         type: UiTextType.labelSmall,
         fontWeight: FontWeight.w700,
         color: colorScheme.onTertiaryContainer,
@@ -144,6 +147,7 @@ class _StockTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final out = ingredient.isOutOfStock;
     final low = ingredient.isLowStock;
 
@@ -156,15 +160,16 @@ class _StockTile extends StatelessWidget {
             : (colorScheme.surfaceContainerHighest,
                 colorScheme.onSurfaceVariant, Icons.check_circle_outline);
 
-    final quantity =
-        '${formatStockQuantity(ingredient.currentStock, ingredient.unit)} left';
+    final quantityLabel = l10n.adminStockQuantityLeftAmount(
+      formatStockQuantity(ingredient.currentStock, ingredient.unit),
+    );
     final servingsNote = servingsLeft != null
-        ? ' · ~$servingsLeft serving${servingsLeft == 1 ? '' : 's'}'
+        ? l10n.adminStockServingsLeft(servingsLeft!)
         : '';
     final statusNote = out
-        ? ' · out'
+        ? l10n.adminStockBadgeOut
         : low
-            ? ' · low'
+            ? l10n.adminStockBadgeLow
             : '';
     final bodyColor = out
         ? colorScheme.error
@@ -199,7 +204,7 @@ class _StockTile extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
                 UiText(
-                  '$quantity$servingsNote$statusNote',
+                  '$quantityLabel$servingsNote$statusNote',
                   type: UiTextType.bodySmall,
                   color: bodyColor,
                 ),
@@ -210,7 +215,7 @@ class _StockTile extends StatelessWidget {
           TextButton(
             onPressed: onRestock,
             child: UiText(
-              '+ Restock',
+              l10n.adminRestockShort,
               type: UiTextType.labelLarge,
               color: colorScheme.primary,
               fontWeight: FontWeight.w700,

@@ -6,6 +6,7 @@ import 'package:brewline/core/models/ingredient.dart';
 import 'package:brewline/core/models/ingredient_format.dart';
 import 'package:brewline/core/repositories/recipe_repository.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Embedded recipe editor used inside the admin product form.
@@ -88,6 +89,7 @@ class RecipeEditorState extends ConsumerState<RecipeEditor> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final ingredients = ref.watch(allIngredientsProvider).value ?? const [];
     final available = ingredients
         .where((i) => !_rows.any((r) => r.ingredientId == i.id))
@@ -100,7 +102,7 @@ class RecipeEditorState extends ConsumerState<RecipeEditor> {
           children: [
             Expanded(
               child: UiText(
-                'What does it consume per serving?',
+                l10n.recipeTitle,
                 type: UiTextType.titleSmall,
                 fontWeight: FontWeight.w600,
               ),
@@ -115,9 +117,7 @@ class RecipeEditorState extends ConsumerState<RecipeEditor> {
         ),
         SizedBox(height: Space.xs),
         UiText(
-          'Bind the product to ingredients you stock — e.g. 1 cup → 12 g '
-          'beans. This drives the low-stock alerts and how many cups you can '
-          'still make.',
+          l10n.recipeSubtitle,
           type: UiTextType.bodySmall,
           color: colorScheme.onSurfaceVariant,
         ),
@@ -136,8 +136,8 @@ class RecipeEditorState extends ConsumerState<RecipeEditor> {
         InputDecorator(
           decoration: InputDecoration(
             labelText: available.isEmpty
-                ? 'No more ingredients left to add'
-                : 'Bind an ingredient in stock',
+                ? l10n.recipeNoMoreIngredients
+                : l10n.recipeBindIngredient,
             prefixIcon: const Icon(Icons.add_circle_outline_rounded),
           ),
           child: DropdownButton<int>(
@@ -150,8 +150,8 @@ class RecipeEditorState extends ConsumerState<RecipeEditor> {
             underline: const SizedBox.shrink(),
             hint: UiText(
               available.isEmpty
-                  ? 'No more ingredients left to add'
-                  : 'Select an ingredient…',
+                  ? l10n.recipeNoMoreIngredients
+                  : l10n.recipeSelectIngredient,
               type: UiTextType.bodyMedium,
               color: colorScheme.onSurfaceVariant,
               maxLines: 1,
@@ -195,11 +195,10 @@ class _BindingCard extends StatelessWidget {
     required this.onRemove,
   });
 
-  static const _servingNoun = 'serving';
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     // Bulk scale for the yield hint: 1 kg for weight, 1 L for volume. Discrete
     // "units" (cups, lids) are already one-per-serving, so no bulk hint.
@@ -208,14 +207,10 @@ class _BindingCard extends StatelessWidget {
       IngredientUnit.millilitres => 1000,
       IngredientUnit.units => null,
     };
-    final bulkHint = bulk == null
+    final servings = bulk == null ? null : servingsFrom(bulk, row.quantity);
+    final bulkHint = (bulk == null || servings == null || servings <= 0)
         ? null
-        : bulkYieldHint(
-            bulkAmount: bulk,
-            perServing: row.quantity,
-            unit: row.unit,
-            servingWord: _servingNoun,
-          );
+        : l10n.recipeYieldHint(formatStockQuantity(bulk, row.unit), servings);
 
     return Card(
       elevation: 0,
@@ -240,7 +235,7 @@ class _BindingCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Remove binding',
+                  tooltip: l10n.recipeRemoveBinding,
                   visualDensity: VisualDensity.compact,
                   icon: Icon(Icons.close_rounded, size: 20),
                   color: colorScheme.onSurfaceVariant,
@@ -256,7 +251,7 @@ class _BindingCard extends StatelessWidget {
               textAlign: TextAlign.end,
               decoration: InputDecoration(
                 isDense: true,
-                labelText: 'Per $row.unit.label sold',
+                labelText: l10n.recipePerUnitSold(row.unit.label),
                 prefixIcon: const Icon(Icons.speed_rounded),
                 suffixText: row.unit.label,
               ),

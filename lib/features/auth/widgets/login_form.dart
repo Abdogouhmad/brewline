@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/features/auth/providers/login_form_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/pin_keypad_field.dart';
 
 /// The login form: PIN-only entry with auto-submit on completion.
@@ -19,6 +20,11 @@ class LoginForm extends ConsumerWidget {
     final state = ref.watch(loginFormProvider);
     final notifier = ref.read(loginFormProvider.notifier);
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final submitErrorText = switch (state.submitError) {
+      null => null,
+      LoginSubmitError.incorrectPin => l10n.loginIncorrectPin,
+    };
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(Space.x2l),
@@ -28,7 +34,7 @@ class LoginForm extends ConsumerWidget {
         children: [
           // --- PIN keypad ---
           PinKeypadField(
-            label: 'Enter your PIN',
+            label: l10n.loginEnterPin,
             length: kAdminPinLength,
             hasError: state.hasError,
             resetSignal: state.resetSignal,
@@ -41,14 +47,14 @@ class LoginForm extends ConsumerWidget {
           if (state.isThrottled) ...[
             SizedBox(height: Space.sm),
             Text(
-              'Too many attempts. Try again in ${state.cooldownRemaining}s',
+              l10n.loginLockedOut(state.cooldownRemaining),
               style: TextStyle(color: colorScheme.error, fontSize: 12),
               textAlign: TextAlign.center,
             ),
-          ] else if (state.submitError != null) ...[
+          ] else if (submitErrorText != null) ...[
             SizedBox(height: Space.sm),
             Text(
-              state.submitError!,
+              submitErrorText,
               style: TextStyle(color: colorScheme.error, fontSize: 12),
               textAlign: TextAlign.center,
             ),
@@ -87,7 +93,7 @@ class LoginForm extends ConsumerWidget {
                     ),
                   )
                 : Text(
-                    'Log in',
+                    l10n.loginButton,
                     style: TextStyle(
                       fontSize: responsiveValue(
                         context,

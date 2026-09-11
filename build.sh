@@ -11,6 +11,7 @@
 #   Android split APKs (arm/x64)   build/app/outputs/flutter-apk/  (--split-per-abi)
 #   Android split AABs             build/app/outputs/bundle/release/
 #   Windows (x64)                  build/windows/x64/runner/Release/   (Windows host only)
+#   Windows installer (setup.exe)  build/windows/x64/installer/        (Windows host + Inno Setup only)
 #
 # Android is produced three ways so phones and tablets get the fastest path:
 #   * one universal "fat" APK   — runs on any arm32/arm64/x64 device
@@ -153,6 +154,42 @@ build_windows() {
   info "Building Windows (x64) release..."
   run flutter build windows --release
   info "Done → build/windows/x64/runner/Release/"
+
+  build_windows_installer
+}
+
+# Compiles the installable setup.exe from the freshly built release bundle
+# using Inno Setup (windows/packaging/exe/brewline_setup.iss). Requires Inno
+# Setup 6 — looked up in the default install locations, then on PATH — and is
+# skipped with a warning when missing so the portable build alone still works
+# (useful for local dev machines that don't have Inno Setup installed).
+build_windows_installer() {
+  local iscc=""
+  for candidate in \
+    "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+    "/c/Program Files/Inno Setup 6/ISCC.exe" \
+    "$LOCALAPPDATA/Programs/Inno Setup 6/ISCC.exe"; do
+    if [[ -f "$candidate" ]]; then iscc="$candidate"; break; fi
+  done
+  if [[ -z "$iscc" ]] && command -v iscc >/dev/null 2>&1; then
+    iscc="$(command -v iscc)"
+  fi
+  if [[ -z "$iscc" ]]; then
+    warn "Inno Setup not found — skipping the Windows installer (setup.exe)."
+    warn "Install Inno Setup 6 (https://jrsoftware.org) and re-run to emit it."
+    return
+  fi
+
+  local version_base
+  version_base="$(sed -nE 's/^version: *([^ ]+).*/\1/p' pubspec.yaml | head -n1)"
+  version_base="${version_base%%+*}"
+
+  info "Building Windows installer (setup.exe)..."
+  # MSYS_NO_PATHCONV stops git-bash from rewriting the leading-slash /D define
+  # into a Windows path. Run from the script dir so OutputDir/[Files] resolve.
+  ( cd "windows/packaging/exe" \
+      && MSYS_NO_PATHCONV=1 "$iscc" "/DAppVersion=$version_base" brewline_setup.iss )
+  info "Done → build/windows/x64/installer/"
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────

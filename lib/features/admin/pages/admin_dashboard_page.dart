@@ -15,6 +15,7 @@ import 'package:brewline/features/admin/widgets/shift_status_card.dart';
 import 'package:brewline/features/admin/widgets/stock_overview_card.dart';
 import 'package:brewline/features/admin/widgets/top_products_list.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Admin landing tab: live KPIs, revenue trend, top sellers and stock alerts
@@ -28,7 +29,7 @@ import 'package:brewline/shared/ui/ui_text.dart';
 /// 4. top sellers and low-stock alerts side by side when space allows
 class AdminDashboardPage extends ConsumerWidget {
   /// Fired when a quick action wants to move to another tab
-  /// (Staff = 1, Reports = 2, Menu = 3).
+  /// (Reports = 1, Menu = 2, Staff = 4).
   final ValueChanged<int> onNavigate;
 
   const AdminDashboardPage({super.key, required this.onNavigate});
@@ -156,6 +157,7 @@ class _KpiGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kpis = ref.watch(dashboardKpisProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     final (revenue, orders, items, avg) = switch (kpis) {
       AsyncData(:final value) => (
@@ -189,25 +191,25 @@ class _KpiGrid extends ConsumerWidget {
       children: [
         KpiCard(
           icon: Icons.attach_money_rounded,
-          label: 'Revenue',
+          label: l10n.adminDashboardRevenue,
           value: revenue,
           delta: deltaKpis.revenueDelta,
         ),
         KpiCard(
           icon: Icons.receipt_long_rounded,
-          label: 'Orders',
+          label: l10n.adminDashboardOrders,
           value: orders,
           delta: deltaKpis.orderDelta,
         ),
         KpiCard(
           icon: Icons.local_mall_outlined,
-          label: 'Items sold',
+          label: l10n.adminDashboardItemsSold,
           value: items,
           delta: 0,
         ),
         KpiCard(
           icon: Icons.shopping_basket_outlined,
-          label: 'Avg. order',
+          label: l10n.adminDashboardAvgOrder,
           value: avg,
           delta: deltaKpis.avgDelta,
         ),
@@ -223,9 +225,10 @@ class _RevenueSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trend = ref.watch(revenueTrendProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Revenue overview',
+      title: l10n.adminRevenueOverviewTitle,
       icon: Icons.show_chart_rounded,
       trailing: trend.when(
         data: (points) => UiText(
@@ -250,7 +253,7 @@ class _RevenueSection extends ConsumerWidget {
           padding: EdgeInsets.symmetric(vertical: Space.xl),
           child: Center(
             child: UiText(
-              'Couldn\'t load the revenue trend.',
+              l10n.adminRevenueTrendError,
               type: UiTextType.bodyMedium,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

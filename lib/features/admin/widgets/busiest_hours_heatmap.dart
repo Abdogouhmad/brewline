@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive_text.dart';
 import 'package:brewline/features/admin/providers/analytics_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -36,13 +38,14 @@ class BusiestHoursHeatmap extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cells = ref.watch(busiestHoursHeatmapProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Busiest hours',
+      title: l10n.adminBusiestHoursTitle,
       icon: Icons.schedule_rounded,
       trailing: cells.when(
         data: (items) => UiText(
-          '${items.fold<int>(0, (s, c) => s + c.orders)} orders',
+          l10n.adminBusiestHoursTotal(items.fold<int>(0, (s, c) => s + c.orders)),
           type: UiTextType.labelLarge,
           fontWeight: FontWeight.w600,
           color: colorScheme.onSurfaceVariant,
@@ -59,7 +62,7 @@ class BusiestHoursHeatmap extends ConsumerWidget {
           padding: EdgeInsets.symmetric(vertical: Space.xl),
           child: Center(
             child: UiText(
-              'Couldn\'t load the hour data.',
+              l10n.adminBusiestHoursError,
               type: UiTextType.bodyMedium,
               color: colorScheme.onSurfaceVariant,
             ),
@@ -197,22 +200,31 @@ class _HeatCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final ratio = peak <= 0 ? 0.0 : (cell.orders / peak).clamp(0.0, 1.0);
     // Quiet slots keep a ~8% tint so the empty grid still reads; the busiest
     // cell reaches the full primary colour.
     final opacity = 0.08 + 0.92 * ratio;
 
+    // Locale-aware day name via `intl` (e.g. `Monday` / `lundi`). A fixed
+    // reference week of Monday 5 Jan 2026 … Sunday 11 Jan is used so the
+    // weekday maps to the correct name regardless of the current date.
+    final dayLabel = DateFormat.EEEE(Localizations.localeOf(context).toString())
+        .format(DateTime(2026, 1, 4 + cell.weekday));
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Tooltip(
-        message: _label,
+        message: _label(context, l10n, dayLabel),
         child: InkWell(
           borderRadius: BorderRadius.circular(Rounded.sm),
           onTap: () => ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
-                content: Text(_label),
+                content: Text(
+                  _label(context, l10n, dayLabel),
+                ),
                 duration: const Duration(seconds: 1),
               ),
             ),
@@ -228,18 +240,17 @@ class _HeatCell extends StatelessWidget {
     );
   }
 
-  String get _label {
-    final day = const [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ][cell.weekday];
-    return '$day · ${_formatBucket(cell.bucketHour)} '
-        '· ${cell.orders} order${cell.orders == 1 ? '' : 's'}';
+  String _label(
+    BuildContext context,
+    AppLocalizations l10n,
+    String dayLabel,
+  ) {
+    return l10n.adminBusiestCellTooltip(
+      dayLabel,
+      _formatBucket(cell.bucketHour),
+      _formatBucket(cell.bucketHour + 2),
+      cell.orders,
+    );
   }
 
   static String _formatBucket(int start) {

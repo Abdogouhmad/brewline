@@ -10,6 +10,7 @@ import 'package:brewline/core/repositories/refund_repository.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/app_text_field.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
@@ -187,7 +188,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
       setState(() => _busy = false);
       showUiSnackBar(
         context,
-        'Refund failed: ${e.toString()}',
+        AppLocalizations.of(context)!.refundFormFailed(e.toString()),
         type: UiSnackBarType.error,
       );
     }
@@ -206,15 +207,16 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
 
   Widget _buildBody(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     if (_loadError != null) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          UiText('Couldn\'t load this order.', type: UiTextType.titleMedium),
+          UiText(l10n.refundFormLoadFailed, type: UiTextType.titleMedium),
           SizedBox(height: Space.md),
-          UiButton('Retry', onPressed: () => _load()),
+          UiButton(l10n.actionRetry, onPressed: () => _load()),
         ],
       );
     }
@@ -232,36 +234,36 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _header(colorScheme),
+        _header(colorScheme, l10n),
         SizedBox(height: Space.lg),
         _OrderSummary(order: order),
         SizedBox(height: Space.lg),
-        _modeToggle(colorScheme),
+        _modeToggle(colorScheme, l10n),
         SizedBox(height: Space.lg),
         if (_mode == _RefundMode.correct)
-          _lineEditor(colorScheme, order)
+          _lineEditor(colorScheme, order, l10n)
         else
-          _voidSummary(colorScheme, order),
+          _voidSummary(colorScheme, order, l10n),
         SizedBox(height: Space.xl),
         AppTextField(
-          label: 'Reason (required)',
+          label: l10n.refundFormReasonLabel,
           controller: _reasonController,
-          hintText: 'e.g. wrong item entered',
+          hintText: l10n.refundFormReasonHint,
           onChanged: (_) => setState(() {}),
         ),
         SizedBox(height: Space.xl),
-        _confirmButton(),
+        _confirmButton(l10n),
       ],
     );
   }
 
-  Widget _header(ColorScheme colorScheme) {
+  Widget _header(ColorScheme colorScheme, AppLocalizations l10n) {
     return Row(
       children: [
         Icon(Icons.receipt_long_rounded, color: colorScheme.primary),
         SizedBox(width: Space.md),
         UiText(
-          'Refund order',
+          l10n.refundFormTitle,
           type: UiTextType.titleLarge,
           fontWeight: FontWeight.w700,
         ),
@@ -269,18 +271,18 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
     );
   }
 
-  Widget _modeToggle(ColorScheme colorScheme) {
+  Widget _modeToggle(ColorScheme colorScheme, AppLocalizations l10n) {
     final mobile = Responsive.isMobile(context);
     return SegmentedButton<_RefundMode>(
       segments: [
         ButtonSegment(
           value: _RefundMode.correct,
-          label: const Text('Correct Order'),
+          label: Text(l10n.refundFormModeCorrect),
           icon: mobile ? null : const Icon(Icons.edit_rounded),
         ),
         ButtonSegment(
           value: _RefundMode.voidOrder,
-          label: const Text('Void Order'),
+          label: Text(l10n.refundFormModeVoid),
           icon: mobile ? null : const Icon(Icons.delete_outline_rounded),
         ),
       ],
@@ -289,9 +291,13 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
     );
   }
 
-  Widget _lineEditor(ColorScheme colorScheme, OrderRecord order) {
+  Widget _lineEditor(
+    ColorScheme colorScheme,
+    OrderRecord order,
+    AppLocalizations l10n,
+  ) {
     return UiCard(
-      title: 'Line items',
+      title: l10n.refundFormLineItems,
       compact: true,
       content: Column(
         children: [
@@ -309,7 +315,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
             ),
           SizedBox(height: Space.md),
           _totalRow(
-            'Current total',
+            l10n.refundFormCurrentTotal,
             _currentTotalCents,
             isCurrent: true,
             colorScheme: colorScheme,
@@ -317,7 +323,7 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
           if (_hasChanges) ...[
             SizedBox(height: Space.xs),
             _totalRow(
-              'Refund amount',
+              l10n.refundFormRefundAmount,
               _correctRefundCents,
               isRefund: true,
               colorScheme: colorScheme,
@@ -328,30 +334,33 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
     );
   }
 
-  Widget _voidSummary(ColorScheme colorScheme, OrderRecord order) {
+  Widget _voidSummary(
+    ColorScheme colorScheme,
+    OrderRecord order,
+    AppLocalizations l10n,
+  ) {
     return UiCard(
-      title: 'Void entire order',
+      title: l10n.refundFormVoidEntireOrder,
       compact: true,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _totalRow(
-            'Original total',
+            l10n.refundFormOriginalTotal,
             order.totalCents,
             isCurrent: true,
             colorScheme: colorScheme,
           ),
           SizedBox(height: Space.xs),
           _totalRow(
-            'Refund amount',
+            l10n.refundFormRefundAmount,
             order.totalCents,
             isRefund: true,
             colorScheme: colorScheme,
           ),
           SizedBox(height: Space.md),
           UiText(
-            'The order is marked voided but kept in records for audit. '
-            'Nothing is deleted.',
+            l10n.refundFormVoidNote,
             type: UiTextType.bodySmall,
             color: colorScheme.onSurfaceVariant,
           ),
@@ -386,13 +395,13 @@ class _OrderRefundFormState extends ConsumerState<OrderRefundForm> {
     );
   }
 
-  Widget _confirmButton() {
+  Widget _confirmButton(AppLocalizations l10n) {
     final refund = _refundAmountCents;
     final label = _mode == _RefundMode.voidOrder
-        ? 'Void & refund ${formatPriceCents(refund)}'
-        : 'Refund ${formatPriceCents(refund)}';
+        ? l10n.refundFormConfirmVoid(formatPriceCents(refund))
+        : l10n.refundFormConfirmPartial(formatPriceCents(refund));
     return UiButton(
-      _busy ? 'Processing…' : label,
+      _busy ? l10n.refundFormProcessing : label,
       icon: _mode == _RefundMode.voidOrder
           ? Icons.delete_outline_rounded
           : Icons.currency_exchange_rounded,
@@ -414,12 +423,13 @@ class _OrderSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final orderNumber = order.orderNumber > 0
         ? '#${order.orderNumber.toString().padLeft(3, '0')}'
         : '#${order.id}';
 
     return UiCard(
-      title: 'Order $orderNumber',
+      title: l10n.refundFormOrder(orderNumber),
       subtitle:
           '${order.waiterUsername ?? '—'} · ${_dateTime(order.createdAt)}',
       compact: true,
@@ -452,7 +462,7 @@ class _OrderSummary extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               UiText(
-                'Total',
+                l10n.refundFormTotal,
                 type: UiTextType.bodyMedium,
                 fontWeight: FontWeight.w700,
               ),
@@ -494,6 +504,7 @@ class _LineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final atMax = quantity >= maxQuantity;
 
     return Padding(
@@ -514,12 +525,12 @@ class _LineRow extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Remove item',
+            tooltip: l10n.refundFormRemoveItem,
             icon: const Icon(Icons.close_rounded, size: 20),
             onPressed: quantity == 0 ? null : onRemove,
           ),
           IconButton(
-            tooltip: 'Reduce quantity',
+            tooltip: l10n.refundFormReduceQty,
             icon: Icon(
               Icons.remove_circle_outline_rounded,
               color: atMax || quantity == 0

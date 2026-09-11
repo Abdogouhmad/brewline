@@ -1,3 +1,4 @@
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/logout_button.dart';
 import 'package:brewline/shared/widgets/profile_chip.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +15,7 @@ class WaiterAppBarActions extends StatelessWidget {
       children: [
         const ProfileChip(),
         IconButton(
-          tooltip: 'Settings',
+          tooltip: AppLocalizations.of(context)!.waiterNavSettings,
           onPressed: () {
             Navigator.push(
               context,

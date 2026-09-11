@@ -11,6 +11,7 @@ import 'package:brewline/features/admin/pages/menu_products_page.dart';
 import 'package:brewline/features/admin/pages/reports_page.dart';
 import 'package:brewline/features/admin/pages/sales_log_page.dart';
 import 'package:brewline/features/admin/pages/staff_management_page.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/app_shell.dart';
 import 'package:brewline/shared/widgets/nav_user_footer.dart';
 
@@ -61,13 +62,31 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
       destinations: [
         for (final item in kAdminNavItems)
           AppDestination(
-            item.label,
+            _navLabel(context, item),
             item.icon,
             page: pagesById[item.id],
             badgeCount: item.id == 'inventory' ? lowStockCount : null,
           ),
       ],
     );
+  }
+
+  /// Localized label for an admin nav destination. The [kAdminNavItems]
+  /// constant stays the single source of truth for structure (ids, icons,
+  /// order); display copy is resolved here per the active locale.
+  static String _navLabel(BuildContext context, AdminNavItem item) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (item.id) {
+      'dashboard' => l10n.adminNavDashboard,
+      'reports' => l10n.adminNavReports,
+      'menu' => l10n.adminNavMenu,
+      'inventory' => l10n.adminNavInventory,
+      'staff' => l10n.adminNavStaff,
+      'sales' => l10n.adminNavSalesLog,
+      'cashout' => l10n.adminNavCashoutLog,
+      'settings' => l10n.adminNavSettings,
+      _ => item.label,
+    };
   }
 
   void onNavigateTo(int index) => _tabIndex.value = index;

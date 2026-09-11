@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/updates/update_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Full-screen, non-dismissible takeover shown when a **mandatory** update is
@@ -18,6 +19,7 @@ class UpdateRequiredScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final updater = ref.watch(updateProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return PopScope(
       canPop: false,
@@ -42,23 +44,22 @@ class UpdateRequiredScreen extends ConsumerWidget {
                     ),
                     SizedBox(height: Space.xl),
                     UiText(
-                      'Upgrade required',
+                      l10n.updateRequiredTitle,
                       type: UiTextType.headlineMedium,
                       fontWeight: FontWeight.w800,
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: Space.lg),
                     UiText(
-                      'BrewLine needs to be updated before you can continue. '
-                      'This version is no longer supported.',
+                      l10n.updateRequiredBody,
                       type: UiTextType.bodyMedium,
                       color: colorScheme.onSurfaceVariant,
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: Space.xl),
-                    ..._statusBody(context, updater),
+                    ..._statusBody(context, updater, l10n),
                     SizedBox(height: Space.xl),
-                    _downloadButton(context, ref, updater),
+                    _downloadButton(context, ref, updater, l10n),
                   ],
                 ),
               ),
@@ -69,7 +70,11 @@ class UpdateRequiredScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _statusBody(BuildContext context, UpdateState updater) {
+  List<Widget> _statusBody(
+    BuildContext context,
+    UpdateState updater,
+    AppLocalizations l10n,
+  ) {
     final colorScheme = Theme.of(context).colorScheme;
 
     switch (updater.status) {
@@ -81,7 +86,7 @@ class UpdateRequiredScreen extends ConsumerWidget {
             child: CircularProgressIndicator(strokeWidth: 3),
           ),
           const SizedBox(height: Space.lg),
-          const UiText('Checking…', textAlign: TextAlign.center),
+          UiText(l10n.updateRequiredChecking, textAlign: TextAlign.center),
         ];
 
       case UpdateStatus.downloading:
@@ -114,12 +119,12 @@ class UpdateRequiredScreen extends ConsumerWidget {
           ),
           const SizedBox(height: Space.md),
           UiText(
-            'Downloading…',
+            l10n.updateSummaryDownloading,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: Space.md),
+          SizedBox(height: Space.md),
           UiText(
-            'Your update is verified by checksum before it is applied.',
+            l10n.updateRequiredChecksumNote,
             type: UiTextType.bodySmall,
             color: colorScheme.onSurfaceVariant,
             textAlign: TextAlign.center,
@@ -133,9 +138,9 @@ class UpdateRequiredScreen extends ConsumerWidget {
             color: colorScheme.primary,
             size: AppSizes.iconLg * 2,
           ),
-          const SizedBox(height: Space.md),
-          const UiText(
-            'Ready to install. The app will close and relaunch.',
+          SizedBox(height: Space.md),
+          UiText(
+            l10n.updateRequiredReady,
             textAlign: TextAlign.center,
           ),
         ];
@@ -151,14 +156,14 @@ class UpdateRequiredScreen extends ConsumerWidget {
             child: Column(
               children: [
                 UiText(
-                  updater.error ?? 'The update could not be downloaded.',
+                  _errorText(l10n, updater),
                   type: UiTextType.bodyMedium,
                   color: colorScheme.onErrorContainer,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: Space.sm),
+                SizedBox(height: Space.sm),
                 UiText(
-                  'Check your internet connection and try again.',
+                  l10n.updateRequiredDownloadFailedNote,
                   type: UiTextType.bodySmall,
                   color: colorScheme.onSurfaceVariant,
                   textAlign: TextAlign.center,
@@ -180,7 +185,7 @@ class UpdateRequiredScreen extends ConsumerWidget {
         return [
           if (notes.isNotEmpty) ...[
             UiText(
-              'What’s new',
+              l10n.updateWhatsNew,
               type: UiTextType.titleSmall,
               fontWeight: FontWeight.w700,
             ),
@@ -226,7 +231,26 @@ class UpdateRequiredScreen extends ConsumerWidget {
     return line;
   }
 
-  Widget _downloadButton(BuildContext context, WidgetRef ref, UpdateState updater) {
+  /// Localized copy for a download/install failure (see also the full-page
+  /// update screen's resolver — kept in sync).
+  static String _errorText(AppLocalizations l10n, UpdateState state) {
+    final detail = state.errorDetail;
+    return switch (state.error) {
+      UpdateErrorCode.noBuild => l10n.updateErrorNoBuild,
+      UpdateErrorCode.downloadFailed =>
+        l10n.updateErrorDownloadFailed(detail ?? ''),
+      UpdateErrorCode.integrity => l10n.updateErrorIntegrity(detail ?? ''),
+      UpdateErrorCode.install => l10n.updateErrorInstall(detail ?? ''),
+      null => l10n.updateErrorGeneric,
+    };
+  }
+
+  Widget _downloadButton(
+    BuildContext context,
+    WidgetRef ref,
+    UpdateState updater,
+    AppLocalizations l10n,
+  ) {
     final busy = updater.status == UpdateStatus.downloading ||
         updater.status == UpdateStatus.checking ||
         updater.status == UpdateStatus.readyToInstall;
@@ -242,10 +266,10 @@ class UpdateRequiredScreen extends ConsumerWidget {
       icon: failed ? const Icon(Icons.refresh_rounded) : const Icon(Icons.download_rounded),
       label: UiText(
         updater.status == UpdateStatus.readyToInstall
-            ? 'Install now'
+            ? l10n.updateInstallNow
             : failed
-            ? 'Retry'
-            : 'Download update',
+            ? l10n.actionRetry
+            : l10n.updateRequiredDownloadButton,
         type: UiTextType.titleSmall,
         fontWeight: FontWeight.w700,
       ),

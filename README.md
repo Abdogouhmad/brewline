@@ -42,7 +42,9 @@ The app is designed to be self-hosted by a café owner: no accounts, no cloud sy
 - **OTA updates** via GitHub Releases API: per-platform artifacts (APK / Windows zip / Linux tar.gz), SHA-256 verified downloads, versioned install directories (never overwrites the running binary), mandatory-update gate
 - Receipt printing over raw TCP (port 9100) or USB (`flutter_pos_printer_platform_image_3`) with typed offline/timeout errors
 - Dynamic color theming (Material You / platform accent) with a coffee-brand fallback seed, light + dark
-- Localization: English and Arabic (with system-locale fallback)
+- Localization: English and French (Settings → **English / Français / System default**), device-level preference with `intl`-driven number/date formatting; receipts print in their own fixed language (default French)
+
+> **Adding a new string:** user-facing text lives in `lib/l10n/app_en.arb` (the template) and is translated outward to `app_fr.arb` — never the reverse. Run `flutter gen-l10n` (see `l10n.yaml`); keys in the template but missing from a translation surface as warnings. In code, read through `AppLocalizations.of(context)`; money/date formatting goes through `core/utils/price_format.dart` / `date_format.dart`.
 
 ---
 
@@ -77,7 +79,7 @@ lib/
 │   ├── repositories/               # products, orders, staff, cashouts, refunds, stock, audits
 │   ├── printing/                   # printer transport, ESC/POS receipt templates
 │   ├── updates/                    # GitHub Releases API, installers, update state machine
-│   ├── localization/               # System / English / Arabic
+│   ├── localization/               # System / English / Français + receipt language
 │   ├── theme/ · responsive/        # dynamic theme, breakpoints
 │   └── services/ · constants/ · models/ · security/ · navigation/
 ├── features/

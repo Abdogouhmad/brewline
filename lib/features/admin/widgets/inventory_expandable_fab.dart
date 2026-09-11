@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/admin/pages/stock_movements_page.dart';
 import 'package:brewline/features/admin/widgets/ingredient_form_sheet.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Compact-layout speed-dial FAB: tap to reveal "Add ingredient" and
@@ -46,6 +47,7 @@ class _InventoryExpandableFabState extends State<InventoryExpandableFab>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -54,7 +56,7 @@ class _InventoryExpandableFabState extends State<InventoryExpandableFab>
         _MiniFabAction(
           controller: _controller,
           index: 1,
-          label: 'Stock movements',
+          label: l10n.movementsTitle,
           icon: Icons.receipt_long_outlined,
           onPressed: () {
             _collapse();
@@ -65,7 +67,7 @@ class _InventoryExpandableFabState extends State<InventoryExpandableFab>
         _MiniFabAction(
           controller: _controller,
           index: 0,
-          label: 'Add ingredient',
+          label: l10n.inventoryAddIngredient,
           icon: Icons.add_box_rounded,
           onPressed: () {
             _collapse();

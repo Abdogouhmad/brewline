@@ -5,6 +5,7 @@ import 'package:brewline/core/updates/update_installer.dart';
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/core/updates/update_service.dart';
 import 'package:brewline/features/admin/widgets/settings/update_screen.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,7 +69,11 @@ Future<void> _pumpUpdateScreen(
           _FakeUpdateService(result: result, releaseNotes: releaseNotes),
         ),
       ],
-      child: const MaterialApp(home: UpdateScreen()),
+      child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: UpdateScreen(),
+      ),
     ),
   );
   await tester.pumpAndSettle();

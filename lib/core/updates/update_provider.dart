@@ -103,6 +103,22 @@ class LastUpdateCheckResultNotifier extends Notifier<UpdateCheckResult?> {
 
 enum UpdateStatus { idle, checking, available, downloading, readyToInstall, error }
 
+/// Failure kinds surfaced while [UpdateStatus.error]. The provider stores a
+/// code (never a user-facing string — the UI maps it to localized copy).
+enum UpdateErrorCode {
+  /// No downloadable asset exists for the current platform.
+  noBuild,
+
+  /// The download itself failed (network / transport).
+  downloadFailed,
+
+  /// The downloaded archive failed checksum verification.
+  integrity,
+
+  /// The unpack/install step threw.
+  install,
+}
+
 /// The update state surfaced to the UI.
 class UpdateState {
   final UpdateStatus status;
@@ -117,8 +133,13 @@ class UpdateState {
   /// Download progress 0.0–1.0 while [UpdateStatus.downloading].
   final double? progress;
 
-  /// Optional user-facing error message while [UpdateStatus.error].
-  final String? error;
+  /// Optional failure kind while [UpdateStatus.error]; the UI maps each code
+  /// to localized copy (improve.md §4 — no raw strings in the provider layer).
+  final UpdateErrorCode? error;
+
+  /// Optional diagnostic detail (e.g. a platform error message) shown below
+  /// the localized [error] text. Never the primary copy.
+  final String? errorDetail;
 
   const UpdateState({
     this.status = UpdateStatus.idle,
@@ -127,6 +148,7 @@ class UpdateState {
     this.checkResult,
     this.progress,
     this.error,
+    this.errorDetail,
   });
 
   bool get hasUpdate =>
@@ -144,7 +166,9 @@ class UpdateState {
     bool clearAsset = false,
     double? progress,
     bool clearProgress = false,
-    String? error,
+    UpdateErrorCode? error,
+    String? errorDetail,
+    bool clearError = false,
   }) {
     return UpdateState(
       status: status ?? this.status,
@@ -152,7 +176,8 @@ class UpdateState {
       asset: clearAsset ? null : (asset ?? this.asset),
       checkResult: checkResult ?? this.checkResult,
       progress: clearProgress ? null : (progress ?? this.progress),
-      error: error ?? this.error,
+      error: clearError ? null : (error ?? this.error),
+      errorDetail: clearError ? null : errorDetail ?? this.errorDetail,
     );
   }
 }
@@ -234,7 +259,7 @@ class UpdateNotifier extends Notifier<UpdateState> {
     if (asset.downloadUrl.isEmpty) {
       state = state.copyWith(
         status: UpdateStatus.error,
-        error: 'This release has no installable build for this device.',
+        error: UpdateErrorCode.noBuild,
       );
       return;
     }
@@ -254,13 +279,22 @@ class UpdateNotifier extends Notifier<UpdateState> {
         clearAsset: true,
       );
     } on UpdateIntegrityException catch (e) {
-      state = state.copyWith(status: UpdateStatus.error, error: e.message);
+      state = state.copyWith(
+        status: UpdateStatus.error,
+        error: UpdateErrorCode.integrity,
+        errorDetail: e.message,
+      );
     } on UpdateInstallException catch (e) {
-      state = state.copyWith(status: UpdateStatus.error, error: e.message);
+      state = state.copyWith(
+        status: UpdateStatus.error,
+        error: UpdateErrorCode.install,
+        errorDetail: e.message,
+      );
     } catch (e) {
       state = state.copyWith(
         status: UpdateStatus.error,
-        error: 'Download failed: $e',
+        error: UpdateErrorCode.downloadFailed,
+        errorDetail: e.toString(),
       );
     }
   }

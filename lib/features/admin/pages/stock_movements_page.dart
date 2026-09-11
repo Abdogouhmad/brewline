@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/ingredient.dart';
 import 'package:brewline/core/models/stock_movement.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -74,12 +76,13 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
   }
 
   Future<void> _pickRange() async {
+    final l10n = AppLocalizations.of(context)!;
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
       initialDateRange: _range,
-      helpText: 'Filter movements by date',
+      helpText: l10n.movementsDatePickerHelp,
     );
     if (picked == null || !mounted) return;
     setState(() => _range = picked);
@@ -89,9 +92,10 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Stock movements')),
+      appBar: AppBar(title: Text(l10n.movementsTitle)),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -103,7 +107,7 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
           ),
           children: [
             UiText(
-              'Every change to an ingredient\'s quantity, newest first.',
+              l10n.movementsSubtitle,
               type: UiTextType.bodyMedium,
               color: colorScheme.onSurfaceVariant,
             ),
@@ -111,14 +115,14 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
             _buildFilters(context),
             SizedBox(height: Space.lg),
             if (_error != null)
-              _message(context, 'Couldn\'t load the stock movements.')
+              _message(context, l10n.movementsError)
             else if (_loading && _rows.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(Space.x3l),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_rows.isEmpty)
-              _message(context, 'No movements match these filters.')
+              _message(context, l10n.movementsEmpty)
             else
               _MovementsTable(rows: _rows),
           ],
@@ -129,9 +133,11 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
 
   Widget _buildFilters(BuildContext context) {
     final ingredients = ref.watch(allIngredientsProvider);
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).toString();
 
     return UiCard(
-      title: 'Filters',
+      title: l10n.movementsFilters,
       leading: Icon(
         Icons.filter_list_rounded,
         color: Theme.of(context).colorScheme.primary,
@@ -141,24 +147,25 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InputDecorator(
-            decoration: const InputDecoration(
-              labelText: 'Date range',
-              prefixIcon: Icon(Icons.date_range_outlined),
+            decoration: InputDecoration(
+              labelText: l10n.movementsDateRange,
+              prefixIcon: const Icon(Icons.date_range_outlined),
             ),
             child: ListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
               title: Text(
                 _range == null
-                    ? 'All dates'
-                    : '${_fmt(_range!.start)} – ${_fmt(_range!.end)}',
+                    ? l10n.movementsAllDates
+                    : '${DateFormat.yMd(locale).format(_range!.start)} – '
+                        '${DateFormat.yMd(locale).format(_range!.end)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: _range == null
                   ? null
                   : IconButton(
-                      tooltip: 'Clear date filter',
+                      tooltip: l10n.movementsClearDateFilter,
                       icon: const Icon(Icons.close_rounded, size: 18),
                       onPressed: () {
                         setState(() => _range = null);
@@ -172,12 +179,15 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
           DropdownButtonFormField<int?>(
             initialValue: _ingredientId,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Ingredient',
-              prefixIcon: Icon(Icons.eco_outlined),
+            decoration: InputDecoration(
+              labelText: l10n.movementsIngredient,
+              prefixIcon: const Icon(Icons.eco_outlined),
             ),
             items: [
-              const DropdownMenuItem(value: null, child: Text('All ingredients')),
+              DropdownMenuItem(
+                value: null,
+                child: Text(l10n.movementsAllIngredients),
+              ),
               for (final i in ingredients.value ?? <Ingredient>[])
                 DropdownMenuItem(
                   value: i.id,
@@ -193,16 +203,16 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
           DropdownButtonFormField<StockMovementReason?>(
             initialValue: _reason,
             isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Reason',
-              prefixIcon: Icon(Icons.more_horiz_rounded),
+            decoration: InputDecoration(
+              labelText: l10n.movementsReason,
+              prefixIcon: const Icon(Icons.more_horiz_rounded),
             ),
             items: [
-              const DropdownMenuItem(value: null, child: Text('All reasons')),
+              DropdownMenuItem(value: null, child: Text(l10n.movementsAllReasons)),
               for (final r in StockMovementReason.values)
                 DropdownMenuItem(
                   value: r,
-                  child: Text(_reasonLabel(r)),
+                  child: Text(_reasonLabel(r, l10n)),
                 ),
             ],
             onChanged: (value) {
@@ -228,8 +238,6 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
       ),
     );
   }
-
-  static String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
 }
 
 class _MovementsTable extends StatelessWidget {
@@ -240,6 +248,7 @@ class _MovementsTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -252,18 +261,18 @@ class _MovementsTable extends StatelessWidget {
                 border: Border.all(color: colorScheme.outline),
                 borderRadius: BorderRadius.circular(Rounded.md),
               ),
-              columns: const [
-                DataColumn(label: Text('When')),
-                DataColumn(label: Text('Ingredient')),
-                DataColumn(label: Text('Change')),
-                DataColumn(label: Text('Reason')),
-                DataColumn(label: Text('Ref / note')),
+              columns: [
+                DataColumn(label: Text(l10n.movementsWhen)),
+                DataColumn(label: Text(l10n.movementsIngredient)),
+                DataColumn(label: Text(l10n.movementsChange)),
+                DataColumn(label: Text(l10n.movementsReason)),
+                DataColumn(label: Text(l10n.movementsRefNote)),
               ],
               rows: [
                 for (final row in rows)
                   DataRow(
                     cells: [
-                      DataCell(Text(_dateTime(row.createdAt))),
+                      DataCell(Text(_dateTime(context, row.createdAt))),
                       DataCell(Text(row.ingredientName)),
                       DataCell(
                         Text(
@@ -278,7 +287,7 @@ class _MovementsTable extends StatelessWidget {
                         ),
                       ),
                       DataCell(_ReasonPill(reason: row.reason)),
-                      DataCell(Text(_refNote(row))),
+                      DataCell(Text(_refNote(context, row))),
                     ],
                   ),
               ],
@@ -289,15 +298,19 @@ class _MovementsTable extends StatelessWidget {
     );
   }
 
-  static String _refNote(StockMovement row) {
-    if (row.orderId != null) return 'Order #${row.orderId}';
+  static String _refNote(BuildContext context, StockMovement row) {
+    if (row.orderId != null) {
+      return AppLocalizations.of(context)!
+          .movementsOrderRef(row.orderId!);
+    }
     return row.note?.isNotEmpty == true ? row.note! : '—';
   }
 
-  static String _dateTime(DateTime d) =>
-      '${d.day} ${_months[d.month - 1]} ${d.year} · '
-      '${d.hour.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')}';
+  static String _dateTime(BuildContext context, DateTime d) {
+    final locale = Localizations.localeOf(context).toString();
+    return '${DateFormat.yMMMd(locale).format(d)} · '
+        '${DateFormat.Hm(locale).format(d)}';
+  }
 }
 
 class _ReasonPill extends StatelessWidget {
@@ -308,6 +321,7 @@ class _ReasonPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final (foreground, background) = switch (reason) {
       StockMovementReason.sale => (
         colorScheme.onPrimaryContainer,
@@ -338,7 +352,7 @@ class _ReasonPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(Rounded.full),
       ),
       child: UiText(
-        _label(reason),
+        _label(l10n),
         type: UiTextType.labelSmall,
         fontWeight: FontWeight.w700,
         color: foreground,
@@ -346,24 +360,20 @@ class _ReasonPill extends StatelessWidget {
     );
   }
 
-  static String _label(StockMovementReason r) => switch (r) {
-    StockMovementReason.sale => 'Sale',
-    StockMovementReason.refundRestock => 'Refund',
-    StockMovementReason.restock => 'Restock',
-    StockMovementReason.manualAdjustment => 'Adjustment',
-    StockMovementReason.waste => 'Waste',
+  String _label(AppLocalizations l10n) => switch (reason) {
+    StockMovementReason.sale => l10n.movementsReasonSale,
+    StockMovementReason.refundRestock => l10n.movementsPillRefund,
+    StockMovementReason.restock => l10n.movementsReasonRestock,
+    StockMovementReason.manualAdjustment => l10n.movementsPillAdjustment,
+    StockMovementReason.waste => l10n.movementsReasonWaste,
   };
 }
 
-String _reasonLabel(StockMovementReason r) => switch (r) {
-  StockMovementReason.sale => 'Sale',
-  StockMovementReason.refundRestock => 'Refund / restock',
-  StockMovementReason.restock => 'Restock',
-  StockMovementReason.manualAdjustment => 'Manual adjustment',
-  StockMovementReason.waste => 'Waste',
-};
-
-const List<String> _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
+String _reasonLabel(StockMovementReason r, AppLocalizations l10n) =>
+    switch (r) {
+      StockMovementReason.sale => l10n.movementsReasonSale,
+      StockMovementReason.refundRestock => l10n.movementsReasonRefund,
+      StockMovementReason.restock => l10n.movementsReasonRestock,
+      StockMovementReason.manualAdjustment => l10n.movementsReasonAdjustment,
+      StockMovementReason.waste => l10n.movementsReasonWaste,
+    };

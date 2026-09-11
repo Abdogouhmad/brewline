@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/admin/providers/analytics_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -17,16 +18,17 @@ class CategoryMixBars extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mix = ref.watch(categoryMixProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Category mix',
+      title: l10n.adminCategoryMixTitle,
       icon: Icons.pie_chart_outline_rounded,
       child: mix.when(
         loading: () => const _PaddingLoader(),
-        error: (_, _) => _message(context, 'Couldn\'t load the mix.'),
+        error: (_, _) => _message(context, l10n.adminCategoryMixError),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, 'No sales recorded in this period.');
+            return _message(context, l10n.adminTopProductsEmpty);
           }
           final total = items.fold<double>(0, (s, c) => s + c.revenue);
           final top = items.first.revenue;

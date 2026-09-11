@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/localization/receipt_language_controller.dart';
 import 'package:brewline/core/printing/printer_settings.dart';
 import 'package:brewline/core/printing/printer_transport.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -51,7 +53,7 @@ class _PrinterSettingsSectionState
     if (port == null || port < 1 || port > 65535) {
       showUiSnackBar(
         context,
-        'Port must be a number between 1 and 65535',
+        AppLocalizations.of(context)!.printerInvalidPort,
         type: UiSnackBarType.error,
       );
       return;
@@ -62,7 +64,7 @@ class _PrinterSettingsSectionState
     if (!mounted) return;
     showUiSnackBar(
       context,
-      'Printer settings saved',
+      AppLocalizations.of(context)!.printerSaved,
       type: UiSnackBarType.success,
     );
   }
@@ -72,12 +74,13 @@ class _PrinterSettingsSectionState
     final settings = ref.watch(printerSettingsProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final isNetwork = settings.connectionType == PrinterConnectionType.network;
+    final l10n = AppLocalizations.of(context)!;
 
     return SettingsSectionCard(
-      titleHeader: 'Hardware',
+      titleHeader: l10n.settingsHardware,
       icon: Icons.print_rounded,
-      title: 'Printer',
-      subtitle: 'Which receipt printer this terminal uses',
+      title: l10n.printerTitle,
+      subtitle: l10n.printerSubtitle,
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(Space.sm, Space.sm, Space.sm, 0),
@@ -85,16 +88,16 @@ class _PrinterSettingsSectionState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SegmentedButton<PrinterConnectionType>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: PrinterConnectionType.usb,
-                    label: Text('USB'),
-                    icon: Icon(Icons.usb_rounded),
+                    label: Text(l10n.printerUsb),
+                    icon: const Icon(Icons.usb_rounded),
                   ),
                   ButtonSegment(
                     value: PrinterConnectionType.network,
-                    label: Text('Network'),
-                    icon: Icon(Icons.wifi_rounded),
+                    label: Text(l10n.printerNetwork),
+                    icon: const Icon(Icons.wifi_rounded),
                   ),
                 ],
                 selected: {settings.connectionType},
@@ -105,13 +108,37 @@ class _PrinterSettingsSectionState
                 },
               ),
               SizedBox(height: Space.lg),
+              DropdownButtonFormField<ReceiptLanguage>(
+                initialValue: ref.watch(receiptLanguageProvider),
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: l10n.printerReceiptLanguageLabel,
+                  helperText: l10n.printerReceiptLanguageHelper,
+                  prefixIcon: const Icon(Icons.translate_rounded),
+                ),
+                items: [
+                  for (final language in ReceiptLanguage.values)
+                    DropdownMenuItem(
+                      value: language,
+                      child: Text(language.label),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    ref
+                        .read(receiptLanguageProvider.notifier)
+                        .setLanguage(value);
+                  }
+                },
+              ),
+              SizedBox(height: Space.lg),
               if (isNetwork) ...[
                 TextField(
                   controller: _ipController,
-                  decoration: const InputDecoration(
-                    labelText: 'IP address',
-                    hintText: '192.168.1.50',
-                    prefixIcon: Icon(Icons.lan_outlined),
+                  decoration: InputDecoration(
+                    labelText: l10n.printerIpAddress,
+                    hintText: l10n.printerIpHint,
+                    prefixIcon: const Icon(Icons.lan_outlined),
                   ),
                 ),
                 SizedBox(height: Space.lg),
@@ -119,10 +146,10 @@ class _PrinterSettingsSectionState
                   controller: _portController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Port',
-                    helperText: 'Raw ESC/POS port (default 9100, JetDirect)',
-                    prefixIcon: Icon(Icons.numbers_rounded),
+                  decoration: InputDecoration(
+                    labelText: l10n.printerPort,
+                    helperText: l10n.printerPortHelper,
+                    prefixIcon: const Icon(Icons.numbers_rounded),
                   ),
                 ),
                 SizedBox(height: Space.lg),
@@ -131,13 +158,12 @@ class _PrinterSettingsSectionState
                   child: FilledButton.icon(
                     onPressed: _saveNetwork,
                     icon: const Icon(Icons.save_outlined),
-                    label: const Text('Save'),
+                    label: Text(l10n.printerSave),
                   ),
                 ),
               ] else
                 UiText(
-                  'The USB printer is detected automatically. Switch to '
-                  'Network to set an address.',
+                  l10n.printerUsbInfo,
                   type: UiTextType.bodySmall,
                   color: colorScheme.onSurfaceVariant,
                 ),

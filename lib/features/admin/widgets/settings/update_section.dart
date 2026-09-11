@@ -6,6 +6,7 @@ import 'package:brewline/core/services/app_info.dart';
 import 'package:brewline/core/updates/update_installer.dart' show UpdateCheckResult;
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/features/admin/widgets/settings/update_screen.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
 import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -24,6 +25,7 @@ class UpdateSection extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final appInfo = ref.watch(appInfoProvider);
     final updater = ref.watch(updateProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     final versionLabel = appInfo.maybeWhen(
       data: (info) => 'v${info.version}',
@@ -31,16 +33,16 @@ class UpdateSection extends ConsumerWidget {
     );
 
     return SettingsSectionCard(
-      titleHeader: 'System',
+      titleHeader: l10n.updateSectionSystem,
       icon: Icons.system_update_alt_rounded,
-      title: 'Update',
-      subtitle: 'Keep this terminal on the latest version',
+      title: l10n.updateSectionTitle,
+      subtitle: l10n.updateSectionSubtitle,
       accent: SettingsAccent.secondary,
       children: [
         SettingsTile(
           icon: Icons.system_update_alt_rounded,
-          title: 'Software update',
-          subtitle: _summaryText(updater),
+          title: l10n.updateSoftwareUpdate,
+          subtitle: _summaryText(updater, l10n),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -66,22 +68,22 @@ class UpdateSection extends ConsumerWidget {
   }
 
   /// One-line summary of the current update state for the entry tile.
-  static String _summaryText(UpdateState updater) {
+  static String _summaryText(UpdateState updater, AppLocalizations l10n) {
     // A failed background check leaves `status` idle with `checkResult`
     // checkFailed — surface it instead of a misleading "Up to date".
     if (updater.checkResult == UpdateCheckResult.checkFailed &&
         updater.status == UpdateStatus.idle) {
-      return 'Update check failed';
+      return l10n.updateCheckFailedPill;
     }
     return switch (updater.status) {
-      UpdateStatus.checking => 'Checking for updates…',
+      UpdateStatus.checking => l10n.updateCheckingPill,
       UpdateStatus.available when updater.hasUpdate => updater.isMandatory
-          ? 'Update required'
-          : 'An update is available',
-      UpdateStatus.downloading => 'Downloading…',
-      UpdateStatus.readyToInstall => 'Ready to install',
-      UpdateStatus.error => 'Update check failed',
-      _ => 'Up to date',
+          ? l10n.updateResultMandatory
+          : l10n.updateSummaryAvailable,
+      UpdateStatus.downloading => l10n.updateSummaryDownloading,
+      UpdateStatus.readyToInstall => l10n.updateSummaryReady,
+      UpdateStatus.error => l10n.updateCheckFailedPill,
+      _ => l10n.updateResultUpToDate,
     };
   }
 }

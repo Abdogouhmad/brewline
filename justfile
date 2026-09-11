@@ -35,6 +35,10 @@ run-windows:
 run-android:
     flutter run -d android
 
+# regenerate localized strings from lib/l10n/*.arb (run after adding/changing UI text)
+l10n:
+    flutter gen-l10n
+
 # list all devices/emulators flutter can currently see
 devices:
     flutter devices

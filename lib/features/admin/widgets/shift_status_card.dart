@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/localization/role_labels.dart';
 import 'package:brewline/core/models/shift_status.dart';
 import 'package:brewline/core/models/user_role.dart';
 import 'package:brewline/features/admin/providers/shift_status_provider.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -26,9 +28,10 @@ class ShiftStatusCard extends ConsumerWidget {
     final session = ref.watch(authProvider).value;
     final username = session?.username;
     final shifts = ref.watch(shiftStatusProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Shift status',
+      title: l10n.adminShiftStatusTitle,
       icon: Icons.punch_clock_rounded,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -43,7 +46,7 @@ class ShiftStatusCard extends ConsumerWidget {
           ),
           SizedBox(width: Space.xs),
           UiText(
-            'On shift',
+            l10n.adminShiftStatusOnShift,
             type: UiTextType.labelMedium,
             fontWeight: FontWeight.w700,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -73,7 +76,7 @@ class ShiftStatusCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     UiText(
-                      'Signed in as',
+                      l10n.adminShiftStatusSignedInAs,
                       type: UiTextType.bodySmall,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -104,7 +107,7 @@ class ShiftStatusCard extends ConsumerWidget {
             error: (_, _) => Padding(
               padding: EdgeInsets.symmetric(vertical: Space.sm),
               child: UiText(
-                'Couldn\'t load shift status.',
+                l10n.adminShiftStatusError,
                 type: UiTextType.bodyMedium,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -112,7 +115,7 @@ class ShiftStatusCard extends ConsumerWidget {
             data: (list) {
               if (list.isEmpty) {
                 return UiText(
-                  'No staff on the roster yet.',
+                  l10n.adminShiftStatusEmpty,
                   type: UiTextType.bodyMedium,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 );
@@ -150,7 +153,7 @@ class ShiftStatusCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(Rounded.full),
       ),
       child: UiText(
-        role.label,
+        role.localizedLabel(AppLocalizations.of(context)!),
         type: UiTextType.labelMedium,
         fontWeight: FontWeight.w700,
         color: colorScheme.onSecondaryContainer,
@@ -169,28 +172,38 @@ class _StaffShiftRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     final (dotColor, statusText, detail) = switch (shift.state) {
       ShiftState.active => (
           Colors.green.shade600,
-          'Active',
-          'Logged in ${_formatTime(shift.checkIn)} · ${_elapsed(shift.checkIn)}',
+          l10n.adminShiftStatusActive,
+          '${l10n.adminShiftLoggedInAt(_formatTime(context, shift.checkIn))}'
+              ' · ${_duration(context, shift.checkIn)}',
         ),
       ShiftState.idle => (
           colorScheme.tertiary,
-          'Idle',
-          'Logged out · last active ${_formatTime(shift.checkIn)}',
+          l10n.adminShiftStatusIdle,
+          l10n.adminShiftLoggedOutLastActive(
+            _formatTime(context, shift.checkIn),
+          ),
         ),
       ShiftState.cashedOut => (
           colorScheme.outlineVariant,
-          'Cashed out',
-          'Logged in ${_formatTime(shift.checkIn)}'
-              '${shift.lastCashOut != null ? ' · Cashed out ${_formatTime(shift.lastCashOut)}' : ''}',
+          l10n.adminShiftStatusCashedOut,
+          shift.lastCashOut != null
+              ? l10n.adminShiftDetailCashedOut(
+                  _formatTime(context, shift.checkIn),
+                  _formatTime(context, shift.lastCashOut),
+                )
+              : l10n.adminShiftLoggedInAt(
+                  _formatTime(context, shift.checkIn),
+                ),
         ),
       ShiftState.never => (
           colorScheme.outlineVariant,
-          'No shift yet',
-          'Never logged in',
+          l10n.adminShiftStatusNoShiftYet,
+          l10n.adminShiftStatusNeverLoggedIn,
         ),
     };
     final active = shift.state == ShiftState.active;
@@ -281,23 +294,22 @@ class _StaffShiftRow extends StatelessWidget {
     return (parts.first[0] + parts.last[0]).toUpperCase();
   }
 
-  /// Local 12-hour time, e.g. `9:15 AM`.
-  static String _formatTime(DateTime? at) {
+  /// Locale-aware local time via `MaterialLocalizations` (12h in en, 24h in
+  /// fr), e.g. `9:15 AM` / `09:15`.
+  static String _formatTime(BuildContext context, DateTime? at) {
     if (at == null) return '—';
-    final local = at.toLocal();
-    final hour12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    final minute = local.minute.toString().padLeft(2, '0');
-    final period = local.hour < 12 ? 'AM' : 'PM';
-    return '$hour12:$minute $period';
+    return MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(at.toLocal()));
   }
 
-  /// Elapsed time on shift, e.g. `3h 20m`, `45m`.
-  static String _elapsed(DateTime? since) {
+  /// Elapsed time on shift, e.g. `3h 20m`, `45m` — localized unit labels.
+  static String _duration(BuildContext context, DateTime? since) {
     if (since == null) return '—';
+    final l10n = AppLocalizations.of(context)!;
     final diff = DateTime.now().difference(since.toLocal());
     final hours = diff.inHours;
     final minutes = diff.inMinutes % 60;
-    if (hours <= 0) return '${diff.inMinutes}m';
-    return '${hours}h ${minutes}m';
+    if (hours <= 0) return l10n.adminShiftDurationShort(minutes);
+    return l10n.adminShiftDurationLong(hours, minutes);
   }
 }
