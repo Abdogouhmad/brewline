@@ -2,6 +2,7 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 import 'package:brewline/core/printing/receipt_templates/pos_support.dart';
 import 'package:brewline/core/printing/receipt_templates/receipt_header.dart';
+import 'package:brewline/core/printing/receipt_templates/receipt_localization.dart';
 
 /// Everything the refund receipt needs, computed **before** calling the
 /// template.
@@ -43,48 +44,59 @@ class RefundReceiptData {
 class RefundReceiptTemplate {
   final RefundReceiptData data;
 
-  const RefundReceiptTemplate({required this.data});
+  /// Receipt language code ('en' | 'fr'); the printer service passes the
+  /// configured [ReceiptLanguage], defaulting to French per §6 Option A.
+  final String locale;
+
+  const RefundReceiptTemplate({
+    required this.data,
+    this.locale = defaultReceiptLocale,
+  });
 
   /// Characters per line on an 88mm roll with font A — same measurement as the
   /// client receipt / shift report; verify against a physical test print.
   static const int lineWidth = 48;
 
   Future<List<int>> build() async {
+    final strings = receiptTextFor(locale);
     final generator = await newPosGenerator(
       paper: PaperSize.mm80,
       lineWidth: lineWidth,
     );
     List<int> bytes = <int>[];
 
-    bytes += await ReceiptHeader.append(generator);
+    bytes += await ReceiptHeader.append(generator, strings: strings);
     bytes += generator.text(
-      'REFUND',
+      strings.refundTitle,
       styles: const PosStyles(bold: true, align: PosAlign.center),
     );
     bytes += generator.text(
-      posText('Order #${_orderNumber()}'),
+      posText(strings.orderNumber(_orderNumber())),
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.text(
-      posDateTime(data.at),
+      posDateTimeIn(locale, data.at),
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.hr();
 
     bytes += generator.text(
-      posText('Original total: ${formatCentsPrice(data.originalTotalCents)}'),
+      posText(
+        '${strings.originalTotal}'
+        '${formatCentsPriceIn(locale, data.originalTotalCents)}',
+      ),
     );
     bytes += generator.text(
-      'Refunded: ${formatCentsPrice(-data.refundedCents)}',
+      '${strings.refunded}${formatCentsPriceIn(locale, -data.refundedCents)}',
       styles: const PosStyles(bold: true),
     );
     bytes += generator.hr();
-    bytes += generator.text('Reason: ${posText(data.reason)}');
-    bytes += generator.text('Admin:   ${posText(data.adminName)}');
+    bytes += generator.text('${strings.reason}${posText(data.reason)}');
+    bytes += generator.text('${strings.admin}${posText(data.adminName)}');
     bytes += generator.hr();
 
     bytes += generator.text(
-      'Printed ${posDateTime(DateTime.now())}',
+      strings.printed(posDateTimeIn(locale, DateTime.now())),
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.feed(3);

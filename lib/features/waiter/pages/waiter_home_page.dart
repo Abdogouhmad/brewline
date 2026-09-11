@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/app_shell.dart';
 import 'package:brewline/shared/widgets/brand_title.dart';
 import 'package:brewline/shared/widgets/profile_chip.dart';
@@ -31,25 +32,26 @@ class WaiterHomePage extends StatelessWidget {
         if (constraints.maxWidth >= _splitWidth) {
           return const _DesktopWaiterHome();
         }
-        return _buildNavShell();
+        return _buildNavShell(context);
       },
     );
   }
 
-  Widget _buildNavShell() {
+  Widget _buildNavShell(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AppShell(
       actions: const [ProfileChip(), LogoutButton()],
-      destinations: const [
+      destinations: [
         AppDestination(
-          'Orders',
+          l10n.waiterNavOrders,
           Icons.receipt_long_outlined,
-          page: OrdersPage(),
+          page: const OrdersPage(),
         ),
-        AppDestination('Menu', Icons.local_cafe_outlined, page: MenuPage()),
+        AppDestination(l10n.waiterNavMenu, Icons.local_cafe_outlined, page: const MenuPage()),
         AppDestination(
-          'Settings',
+          l10n.waiterNavSettings,
           Icons.settings_outlined,
-          page: SettingsPage(embedded: true),
+          page: const SettingsPage(embedded: true),
         ),
       ],
     );

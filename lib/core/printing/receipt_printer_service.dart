@@ -24,6 +24,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:brewline/core/localization/receipt_language_controller.dart';
 import 'package:brewline/core/models/order_record.dart';
 import 'package:brewline/core/printing/network_printer_transport.dart';
 import 'package:brewline/core/printing/printer_settings.dart';
@@ -39,7 +40,12 @@ import 'package:brewline/core/printing/usb_printer_transport.dart';
 class ReceiptPrinterService {
   final PrinterSettings settings;
 
-  const ReceiptPrinterService(this.settings);
+  /// Fixed receipt language passed to every template (improve.md §6 Option A):
+  /// receipts print in [ReceiptLanguage], independent of the till's UI
+  /// language. Defaults to French.
+  final String locale;
+
+  const ReceiptPrinterService(this.settings, {this.locale = 'fr'});
 
   /// The transport matching the current [PrinterSettings] — resolved on every
   /// call so a mid-session settings change takes effect without a restart.
@@ -50,13 +56,13 @@ class ReceiptPrinterService {
 
   /// Kitchen ticket (55mm). Print when an order is charged.
   Future<void> printKitchenTicket(OrderRecord order) async {
-    final bytes = await KitchenTicketTemplate(order: order).build();
+    final bytes = await KitchenTicketTemplate(order: order, locale: locale).build();
     await _transport().send(bytes);
   }
 
   /// Customer receipt (88mm). Print when an order is charged.
   Future<void> printClientReceipt(OrderRecord order) async {
-    final bytes = await ClientReceiptTemplate(order: order).build();
+    final bytes = await ClientReceiptTemplate(order: order, locale: locale).build();
     await _transport().send(bytes);
   }
 
@@ -74,10 +80,10 @@ class ReceiptPrinterService {
       withTransport((transport) async {
         final bytes = <List<int>>[];
         if (printKitchen) {
-          bytes.add(await KitchenTicketTemplate(order: order).build());
+          bytes.add(await KitchenTicketTemplate(order: order, locale: locale).build());
         }
         if (printClient) {
-          bytes.add(await ClientReceiptTemplate(order: order).build());
+          bytes.add(await ClientReceiptTemplate(order: order, locale: locale).build());
         }
         for (final b in bytes) {
           await transport.send(b);
@@ -95,14 +101,14 @@ class ReceiptPrinterService {
   /// Shift report (88mm) for a final cash-out *or* an interim preview — the
   /// report itself tells the printer apart via [ShiftReportData.isFinal].
   Future<void> printShiftReport(ShiftReportData data) async {
-    final bytes = await ShiftReportTemplate(data: data).build();
+    final bytes = await ShiftReportTemplate(data: data, locale: locale).build();
     await _transport().send(bytes);
   }
 
   /// Refund receipt (88mm) — printed only when explicitly requested after a
   /// refund, never automatically.
   Future<void> printRefundReceipt(RefundReceiptData data) async {
-    final bytes = await RefundReceiptTemplate(data: data).build();
+    final bytes = await RefundReceiptTemplate(data: data, locale: locale).build();
     await _transport().send(bytes);
   }
 
@@ -113,7 +119,11 @@ class ReceiptPrinterService {
 /// A service bound to the *latest* printer settings: [Provider] watches
 /// [printerSettingsProvider], so `ref.read` at any call site gets a service
 /// whose transport already reflects the current wiring (admin edits take
-/// effect without an app restart, per the acceptance checklist).
+/// effect without an app restart, per the acceptance checklist). The receipt
+/// language rides along from [receiptLanguageProvider] (§6 Option A).
 final receiptPrinterServiceProvider = Provider<ReceiptPrinterService>((ref) {
-  return ReceiptPrinterService(ref.watch(printerSettingsProvider));
+  return ReceiptPrinterService(
+    ref.watch(printerSettingsProvider),
+    locale: ref.watch(receiptLanguageProvider).code,
+  );
 });

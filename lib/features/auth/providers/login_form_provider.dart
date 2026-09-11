@@ -14,13 +14,19 @@ const int _maxAttempts = 5;
 /// Cooldown duration after hitting the attempt limit.
 const Duration _cooldownDuration = Duration(seconds: 30);
 
+/// Machine-readable failures the login form can surface (localized in the UI).
+enum LoginSubmitError { incorrectPin }
+
 /// Local, screen-only state for the login form.
 ///
 /// Kept separate from the session ([authProvider]) so in-progress input —
 /// typed PIN — never races with or clobbers the persisted session.
 class LoginFormState {
   final String pin;
-  final String? submitError;
+
+  /// Machine-readable submit failure (no raw strings in the provider layer —
+  /// the widget maps [LoginSubmitError] to localized copy, improve.md §4).
+  final LoginSubmitError? submitError;
   final bool isSubmitting;
 
   /// Drives the dusting/shake on the PIN keypad after a failed attempt.
@@ -57,7 +63,7 @@ class LoginFormState {
 
   LoginFormState copyWith({
     String? pin,
-    String? submitError,
+    LoginSubmitError? submitError,
     bool clearSubmitError = false,
     bool? isSubmitting,
     bool? hasError,
@@ -117,7 +123,7 @@ class LoginFormNotifier extends Notifier<LoginFormState> {
       state = state.copyWith(
         isSubmitting: false,
         pin: '',
-        submitError: 'Incorrect PIN',
+        submitError: LoginSubmitError.incorrectPin,
         hasError: true,
         resetSignal: state.resetSignal + 1,
         failedAttempts: newFailed,

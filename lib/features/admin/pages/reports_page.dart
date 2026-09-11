@@ -11,6 +11,7 @@ import 'package:brewline/features/admin/widgets/period_selector.dart';
 import 'package:brewline/features/admin/widgets/revenue_line_chart.dart';
 import 'package:brewline/features/admin/widgets/team_performance.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Admin "Reports" tab: revenue over time, category mix, busiest hours and
@@ -24,18 +25,19 @@ class ReportsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final compact = Breakpoints.of(context) == ScreenSize.compact;
+    final l10n = AppLocalizations.of(context)!;
 
     final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         UiText(
-          'Performance',
+          l10n.adminReportTitle,
           type: UiTextType.headlineSmall,
           fontWeight: FontWeight.w800,
         ),
         SizedBox(height: Space.xs),
         UiText(
-          'Revenue, what sells and when.',
+          l10n.adminReportSubtitle,
           type: UiTextType.bodyMedium,
           color: colorScheme.onSurfaceVariant,
         ),
@@ -102,9 +104,10 @@ class _RevenueTrendCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trend = ref.watch(revenueTrendProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Revenue over time',
+      title: l10n.adminRevenueOverTimeTitle,
       icon: Icons.show_chart_rounded,
       trailing: trend.when(
         data: (points) => UiText(
@@ -129,7 +132,7 @@ class _RevenueTrendCard extends ConsumerWidget {
           padding: EdgeInsets.symmetric(vertical: Space.xl),
           child: Center(
             child: UiText(
-              'Couldn\'t load the revenue trend.',
+              l10n.adminRevenueTrendError,
               type: UiTextType.bodyMedium,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),

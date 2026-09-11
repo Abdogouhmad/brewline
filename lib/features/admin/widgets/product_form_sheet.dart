@@ -10,6 +10,7 @@ import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/core/services/product_image_store.dart';
 import 'package:brewline/core/utils/id_generator.dart';
 import 'package:brewline/features/admin/widgets/recipe_editor.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -132,12 +133,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
     await _recipeKey.currentState?.save(id);
 
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     Navigator.of(context).pop();
     showUiSnackBar(
       context,
       widget.isEditing
-          ? '${updated.name} updated'
-          : '${updated.name} added to the menu',
+          ? l10n.productUpdatedSnackbar(updated.name)
+          : l10n.productAddedSnackbar(updated.name),
       type: UiSnackBarType.success,
     );
   }
@@ -160,7 +162,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
       if (!mounted) return;
       showUiSnackBar(
         context,
-        'Couldn\'t open the gallery.',
+        AppLocalizations.of(context)!.productGalleryError,
         type: UiSnackBarType.error,
       );
     }
@@ -169,6 +171,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Form(
       key: _formKey,
@@ -190,7 +193,7 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                   ),
                   SizedBox(width: Space.md),
                   UiText(
-                    widget.isEditing ? 'Edit product' : 'Add product',
+                    widget.isEditing ? l10n.productEditTitle : l10n.productAddTitle,
                     type: UiTextType.titleLarge,
                     fontWeight: FontWeight.w700,
                   ),
@@ -204,13 +207,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                     child: TextFormField(
                       controller: _name,
                       textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Product name',
-                        prefixIcon: Icon(Icons.local_cafe_rounded),
+                      decoration: InputDecoration(
+                        labelText: l10n.productName,
+                        prefixIcon: const Icon(Icons.local_cafe_rounded),
                       ),
                       validator: (value) =>
                           (value == null || value.trim().isEmpty)
-                          ? 'Enter a name'
+                          ? l10n.productEnterName
                           : null,
                     ),
                   ),
@@ -222,13 +225,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
-                        labelText: 'Price (DH)',
-                        prefixIcon: Icon(Icons.payments_outlined),
+                      decoration: InputDecoration(
+                        labelText: l10n.productPrice,
+                        prefixIcon: const Icon(Icons.payments_outlined),
                       ),
                       validator: (value) =>
                           _parsePrice(value ?? '') <= 0
-                          ? 'Must be positive'
+                          ? l10n.productMustBePositive
                           : null,
                     ),
                   ),
@@ -238,10 +241,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               TextFormField(
                 controller: _category,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  hintText: 'e.g. Coffee, Soft drinks',
-                  prefixIcon: Icon(Icons.label_outline_rounded),
+                decoration: InputDecoration(
+                  labelText: l10n.productCategory,
+                  hintText: l10n.productCategoryHint,
+                  prefixIcon: const Icon(Icons.label_outline_rounded),
                 ),
               ),
               SizedBox(height: Space.lg),
@@ -259,13 +262,13 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
                 contentPadding: EdgeInsets.zero,
                 value: _available,
                 onChanged: (value) => setState(() => _available = value),
-                title: const UiText(
-                  'Available on the menu',
+                title: UiText(
+                  l10n.productAvailableOnMenu,
                   type: UiTextType.titleSmall,
                   fontWeight: FontWeight.w600,
                 ),
                 subtitle: UiText(
-                  'Hides the product from waiters when off',
+                  l10n.productHideFromWaiters,
                   type: UiTextType.bodySmall,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -275,8 +278,10 @@ class _ProductFormSheetState extends ConsumerState<_ProductFormSheet> {
               SizedBox(height: Space.lg),
               UiButton(
                 _saving
-                    ? 'Saving…'
-                    : (widget.isEditing ? 'Save changes' : 'Add to menu'),
+                    ? l10n.productSaving
+                    : (widget.isEditing
+                          ? l10n.productSaveChanges
+                          : l10n.productAddToMenu),
                 icon: Icons.check_rounded,
                 expand: true,
                 onPressed: _saving ? null : _submit,
@@ -306,13 +311,14 @@ class _ImagePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final isPicked = selected.isNotEmpty && !selected.startsWith('assets/');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         UiText(
-          'Menu photo',
+          l10n.productMenuPhoto,
           type: UiTextType.titleSmall,
           fontWeight: FontWeight.w600,
         ),
@@ -338,7 +344,7 @@ class _ImagePicker extends StatelessWidget {
               child: isPicked
                   ? Image.file(File(selected), fit: BoxFit.cover)
                   : Tooltip(
-                      message: 'Import from gallery',
+                      message: l10n.productImportFromGallery,
                       child: Icon(
                         Icons.add_photo_alternate_outlined,
                         color: colorScheme.outline,

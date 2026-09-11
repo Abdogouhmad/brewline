@@ -10,7 +10,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'package:brewline/core/db/app_database.dart';
+import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/updates/update_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/features/admin/widgets/settings/update_required_screen.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
@@ -31,6 +33,9 @@ Future<void> main() async {
   try {
     prefs = await SharedPreferences.getInstance();
     db = await openAppDatabase();
+    // Seed intl with the persisted language so money/date formatting is
+    // locale-aware before the first frame (§5).
+    await initializeIntlLocale(storedLanguage(prefs));
   } catch (e, st) {
     developer.log('Fatal startup error: $e\n$st', name: 'brewline');
     _runErrorApp(e);
@@ -58,54 +63,68 @@ void _runErrorApp(Object error) {
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: const Color(0xFF241B13),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: Colors.redAccent, size: 64),
-                const SizedBox(height: 24),
-                const Text(
-                  'brewline failed to start',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: _StartupErrorView(error: '$error'),
+    ),
+  );
+}
+
+class _StartupErrorView extends StatelessWidget {
+  final String error;
+
+  const _StartupErrorView({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      backgroundColor: const Color(0xFF241B13),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  color: Colors.redAccent, size: 64),
+              const SizedBox(height: 24),
+              Text(
+                l10n.appStartupTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  '$error',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                error,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              Builder(
+                builder: (ctx) => TextButton.icon(
+                  onPressed: () {
+                    // Copy error to clipboard so the user can share it.
+                    final data = ClipboardData(text: error);
+                    Clipboard.setData(data);
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(content: Text(l10n.appStartupCopied)),
+                    );
+                  },
+                  icon: const Icon(Icons.copy, color: Colors.white70),
+                  label: Text(l10n.appStartupCopy,
+                      style: const TextStyle(color: Colors.white70)),
                 ),
-                const SizedBox(height: 24),
-                Builder(
-                  builder: (ctx) => TextButton.icon(
-                    onPressed: () {
-                      // Copy error to clipboard so the user can share it.
-                      final data = ClipboardData(text: '$error');
-                      Clipboard.setData(data);
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text('Error copied')),
-                      );
-                    },
-                    icon: const Icon(Icons.copy, color: Colors.white70),
-                    label: const Text('Copy error',
-                        style: TextStyle(color: Colors.white70)),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// System dynamic color (Material You on Android, accent color on desktop)
@@ -169,6 +188,13 @@ class _PaletteGateState extends State<_PaletteGate> {
           builder: (context, ref, _) => MaterialApp(
             title: 'brewline',
             debugShowCheckedModeBanner: false,
+            // Localization per improve.md §1.5 — delegates + supportedLocales
+            // come from the generated AppLocalizations (derived from the .arb
+            // files), and `locale` is an explicit override from the device-level
+            // language setting (§2): null follows the OS, a value wins outright.
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: ref.watch(localeProvider),
             // buildLightTheme(null) falls back to the coffee seed, so the
             // scheme is safe to pass straight through.
             theme: buildLightTheme(lightDynamic),

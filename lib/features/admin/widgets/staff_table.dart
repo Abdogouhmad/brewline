@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/staff_member.dart';
 import 'package:brewline/core/repositories/staff_repository.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -26,7 +27,7 @@ class StaffTable extends ConsumerWidget {
       ),
       error: (_, _) => Center(
         child: UiText(
-          'Couldn\'t load the staff roster.',
+          AppLocalizations.of(context)!.staffTableError,
           type: UiTextType.bodyMedium,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -37,7 +38,7 @@ class StaffTable extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.all(Space.x2l),
               child: UiText(
-                'No staff yet — add your first member.',
+                AppLocalizations.of(context)!.staffTableEmpty,
                 type: UiTextType.bodyMedium,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -84,8 +85,9 @@ PopupMenuButton<String> _rowMenu(
   WidgetRef ref,
   StaffMember member,
 ) {
+  final l10n = AppLocalizations.of(context)!;
   return PopupMenuButton<String>(
-    tooltip: 'Staff actions',
+    tooltip: l10n.staffActionsTooltip,
     onSelected: (value) async {
       switch (value) {
         case 'edit':
@@ -107,12 +109,12 @@ PopupMenuButton<String> _rowMenu(
       }
     },
     itemBuilder: (_) => [
-      PopupMenuItem(value: 'edit', child: Text('Edit')),
+      PopupMenuItem(value: 'edit', child: Text(l10n.actionEdit)),
       if (member.active)
-        PopupMenuItem(value: 'deactivate', child: Text('Deactivate'))
+        PopupMenuItem(value: 'deactivate', child: Text(l10n.staffDeactivate))
       else
-        PopupMenuItem(value: 'activate', child: Text('Activate')),
-      PopupMenuItem(value: 'delete', child: Text('Delete')),
+        PopupMenuItem(value: 'activate', child: Text(l10n.staffActivate)),
+      PopupMenuItem(value: 'delete', child: Text(l10n.actionDelete)),
     ],
   );
 }
@@ -121,22 +123,26 @@ Future<bool> _confirmDeactivate(
   BuildContext context,
   StaffMember member,
 ) async {
+  final l10n = AppLocalizations.of(context)!;
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: UiText('Deactivate ${member.name}?', type: UiTextType.titleMedium),
-      content: const UiText(
-        'They can no longer sign in, but their sales history stays on record.',
+      title: UiText(
+        l10n.staffDeactivateTitle(member.name),
+        type: UiTextType.titleMedium,
+      ),
+      content: UiText(
+        l10n.staffDeactivateBody,
         type: UiTextType.bodyMedium,
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text('Cancel'),
+          child: Text(l10n.actionCancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text('Deactivate'),
+          child: Text(l10n.staffDeactivate),
         ),
       ],
     ),
@@ -145,19 +151,22 @@ Future<bool> _confirmDeactivate(
 }
 
 Future<bool> _confirmDelete(BuildContext context, StaffMember member) async {
+  final l10n = AppLocalizations.of(context)!;
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: UiText('Delete ${member.name}?', type: UiTextType.titleMedium),
+      title: UiText(
+        l10n.staffDeleteTitle(member.name),
+        type: UiTextType.titleMedium,
+      ),
       content: UiText(
-        'This removes the account permanently and detaches their sales from a '
-        'named waiter. Prefer deactivating so history keeps its attribution.',
+        l10n.staffDeleteBody,
         type: UiTextType.bodyMedium,
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: Text('Cancel'),
+          child: Text(l10n.actionCancel),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -165,7 +174,7 @@ Future<bool> _confirmDelete(BuildContext context, StaffMember member) async {
             foregroundColor: Theme.of(dialogContext).colorScheme.onError,
           ),
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: Text('Delete'),
+          child: Text(l10n.actionDelete),
         ),
       ],
     ),
@@ -174,7 +183,7 @@ Future<bool> _confirmDelete(BuildContext context, StaffMember member) async {
     if (context.mounted) {
       showUiSnackBar(
         context,
-        '${member.name} deleted',
+        l10n.staffDeletedSnackbar(member.name),
         type: UiSnackBarType.warning,
       );
     }
@@ -195,6 +204,7 @@ class _StaffCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final isActive = member.active;
+    final l10n = AppLocalizations.of(context)!;
 
     return Card(
       elevation: 2,
@@ -256,7 +266,7 @@ class _StaffCard extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(Rounded.xl),
                 ),
                 child: UiText(
-                  'Inactive',
+                  l10n.staffInactive,
                   type: UiTextType.labelSmall,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -279,6 +289,7 @@ class _StaffDataTable extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Card(
       elevation: 2,
@@ -305,11 +316,11 @@ class _StaffDataTable extends ConsumerWidget {
             fontWeight: FontWeight.w700,
             letterSpacing: 0.2,
           ),
-          columns: const [
-            DataColumn(label: Text('Name')),
-            DataColumn(label: Text('Username')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Actions')),
+          columns: [
+            DataColumn(label: Text(l10n.staffColName)),
+            DataColumn(label: Text(l10n.staffColUsername)),
+            DataColumn(label: Text(l10n.staffColStatus)),
+            DataColumn(label: Text(l10n.actionActions)),
           ],
           rows: [
             for (final (index, member) in members.indexed)

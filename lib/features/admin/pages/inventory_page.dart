@@ -10,6 +10,7 @@ import 'package:brewline/features/admin/widgets/ingredient_form_sheet.dart';
 import 'package:brewline/features/admin/widgets/ingredient_tile.dart';
 import 'package:brewline/features/admin/widgets/inventory_expandable_fab.dart';
 import 'package:brewline/features/admin/widgets/restock_dialog.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -28,6 +29,7 @@ class InventoryPage extends ConsumerWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final ingredients = ref.watch(allIngredientsProvider);
     final compact = Breakpoints.of(context) == ScreenSize.compact;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       body: ListView(
@@ -41,7 +43,7 @@ class InventoryPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 UiText(
-                  'Track raw ingredients and who consumes them.',
+                  l10n.inventorySubtitle,
                   type: UiTextType.bodyMedium,
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -56,13 +58,13 @@ class InventoryPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       UiText(
-                        'Inventory',
+                        l10n.inventoryTitle,
                         type: UiTextType.headlineSmall,
                         fontWeight: FontWeight.w800,
                       ),
                       SizedBox(height: Space.xs),
                       UiText(
-                        'Track raw ingredients and who consumes them.',
+                        l10n.inventorySubtitle,
                         type: UiTextType.bodyMedium,
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -70,7 +72,7 @@ class InventoryPage extends ConsumerWidget {
                   ),
                 ),
                 UiButton(
-                  'Add ingredient',
+                  l10n.inventoryAddIngredient,
                   icon: Icons.add_box_rounded,
                   variant: UiButtonVariant.outlined,
                   onPressed: () => showIngredientFormSheet(context),
@@ -81,7 +83,7 @@ class InventoryPage extends ConsumerWidget {
           // Stock movements entry point lives in the FAB on compact layouts.
           if (!compact) ...[
             UiButton(
-              'Stock movements log',
+              l10n.inventoryStockMovementsLog,
               icon: Icons.receipt_long_outlined,
               radius: Rounded.lg,
               variant: UiButtonVariant.tonal,
@@ -94,13 +96,10 @@ class InventoryPage extends ConsumerWidget {
               padding: EdgeInsets.all(Space.x3l),
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (_, _) => _message(context, 'Couldn\'t load inventory.'),
+            error: (_, _) => _message(context, l10n.inventoryError),
             data: (items) {
               if (items.isEmpty) {
-                return _message(
-                  context,
-                  'No ingredients yet. Add one to start tracking stock.',
-                );
+                return _message(context, l10n.inventoryEmpty);
               }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

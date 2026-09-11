@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Theme preference as a full-width [SegmentedButton] row — System / Light /
@@ -23,6 +24,7 @@ class ThemeSegmentedControl extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final compact = Breakpoints.of(context) == ScreenSize.compact;
+    final l10n = AppLocalizations.of(context)!;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -49,12 +51,12 @@ class ThemeSegmentedControl extends StatelessWidget {
             children: [
               SizedBox(height: Space.lg),
               UiText(
-                'Theme',
+                l10n.settingsThemeTitle,
                 type: UiTextType.titleSmall,
                 fontWeight: FontWeight.w600,
               ),
               UiText(
-                'Match your light / dark preference',
+                l10n.settingsThemeSubtitle,
                 type: UiTextType.bodySmall,
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -73,9 +75,9 @@ class ThemeSegmentedControl extends StatelessWidget {
                             ? null
                             : Icon(_themeIcon(pref), size: AppSizes.iconSm + 2),
                         label: Text(switch (pref) {
-                          ThemePref.system => 'System',
-                          ThemePref.light => 'Light',
-                          ThemePref.dark => 'Dark',
+                          ThemePref.system => l10n.settingsThemeSystem,
+                          ThemePref.light => l10n.settingsThemeLight,
+                          ThemePref.dark => l10n.settingsThemeDark,
                         }),
                       ),
                   ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/core/responsive/responsive.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Brand identity wordmark for app bars and splash surfaces.
@@ -48,7 +49,7 @@ class BrandTitle extends StatelessWidget {
         if (showTagline) ...[
           SizedBox(width: 10),
           UiText(
-            'for management',
+            AppLocalizations.of(context)!.brandTagline,
             type: UiTextType.labelLarge,
             color: colorScheme.onSurfaceVariant,
           ),

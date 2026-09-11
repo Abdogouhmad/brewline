@@ -11,6 +11,7 @@ import 'package:brewline/core/security/credential_store.dart';
 import 'package:brewline/core/security/password_hash.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/auth_state.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -66,13 +67,18 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     if (session == null) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      showUiSnackBar(context, 'No active session', type: UiSnackBarType.error);
+      showUiSnackBar(
+        context,
+        AppLocalizations.of(context)!.changePasswordNoSession,
+        type: UiSnackBarType.error,
+      );
       return;
     }
 
     final current = _currentController.text;
     final next = _newController.text;
-    final error = await _verifyCurrent(session, current);
+    final l10n = AppLocalizations.of(context)!;
+    final error = await _verifyCurrent(session, current, l10n);
     if (!mounted) return;
 
     if (error != null) {
@@ -97,7 +103,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     if (taken && mounted) {
       setState(() {
         _saving = false;
-        _pinTakenError = 'That PIN is already in use — pick a different one';
+        _pinTakenError = AppLocalizations.of(context)!.changePasswordPinTaken;
       });
       return;
     }
@@ -107,26 +113,30 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
       Navigator.of(context).pop();
       showUiSnackBar(
         context,
-        'Password updated successfully',
+        AppLocalizations.of(context)!.changePasswordUpdated,
         type: UiSnackBarType.success,
       );
     }
   }
 
-  /// Returns `null` when the current PIN matches the store, otherwise a
+  /// `null` when the current PIN matches the store, otherwise a
   /// human-readable reason to surface (never reveals the stored hash).
-  Future<String?> _verifyCurrent(AuthState session, String current) async {
+  Future<String?> _verifyCurrent(
+    AuthState session,
+    String current,
+    AppLocalizations l10n,
+  ) async {
     if (session.role == Role.admin) {
       final admin = await ref.read(credentialStoreProvider).read();
       if (admin == null || admin.pinHash != hashPin(current, admin.pinSalt)) {
-        return _wrongPin;
+        return l10n.changePasswordWrongPin;
       }
       return null;
     }
     final repo = await ref.read(staffRepositoryProvider.future);
     final member = await repo.byUsername(session.username);
     if (member == null || member.pinHash != hashPin(current, member.pinSalt)) {
-      return _wrongPin;
+      return l10n.changePasswordWrongPin;
     }
     return null;
   }
@@ -168,18 +178,17 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     );
   }
 
-  static const _wrongPin = 'The current PIN doesn\'t match this account.';
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.lock_reset_rounded),
+          const Icon(Icons.lock_reset_rounded),
           SizedBox(width: Space.md),
-          UiText('Change password', type: UiTextType.titleMedium),
+          UiText(l10n.changePasswordTitle, type: UiTextType.titleMedium),
         ],
       ),
       content: Form(
@@ -197,11 +206,11 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                 obscureText: _obscure,
                 keyboardType: TextInputType.number,
                 maxLength: kAdminPinLength,
-                decoration: const InputDecoration(
-                  labelText: 'Current PIN',
+                decoration: InputDecoration(
+                  labelText: l10n.changePasswordCurrentPin,
                   counterText: '',
                 ),
-                validator: _requiredPin,
+                validator: (value) => _requiredPin(context, value),
               ),
               SizedBox(height: Space.lg),
               TextFormField(
@@ -209,12 +218,12 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                 obscureText: _obscure,
                 keyboardType: TextInputType.number,
                 maxLength: kAdminPinLength,
-                decoration: const InputDecoration(
-                  labelText: 'New PIN',
+                decoration: InputDecoration(
+                  labelText: l10n.changePasswordNewPin,
                   counterText: '',
-                  helperText: '4 digits, keeps hashed at rest',
+                  helperText: l10n.changePasswordNewPinHint,
                 ),
-                validator: _requiredPin,
+                validator: (value) => _requiredPin(context, value),
               ),
               if (_pinTakenError != null) ...[
                 SizedBox(height: Space.sm),
@@ -229,13 +238,13 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                 obscureText: _obscure,
                 keyboardType: TextInputType.number,
                 maxLength: kAdminPinLength,
-                decoration: const InputDecoration(
-                  labelText: 'Confirm new PIN',
+                decoration: InputDecoration(
+                  labelText: l10n.changePasswordConfirmPin,
                   counterText: '',
                 ),
                 validator: (value) => value != _newController.text
-                    ? 'PINs do not match'
-                    : _requiredPin(value),
+                    ? l10n.changePasswordMismatch
+                    : _requiredPin(context, value),
               ),
               SizedBox(height: Space.sm),
               // One eye toggle drives all three fields for brevity.
@@ -248,7 +257,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                         ? Icons.visibility_rounded
                         : Icons.visibility_off_rounded,
                   ),
-                  label: Text(_obscure ? 'Show' : 'Hide'),
+                  label: Text(_obscure ? l10n.changePasswordShow : l10n.changePasswordHide),
                 ),
               ),
             ],
@@ -259,12 +268,12 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(
-            'Cancel',
+            l10n.actionCancel,
             style: TextStyle(color: colorScheme.onSurfaceVariant),
           ),
         ),
         UiButton(
-          _saving ? 'Updating…' : 'Update',
+          _saving ? l10n.changePasswordUpdating : l10n.changePasswordUpdate,
           onPressed: _saving ? null : _submit,
           variant: UiButtonVariant.filled,
         ),
@@ -272,10 +281,12 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     );
   }
 
-  String? _requiredPin(String? value) {
+  String? _requiredPin(BuildContext context, String? value) {
     final text = value ?? '';
     if (text.length != kAdminPinLength) {
-      return 'Use exactly $kAdminPinLength digits';
+      return AppLocalizations.of(context)!.changePasswordPinLength(
+        kAdminPinLength,
+      );
     }
     return null;
   }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/services/app_info.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Small settings footer: brand + version line that doubles as a button
@@ -14,6 +15,7 @@ class SettingsFooter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final appInfo = ref.watch(appInfoProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     final versionLabel = appInfo.maybeWhen(
       data: (info) => 'v${info.version} (${info.buildNumber})',
@@ -66,7 +68,7 @@ class SettingsFooter extends ConsumerWidget {
           ),
           SizedBox(height: Space.sm),
           UiText(
-            '© ${DateTime.now().year} BrewLine',
+            l10n.settingsFooterCopyright(DateTime.now().year),
             type: UiTextType.labelSmall,
             color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
           ),
@@ -91,6 +93,7 @@ class _AppInfoSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final info = ref.watch(appInfoProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
       child: Padding(
@@ -123,14 +126,13 @@ class _AppInfoSheet extends ConsumerWidget {
             SizedBox(height: Space.xl),
             info.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  UiText('Could not load app info', color: colorScheme.error),
+              error: (e, _) => UiText(l10n.appInfoError, color: colorScheme.error),
               data: (i) => Column(
                 children: [
-                  _infoRow(context, 'Name', i.appName),
-                  _infoRow(context, 'Version', i.version),
-                  _infoRow(context, 'Build', i.buildNumber),
-                  _infoRow(context, 'Package', i.packageName),
+                  _infoRow(context, l10n.appInfoName, i.appName),
+                  _infoRow(context, l10n.appInfoVersion, i.version),
+                  _infoRow(context, l10n.appInfoBuild, i.buildNumber),
+                  _infoRow(context, l10n.appInfoPackage, i.packageName),
                 ],
               ),
             ),
@@ -141,7 +143,7 @@ class _AppInfoSheet extends ConsumerWidget {
                 applicationName: 'BrewLine',
               ),
               icon: const Icon(Icons.description_outlined),
-              label: const Text('Open source licenses'),
+              label: Text(l10n.appInfoLicenses),
             ),
           ],
         ),

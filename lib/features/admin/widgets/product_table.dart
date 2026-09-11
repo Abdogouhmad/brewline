@@ -8,6 +8,7 @@ import 'package:brewline/features/admin/widgets/availability_toggle.dart';
 import 'package:brewline/features/admin/widgets/product_form_sheet.dart';
 import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/features/waiter/providers/stock_status_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/product_image.dart';
@@ -20,6 +21,7 @@ class ProductTable extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(allProductsProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return products.when(
       loading: () => const Padding(
@@ -28,7 +30,7 @@ class ProductTable extends ConsumerWidget {
       ),
       error: (_, _) => Center(
         child: UiText(
-          'Couldn\'t load the catalog.',
+          l10n.productTableError,
           type: UiTextType.bodyMedium,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -39,7 +41,7 @@ class ProductTable extends ConsumerWidget {
             child: Padding(
               padding: EdgeInsets.all(Space.x2l),
               child: UiText(
-                'No products yet — add your first one.',
+                l10n.productTableEmpty,
                 type: UiTextType.bodyMedium,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -77,6 +79,7 @@ class _ProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Card(
       elevation: 0,
@@ -113,7 +116,7 @@ class _ProductCard extends ConsumerWidget {
                   children: [
                     UiText(
                       product.category.isEmpty
-                          ? 'Uncategorised'
+                          ? l10n.productUncategorised
                           : product.category,
                       type: UiTextType.labelSmall,
                       color: colorScheme.onSurfaceVariant,
@@ -174,21 +177,22 @@ class _StockLine extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final stock = ref.watch(productStockProvider).value;
     final info = stock?[product.id];
 
     final (Color color, String text) =
         !product.available
-            ? (colorScheme.outline, 'Sold out')
+            ? (colorScheme.outline, l10n.productStockSoldOut)
         : info == null
-            ? (colorScheme.onSurfaceVariant, 'Stock not tracked yet')
+            ? (colorScheme.onSurfaceVariant, l10n.productStockNotTracked)
         : info.status == ProductStockStatus.out
-            ? (colorScheme.error, 'Out of stock — restock')
+            ? (colorScheme.error, l10n.productStockOutRestock)
         : info.status == ProductStockStatus.low
-            ? (colorScheme.error, 'Low · ~${info.servingsLeft} left')
+            ? (colorScheme.error, l10n.productStockLow(info.servingsLeft))
         : info.servingsLeft <= 0
-            ? (colorScheme.error, 'Out of stock — restock')
-            : (colorScheme.tertiary, '~${info.servingsLeft} servings left');
+            ? (colorScheme.error, l10n.productStockOutRestock)
+            : (colorScheme.tertiary, l10n.productStockServingsLeft(info.servingsLeft));
 
     return Row(
       children: [
@@ -207,8 +211,10 @@ class _ProductMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
-      tooltip: 'Product actions',
+      tooltip: l10n.productActionsTooltip,
       onSelected: (value) async {
         switch (value) {
           case 'edit':
@@ -221,27 +227,30 @@ class _ProductMenu extends ConsumerWidget {
             }
         }
       },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'edit', child: Text('Edit')),
-        PopupMenuItem(value: 'delete', child: Text('Delete')),
+      itemBuilder: (_) => [
+        PopupMenuItem(value: 'edit', child: Text(l10n.actionEdit)),
+        PopupMenuItem(
+          value: 'delete',
+          child: Text(l10n.actionDelete, style: TextStyle(color: colorScheme.error)),
+        ),
       ],
     );
   }
 
   Future<bool> _confirmDelete(BuildContext context, Product product) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: UiText('Delete ${product.name}?', type: UiTextType.titleMedium),
+        title: UiText(l10n.productDeleteTitle(product.name), type: UiTextType.titleMedium),
         content: UiText(
-          'Removes it from the menu and stock tracking. Past orders keep '
-          'their own snapshots and stay in the reports.',
+          l10n.productDeleteBody,
           type: UiTextType.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -249,7 +258,7 @@ class _ProductMenu extends ConsumerWidget {
               foregroundColor: Theme.of(dialogContext).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text('Delete'),
+            child: Text(l10n.actionDelete),
           ),
         ],
       ),
@@ -258,7 +267,7 @@ class _ProductMenu extends ConsumerWidget {
       if (context.mounted) {
         showUiSnackBar(
           context,
-          '${product.name} deleted',
+          l10n.productDeletedSnackbar(product.name),
           type: UiSnackBarType.warning,
         );
       }

@@ -1,6 +1,7 @@
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/features/waiter/pages/settings_page.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,7 +31,11 @@ Future<void> _pumpSettingsPage(
           ),
         ),
       ],
-      child: const MaterialApp(home: SettingsPage()),
+      child: const MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SettingsPage(),
+      ),
     ),
   );
   // Settle appInfoProvider (PackageInfo platform channel in tests).

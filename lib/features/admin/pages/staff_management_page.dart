@@ -6,6 +6,7 @@ import 'package:brewline/core/repositories/staff_repository.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/admin/widgets/staff_form_sheet.dart';
 import 'package:brewline/features/admin/widgets/staff_table.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -22,6 +23,7 @@ class StaffManagementPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final compact = Breakpoints.of(context) == ScreenSize.compact;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       body: ListView(
@@ -35,7 +37,7 @@ class StaffManagementPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 UiText(
-                  'Team',
+                  l10n.staffTitle,
                   type: UiTextType.headlineSmall,
                   fontWeight: FontWeight.w800,
                 ),
@@ -54,7 +56,7 @@ class StaffManagementPage extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       UiText(
-                        'Team',
+                        l10n.staffTitle,
                         type: UiTextType.headlineSmall,
                         fontWeight: FontWeight.w800,
                       ),
@@ -64,7 +66,7 @@ class StaffManagementPage extends ConsumerWidget {
                   ),
                 ),
                 UiButton(
-                  'Add staff',
+                  l10n.staffAdd,
                   icon: Icons.person_add_alt_1_rounded,
                   variant: UiButtonVariant.outlined,
                   onPressed: () => showStaffFormSheet(context),
@@ -77,7 +79,7 @@ class StaffManagementPage extends ConsumerWidget {
       floatingActionButton: compact
           ? FloatingActionButton(
               onPressed: () => showStaffFormSheet(context),
-              tooltip: 'Add staff',
+              tooltip: l10n.staffAdd,
               backgroundColor: colorScheme.primaryContainer,
               foregroundColor: colorScheme.onPrimaryContainer,
               elevation: 3,
@@ -98,11 +100,14 @@ class _TeamSummary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final staff = ref.watch(staffListProvider);
+    final l10n = AppLocalizations.of(context)!;
     final text = switch (staff) {
-      AsyncData(:final value) when value.isNotEmpty =>
-        '${value.where((m) => m.active).length} of ${value.length} active',
-      AsyncData() => 'Team is empty — add your first member',
-      _ => 'Loading team…',
+      AsyncData(:final value) when value.isNotEmpty => l10n.staffSummaryActive(
+        value.where((m) => m.active).length,
+        value.length,
+      ),
+      AsyncData() => l10n.staffSummaryEmpty,
+      _ => l10n.staffSummaryLoading,
     };
     return UiText(
       text,

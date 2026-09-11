@@ -8,6 +8,7 @@ import 'package:brewline/core/repositories/refund_repository.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -104,7 +105,7 @@ class _RefundFlowState extends ConsumerState<_RefundFlow> {
       if (mounted) {
         showUiSnackBar(
           context,
-          'Refund receipt sent to printer',
+          AppLocalizations.of(context)!.refundReceiptPrinted,
           type: UiSnackBarType.success,
         );
       }
@@ -112,7 +113,7 @@ class _RefundFlowState extends ConsumerState<_RefundFlow> {
       if (mounted) {
         showUiSnackBar(
           context,
-          'Print failed: ${e.toString()}',
+          AppLocalizations.of(context)!.refundReceiptPrintFailed(e.toString()),
           type: UiSnackBarType.error,
         );
       }
@@ -163,6 +164,7 @@ class _RefundSuccessView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final printer = ref.watch(receiptPrinterServiceProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: EdgeInsets.all(Space.xl),
@@ -174,22 +176,23 @@ class _RefundSuccessView extends ConsumerWidget {
               color: colorScheme.primary, size: 48),
           SizedBox(height: Space.lg),
           UiText(
-            result.isFull ? 'Order voided' : 'Refund successful',
+            result.isFull ? l10n.refundSuccessVoided : l10n.refundSuccess,
             type: UiTextType.titleLarge,
             fontWeight: FontWeight.w700,
             textAlign: TextAlign.center,
           ),
           SizedBox(height: Space.md),
           UiText(
-            '${result.isFull ? 'Voided and refunded' : 'Refunded'} '
-            '${formatPriceCents(result.amountCents)} on order #$orderId.',
+            '${result.isFull ? l10n.refundBodyVoided : l10n.refundBodyPartial} '
+            '${formatPriceCents(result.amountCents)} '
+            '${l10n.refundBodyOnOrder(orderId)}.',
             type: UiTextType.bodyMedium,
             textAlign: TextAlign.center,
             color: colorScheme.onSurfaceVariant,
           ),
           SizedBox(height: Space.xl),
           UiButton(
-            'Print refund receipt',
+            l10n.refundPrintReceipt,
             icon: Icons.print_rounded,
             variant: UiButtonVariant.tonal,
             expand: true,
@@ -197,7 +200,7 @@ class _RefundSuccessView extends ConsumerWidget {
           ),
           SizedBox(height: Space.md),
           UiButton(
-            'Done',
+            l10n.refundDone,
             variant: UiButtonVariant.text,
             expand: true,
             onPressed: () => Navigator.of(context).pop(),

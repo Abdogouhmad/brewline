@@ -12,6 +12,7 @@ import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/shared/widgets/settings/settings_tile.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -40,10 +41,11 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return SettingsTile(
       icon: Icons.point_of_sale_rounded,
-      title: 'Cash out & print report',
-      subtitle: 'Close the shift, print a sales summary, and sign out',
+      title: l10n.walletCashoutSmsTitle,
+      subtitle: l10n.walletCashoutSmsSubtitle,
       onTap: _busy ? null : _cashout,
     );
   }
@@ -106,12 +108,12 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
       } on PrinterException catch (e) {
         printed = false;
         if (mounted) {
+          final l10n = AppLocalizations.of(context)!;
           showUiSnackBar(
             context,
-            'Shift closed, but the report couldn\'t print — check the printer '
-            '(${e.message})',
+            l10n.walletCashoutPrintFailed(e.message),
             type: UiSnackBarType.error,
-            label: 'Retry',
+            label: l10n.actionRetry,
             onLabelPressed: () => _retryPrint(report),
           );
         }
@@ -120,7 +122,7 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
       if (printed && mounted) {
         showUiSnackBar(
           context,
-          'Shift closed — report sent to the printer',
+          AppLocalizations.of(context)!.walletCashoutPrinted,
           type: UiSnackBarType.success,
         );
       }
@@ -148,17 +150,18 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
       if (mounted) {
         showUiSnackBar(
           context,
-          'Report printed',
+          AppLocalizations.of(context)!.walletReportPrinted,
           type: UiSnackBarType.success,
         );
       }
     } on PrinterException catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         showUiSnackBar(
           context,
-          'Retry failed — check the printer (${e.message})',
+          l10n.walletPrintRetryFailed(e.message),
           type: UiSnackBarType.error,
-          label: 'Retry',
+          label: l10n.actionRetry,
           onLabelPressed: () => _retryPrint(report),
         );
       }
@@ -168,29 +171,32 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
   /// Almost irreversible — the cashout row is the final record of the shift —
   /// so it gets an explicit confirmation before anything else happens.
   Future<bool> _confirmClose(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded),
-            SizedBox(width: Space.md),
-            UiText('Cash out and print report?', type: UiTextType.titleMedium),
+            const Icon(Icons.warning_amber_rounded),
+            const SizedBox(width: Space.md),
+            UiText(
+              l10n.walletCashoutConfirmTitle,
+              type: UiTextType.titleMedium,
+            ),
           ],
         ),
-        content: const UiText(
-          'This will close your shift, print the final sales report and log '
-          'you out. You will need to sign in again to take orders.',
+        content: UiText(
+          l10n.walletCashoutConfirmBody,
           type: UiTextType.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Cash out'),
+            child: Text(l10n.walletCashOutAction),
           ),
         ],
       ),
@@ -205,17 +211,21 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
     BuildContext context, {
     required int expectedCents,
   }) {
+    final l10n = AppLocalizations.of(context)!;
     final controller = TextEditingController(text: _centsToDh(expectedCents));
     final formKey = GlobalKey<FormState>();
 
     return showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.payments_rounded),
-            SizedBox(width: Space.md),
-            UiText('Cash counted', type: UiTextType.titleMedium),
+            const Icon(Icons.payments_rounded),
+            const SizedBox(width: Space.md),
+            UiText(
+              l10n.walletCashoutDialogTitle,
+              type: UiTextType.titleMedium,
+            ),
           ],
         ),
         content: Form(
@@ -231,15 +241,15 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                 ],
-                decoration: const InputDecoration(
-                  labelText: 'Cash in the drawer',
+                decoration: InputDecoration(
+                  labelText: l10n.walletCashoutDrawerLabel,
                   prefixText: 'DH ',
-                  helperText: 'The sum of cash you can hand over at the end.',
+                  helperText: l10n.walletCashoutHelper,
                 ),
                 validator: (value) {
                   final parsed = double.tryParse((value ?? '').trim());
                   if (parsed == null || parsed < 0) {
-                    return 'Enter a valid amount';
+                    return l10n.walletCashoutInvalidAmount;
                   }
                   return null;
                 },
@@ -251,8 +261,7 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
               ),
               SizedBox(height: Space.md),
               UiText(
-                'Expected: ${_centsToDh(expectedCents)} — variance is computed '
-                'against this amount.',
+                l10n.walletCashoutExpected(_centsToDh(expectedCents)),
                 type: UiTextType.bodySmall,
               ),
             ],
@@ -261,10 +270,10 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           UiButton(
-            'Confirm cash out',
+            l10n.walletCashoutConfirmButton,
             variant: UiButtonVariant.filled,
             onPressed: () {
               if (formKey.currentState!.validate()) {

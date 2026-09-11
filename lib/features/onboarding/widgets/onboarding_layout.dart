@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/auth_screen_layout.dart';
 
 import 'onboarding_form.dart';
@@ -18,7 +19,7 @@ class OnboardingLayout extends StatelessWidget {
     return Scaffold(
       body: AuthScreenLayout(
         form: const OnboardingForm(),
-        headerMessage: 'Set up your café',
+        headerMessage: AppLocalizations.of(context)!.onboardingSetupHeadline,
       ),
     );
   }

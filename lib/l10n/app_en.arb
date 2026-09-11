@@ -1,0 +1,1844 @@
+{
+  "@@locale": "en",
+  "@@description": "English template file. Every new user-facing string is added here FIRST, then translated outward to the other .arb files (see l10n.yaml). Keys are namespaced by feature area per improve.md §3.",
+
+  "appName": "BrewLine",
+  "@appName": {
+    "description": "Product/brand name. Not translated, kept as a key so it is defined once."
+  },
+
+  "brandTagline": "for management",
+  "@brandTagline": {
+    "description": "Tagline shown next to the BrewLine wordmark on auth screens"
+  },
+
+  "settingsLanguageSystemDefault": "System default",
+  "@settingsLanguageSystemDefault": {
+    "description": "Language setting option meaning 'follow the operating system locale'"
+  },
+  "settingsLanguageChooseTooltip": "Choose language",
+  "@settingsLanguageChooseTooltip": {
+    "description": "Tooltip on the language dropdown control in Settings"
+  },
+
+  "logoutConfirmTitle": "Log out?",
+  "@logoutConfirmTitle": {
+    "description": "Title of the confirm-dialog shown before signing out"
+  },
+  "logoutConfirmBody": "You will need to sign in again to take orders.",
+  "@logoutConfirmBody": {
+    "description": "Body of the confirm-dialog shown before signing out"
+  },
+  "logoutCancel": "Cancel",
+  "@logoutCancel": {
+    "description": "Cancel button in the logout confirmation dialog"
+  },
+  "logoutAction": "Log out",
+  "@logoutAction": {
+    "description": "Confirm button in the logout dialog"
+  },
+  "logoutTooltip": "Log out",
+  "@logoutTooltip": {
+    "description": "Tooltip on the app-bar logout icon button"
+  },
+  "logoutListSubtitle": "End this session on the device.",
+  "@logoutListSubtitle": {
+    "description": "Subtitle under the Log out list tile on the Settings page"
+  },
+
+  "onboardingSetupHeadline": "Set up your café",
+  "@onboardingSetupHeadline": {
+    "description": "Header message under the branding on the first-run setup screen"
+  },
+  "onboardingUsernameLabel": "Username",
+  "@onboardingUsernameLabel": {
+    "description": "Label of the username field on the setup screen"
+  },
+  "onboardingUsernameHint": "Choose a username",
+  "@onboardingUsernameHint": {
+    "description": "Hint text of the username field on the setup screen"
+  },
+  "onboardingSetPin": "Set your PIN",
+  "@onboardingSetPin": {
+    "description": "Label above the keypad at the PIN-set step of setup"
+  },
+  "onboardingConfirmPin": "Confirm your PIN",
+  "@onboardingConfirmPin": {
+    "description": "Label above the keypad at the PIN-confirm step of setup"
+  },
+  "onboardingFinishSetup": "Finish setup",
+  "@onboardingFinishSetup": {
+    "description": "Submit button on the setup screen"
+  },
+  "onboardingUsernameInvalid": "3–24 characters, letters, numbers, or _",
+  "@onboardingUsernameInvalid": {
+    "description": "Inline validation error for the username field when the value is not 3-24 letters/numbers/underscores"
+  },
+  "onboardingPinLength": "PIN must be exactly {count} digits",
+  "@onboardingPinLength": {
+    "description": "Inline validation error for the setup PIN when it has the wrong number of digits",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "onboardingPinMismatch": "PINs don't match",
+  "@onboardingPinMismatch": {
+    "description": "Inline validation error when the confirm-PIN does not match the entered PIN"
+  },
+  "onboardingPinTaken": "That PIN is already in use — pick a different one",
+  "@onboardingPinTaken": {
+    "description": "Error shown when the chosen PIN is already used by another account"
+  },
+  "onboardingSetupFailed": "Setup failed. Please try again.",
+  "@onboardingSetupFailed": {
+    "description": "Generic error shown when persisting the setup failed"
+  },
+
+  "loginWelcomeBack": "Welcome back",
+  "@loginWelcomeBack": {
+    "description": "Header message under the branding on the PIN login screen"
+  },
+  "loginEnterPin": "Enter your PIN",
+  "@loginEnterPin": {
+    "description": "Label above the numeric keypad on the login screen"
+  },
+  "loginIncorrectPin": "Incorrect PIN",
+  "@loginIncorrectPin": {
+    "description": "Error shown after a failed PIN attempt on the login screen"
+  },
+  "loginLockedOut": "Too many attempts. Try again in {seconds}s",
+  "@loginLockedOut": {
+    "description": "Countdown message shown while the keypad is throttled after too many failed attempts",
+    "placeholders": {
+      "seconds": {
+        "type": "num"
+      }
+    }
+  },
+  "loginButton": "Log in",
+
+  "actionCancel": "Cancel",
+  "actionRetry": "Retry",
+  "actionLoadMore": "Load more",
+  "actionAllWaiters": "All waiters",
+
+  "walletCashoutSmsTitle": "Cash out & print report",
+  "walletCashoutSmsSubtitle": "Close the shift, print a sales summary, and sign out",
+  "walletCashoutPrintFailed": "Shift closed, but the report couldn't print — check the printer ({error})",
+  "walletCashoutPrinted": "Shift closed — report sent to the printer",
+  "walletReportPrinted": "Report printed",
+  "walletPrintRetryFailed": "Retry failed — check the printer ({error})",
+  "walletCashoutConfirmTitle": "Cash out and print report?",
+  "walletCashoutConfirmBody": "This will close your shift, print the final sales report and log you out. You will need to sign in again to take orders.",
+  "walletCashOutAction": "Cash out",
+  "walletCashoutDialogTitle": "Cash counted",
+  "walletCashoutDrawerLabel": "Cash in the drawer",
+  "walletCashoutHelper": "The sum of cash you can hand over at the end.",
+  "walletCashoutInvalidAmount": "Enter a valid amount",
+  "walletCashoutExpected": "Expected: {amount} — variance is computed against this amount.",
+  "walletCashoutConfirmButton": "Confirm cash out",
+
+  "printReportSmsTitle": "Print report",
+  "printReportSmsSubtitle": "Print a preview of your shift, without closing it",
+  "printReportPrintFailed": "Couldn't print the report — check the printer ({error})",
+  "printReportEmpty": "No orders yet — the report is a placeholder",
+  "printReportSent": "Report sent to the printer — shift still open",
+
+  "updateTitle": "App update",
+  "updateCheckingPill": "Checking for updates…",
+  "updateCheckFailedPill": "Update check failed",
+  "updateAvailablePill": "New update available",
+  "updateUpToDatePill": "You are up to date",
+  "updateCheckingCard": "Contacting the update server…",
+  "updateCheckFailedMessage": "Could not check for updates. Check the network connection and try again.",
+  "updateErrorGeneric": "An error occurred while checking for updates.",
+  "updateErrorNoBuild": "This release has no installable build for this device.",
+  "updateErrorDownloadFailed": "Download failed: {detail}",
+  "updateErrorIntegrity": "The update failed the checksum verification: {detail}",
+  "updateErrorInstall": "The update could not be installed: {detail}",
+  "updateVersionDetails": "Version details",
+  "updateCurrentVersion": "Current version",
+  "updateLatestVersion": "Latest version",
+  "updateDownloadSize": "Download size",
+  "updateLastChecked": "Last checked",
+  "updateNever": "Never",
+  "updateLastResult": "Last result",
+  "updateResultUpToDate": "Up to date",
+  "updateResultAvailable": "Update available",
+  "updateResultMandatory": "Update required",
+  "updateResultFailed": "Check failed",
+  "updateResultNeverChecked": "Never checked",
+  "updateUnknown": "Unknown",
+  "updateWhatsNew": "What's new",
+  "updateNoReleaseNotes": "No release notes available for this release.",
+  "updateDownloadingCardTitle": "Downloading update…",
+  "updateDownloadInProgress": "Download in progress",
+  "updateDownloadingNote": "The update is verified by checksum before it is installed. Please do not close the app.",
+  "updateReadyBody": "Download complete. The app will close and relaunch to install.",
+  "updateInstallNow": "Install now",
+  "updateNow": "Update now",
+  "updateTryAgain": "Try again",
+  "updateCheckNow": "Check for updates",
+  "updateAutoCheckTitle": "Check automatically",
+  "updateAutoCheckSubtitle": "Look for updates when the app starts",
+  "updateSectionSystem": "System",
+  "updateSectionTitle": "Update",
+  "updateSectionSubtitle": "Keep this terminal on the latest version",
+  "updateSoftwareUpdate": "Software update",
+  "updateSummaryAvailable": "An update is available",
+  "updateSummaryDownloading": "Downloading…",
+  "updateSummaryReady": "Ready to install",
+  "updateRequiredTitle": "Upgrade required",
+  "updateRequiredBody": "BrewLine needs to be updated before you can continue. This version is no longer supported.",
+  "updateRequiredChecking": "Checking…",
+  "updateRequiredChecksumNote": "Your update is verified by checksum before it is applied.",
+  "updateRequiredReady": "Ready to install. The app will close and relaunch.",
+  "updateRequiredDownloadFailedNote": "Check your internet connection and try again.",
+  "updateRequiredDownloadButton": "Download update",
+
+  "adminCashoutLogTitle": "Cashout log",
+  "adminCashoutLogSubtitle": "Every finalized shift close, filterable by date or waiter.",
+  "adminCashoutLogError": "Couldn't load the cashout log.",
+  "adminCashoutLogEmpty": "No cashouts match these filters.",
+  "adminCashoutLogFilters": "Filters",
+  "adminCashoutLogWaiterLabel": "Waiter",
+  "adminCashoutLogPickRangeHelp": "Filter cashouts by date",
+  "adminCashoutColDateTime": "Date & Time",
+  "adminCashoutColOrders": "Orders Made",
+  "adminCashoutColWaiter": "Waiter Name",
+  "adminCashoutColTotal": "Total Made",
+  "adminCashoutColCashCounted": "Cash Counted",
+  "adminCashoutColVariance": "Variance",
+
+  "refundReceiptPrinted": "Refund receipt sent to printer",
+  "refundReceiptPrintFailed": "Print failed: {error}",
+  "refundSuccessVoided": "Order voided",
+  "refundSuccess": "Refund successful",
+  "refundBodyVoided": "Voided and refunded",
+  "refundBodyPartial": "Refunded",
+  "refundBodyOnOrder": "on order #{orderId}",
+  "refundPrintReceipt": "Print refund receipt",
+  "refundDone": "Done",
+
+  "refundFormLoadFailed": "Couldn't load this order.",
+  "refundFormReasonLabel": "Reason (required)",
+  "refundFormReasonHint": "e.g. wrong item entered",
+  "refundFormTitle": "Refund order",
+  "refundFormModeCorrect": "Correct Order",
+  "refundFormModeVoid": "Void Order",
+  "refundFormLineItems": "Line items",
+  "refundFormCurrentTotal": "Current total",
+  "refundFormRefundAmount": "Refund amount",
+  "refundFormVoidEntireOrder": "Void entire order",
+  "refundFormOriginalTotal": "Original total",
+  "refundFormVoidNote": "The order is marked voided but kept in records for audit. Nothing is deleted.",
+  "refundFormConfirmVoid": "Void & refund {amount}",
+  "refundFormConfirmPartial": "Refund {amount}",
+  "refundFormProcessing": "Processing…",
+  "refundFormOrder": "Order {orderNumber}",
+  "refundFormTotal": "Total",
+  "refundFormRemoveItem": "Remove item",
+  "refundFormReduceQty": "Reduce quantity",
+  "refundFormFailed": "Refund failed: {error}",
+  "@loginButton": {
+    "description": "Submit button on the login screen"
+  },
+
+  "adminNavDashboard": "Dashboard",
+  "@adminNavDashboard": {
+    "description": "Admin navigation destination label"
+  },
+  "adminNavReports": "Reports",
+  "@adminNavReports": {
+    "description": "Admin navigation destination label"
+  },
+  "adminNavMenu": "Menu",
+  "@adminNavMenu": {
+    "description": "Admin navigation destination label"
+  },
+  "adminNavInventory": "Inventory",
+  "@adminNavInventory": {
+    "description": "Admin navigation destination label"
+  },
+  "adminNavStaff": "Staff",
+  "@adminNavStaff": {
+    "description": "Admin navigation destination label"
+  },
+  "adminNavSalesLog": "Sales log",
+  "@adminNavSalesLog": {
+    "description": "Admin navigation destination label"
+  },
+  "adminNavCashoutLog": "Cashout log",
+  "@adminNavCashoutLog": {
+    "description": "Admin navigation destination label"
+  },
+  "adminNavSettings": "Settings",
+  "@adminNavSettings": {
+    "description": "Admin navigation destination label"
+  },
+
+  "adminDashboardRevenue": "Revenue",
+  "@adminDashboardRevenue": {
+    "description": "KPI card label on the admin dashboard"
+  },
+  "adminDashboardOrders": "Orders",
+  "@adminDashboardOrders": {
+    "description": "KPI card label on the admin dashboard"
+  },
+  "adminDashboardItemsSold": "Items sold",
+  "@adminDashboardItemsSold": {
+    "description": "KPI card label on the admin dashboard"
+  },
+  "adminDashboardAvgOrder": "Avg. order",
+  "@adminDashboardAvgOrder": {
+    "description": "KPI card label on the admin dashboard"
+  },
+  "adminDashboardGreetingMorning": "Good morning",
+  "@adminDashboardGreetingMorning": {
+    "description": "Dashboard header greeting before noon"
+  },
+  "adminDashboardGreetingAfternoon": "Good afternoon",
+  "@adminDashboardGreetingAfternoon": {
+    "description": "Dashboard header greeting from noon until early evening"
+  },
+  "adminDashboardGreetingEvening": "Good evening",
+  "@adminDashboardGreetingEvening": {
+    "description": "Dashboard header greeting in the evening"
+  },
+  "adminDashboardPeriodToday": "Today",
+  "@adminDashboardPeriodToday": {
+    "description": "Period selector option: today's figures"
+  },
+  "adminDashboardPeriodWeek": "Last 7 days",
+  "@adminDashboardPeriodWeek": {
+    "description": "Period selector option: trailing 7 days"
+  },
+  "adminDashboardPeriodMonth": "Last 30 days",
+  "@adminDashboardPeriodMonth": {
+    "description": "Period selector option: trailing 30 days"
+  },
+  "adminRevenueOverviewTitle": "Revenue overview",
+  "@adminRevenueOverviewTitle": {
+    "description": "Title of the revenue bar chart card on the dashboard"
+  },
+  "adminRevenueOverTimeTitle": "Revenue over time",
+  "@adminRevenueOverTimeTitle": {
+    "description": "Title of the revenue line chart card on the Reports tab"
+  },
+  "adminRevenueTrendError": "Couldn't load the revenue trend.",
+  "@adminRevenueTrendError": {
+    "description": "Error message inside the revenue chart when its data fails to load"
+  },
+  "adminReportTitle": "Performance",
+  "@adminReportTitle": {
+    "description": "Heading of the admin Reports tab"
+  },
+  "adminReportSubtitle": "Revenue, what sells and when.",
+  "@adminReportSubtitle": {
+    "description": "Subtitle under the Reports tab heading"
+  },
+
+  "adminDashboardQuickActions": "Quick actions",
+  "@adminDashboardQuickActions": {
+    "description": "Title of the quick-action tiles card on the dashboard"
+  },
+  "adminDashboardQuickAddStaff": "Add staff",
+  "@adminDashboardQuickAddStaff": {
+    "description": "Quick-action label that jumps to the Staff tab"
+  },
+  "adminDashboardQuickAddStaffDesc": "Invite a team member",
+  "@adminDashboardQuickAddStaffDesc": {
+    "description": "Subtitle of the 'Add staff' quick action"
+  },
+  "adminDashboardQuickViewReports": "View reports",
+  "@adminDashboardQuickViewReports": {
+    "description": "Quick-action label that jumps to the Reports tab"
+  },
+  "adminDashboardQuickViewReportsDesc": "Revenue & performance",
+  "@adminDashboardQuickViewReportsDesc": {
+    "description": "Subtitle of the 'View reports' quick action"
+  },
+  "adminDashboardQuickAddProduct": "Add product",
+  "@adminDashboardQuickAddProduct": {
+    "description": "Quick-action label that jumps to the Menu tab"
+  },
+  "adminDashboardQuickAddProductDesc": "Grow the menu",
+  "@adminDashboardQuickAddProductDesc": {
+    "description": "Subtitle of the 'Add product' quick action"
+  },
+
+  "adminLowStockTitle": "Low stock",
+  "@adminLowStockTitle": {
+    "description": "Title of the low-stock alerts card"
+  },
+  "adminLowStockError": "Couldn't load stock levels.",
+  "@adminLowStockError": {
+    "description": "Error message shown inside the low-stock card"
+  },
+  "adminLowStockHealthy": "Stock levels look healthy — no alerts.",
+  "@adminLowStockHealthy": {
+    "description": "Empty-state message when every product is sufficiently stocked"
+  },
+  "adminStockQuantityLeft": "{count, plural, =1{1 left} other{{count} left}}",
+  "adminStockQuantityLeftAmount": "{amount} left",
+  "@adminStockQuantityLeft": {
+    "description": "Units of a product still in stock, e.g. '12 left'",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "adminRestockShort": "+ Restock",
+  "@adminRestockShort": {
+    "description": "Compact one-tap restock button on a low-stock row"
+  },
+
+  "adminStockOverviewTitle": "Stock overview",
+  "@adminStockOverviewTitle": {
+    "description": "Title of the all-ingredients stock overview card"
+  },
+  "adminStockOverviewEmpty": "No stock items yet — add ingredients to track stock here.",
+  "@adminStockOverviewEmpty": {
+    "description": "Empty state shown when no ingredients exist yet"
+  },
+  "adminStockRestockCount": "{count, plural, =1{1 needs restock} other{{count} need restock}}",
+  "@adminStockRestockCount": {
+    "description": "Header pill on the stock overview card counting ingredients that need restocking",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "adminStockServingsLeft": "· ~{count, plural, =1{1 serving} other{{count} servings}}",
+  "@adminStockServingsLeft": {
+    "description": "Approximate servings an ingredient still yields, appended to its stock quantity",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "adminStockBadgeOut": "· out",
+  "@adminStockBadgeOut": {
+    "description": "Status suffix appended to a stock row when the ingredient is out of stock"
+  },
+  "adminStockBadgeLow": "· low",
+  "@adminStockBadgeLow": {
+    "description": "Status suffix appended to a stock row when the ingredient is low"
+  },
+
+  "adminShiftStatusTitle": "Shift status",
+  "@adminShiftStatusTitle": {
+    "description": "Title of the shift status card"
+  },
+  "adminShiftStatusOnShift": "On shift",
+  "@adminShiftStatusOnShift": {
+    "description": "Green status pill confirming the signed-in admin's session is live"
+  },
+  "adminShiftStatusSignedInAs": "Signed in as",
+  "@adminShiftStatusSignedInAs": {
+    "description": "Label above the signed-in account name on the shift status card"
+  },
+  "adminShiftStatusError": "Couldn't load shift status.",
+  "@adminShiftStatusError": {
+    "description": "Error message inside the shift status card"
+  },
+  "adminShiftStatusEmpty": "No staff on the roster yet.",
+  "@adminShiftStatusEmpty": {
+    "description": "Empty state when the check-in roster has no staff"
+  },
+  "adminShiftStatusActive": "Active",
+  "@adminShiftStatusActive": {
+    "description": "Status badge for a staff member currently clocked in"
+  },
+  "adminShiftStatusIdle": "Idle",
+  "@adminShiftStatusIdle": {
+    "description": "Status badge for a staff member who has never clocked in this shift"
+  },
+  "adminShiftStatusCashedOut": "Cashed out",
+  "@adminShiftStatusCashedOut": {
+    "description": "Status badge for a staff member who clocked out"
+  },
+  "adminShiftStatusNoShiftYet": "No shift yet",
+  "@adminShiftStatusNoShiftYet": {
+    "description": "Status badge for a staff member with no shift history"
+  },
+  "adminShiftStatusNeverLoggedIn": "Never logged in",
+  "@adminShiftStatusNeverLoggedIn": {
+    "description": "Detail note for a staff member who never signed in"
+  },
+  "adminShiftLoggedInAt": "Logged in {time}",
+  "@adminShiftLoggedInAt": {
+    "description": "Detail line showing when a staff member clocked in",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "adminShiftLoggedOutLastActive": "Logged out · last active {time}",
+  "@adminShiftLoggedOutLastActive": {
+    "description": "Detail line for an idle staff member",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "adminShiftDetailCashedOut": "Logged in {checkIn} · Cashed out {cashOut}",
+  "@adminShiftDetailCashedOut": {
+    "description": "Detail line for a staff member who clocked in and later cashed out",
+    "placeholders": {
+      "checkIn": {
+        "type": "String"
+      },
+      "cashOut": {
+        "type": "String"
+      }
+    }
+  },
+  "adminShiftDurationLong": "{hours}h {minutes}m",
+  "@adminShiftDurationLong": {
+    "description": "Elapsed time on shift when at least one hour has passed",
+    "placeholders": {
+      "hours": {
+        "type": "num"
+      },
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
+  "adminShiftDurationShort": "{minutes}m",
+  "@adminShiftDurationShort": {
+    "description": "Elapsed time on shift when under an hour",
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
+
+  "adminTopProductsTitle": "Top products",
+  "@adminTopProductsTitle": {
+    "description": "Title of the top-sellers card"
+  },
+  "adminTopProductsError": "Couldn't load top products.",
+  "@adminTopProductsError": {
+    "description": "Error message inside the top-products card"
+  },
+  "adminTopProductsEmpty": "No sales recorded in this period.",
+  "@adminTopProductsEmpty": {
+    "description": "Empty state for the top products card"
+  },
+  "adminTopProductsSold": "{count, plural, =1{1 sold} other{{count} sold}}",
+  "@adminTopProductsSold": {
+    "description": "Units of a product sold in the period, e.g. '23 sold'",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+
+  "adminCategoryMixTitle": "Category mix",
+  "@adminCategoryMixTitle": {
+    "description": "Title of the revenue-by-category card"
+  },
+  "adminCategoryMixError": "Couldn't load the mix.",
+  "@adminCategoryMixError": {
+    "description": "Error message inside the category-mix card"
+  },
+
+  "adminTeamPerformanceTitle": "Team performance",
+  "@adminTeamPerformanceTitle": {
+    "description": "Title of the per-waiter sales card"
+  },
+  "adminTeamPerformanceError": "Couldn't load team sales.",
+  "@adminTeamPerformanceError": {
+    "description": "Error message inside the team-performance card"
+  },
+  "adminTeamPerformanceEmpty": "No waiter-attributed sales this period.",
+  "@adminTeamPerformanceEmpty": {
+    "description": "Empty state for the team-performance card"
+  },
+  "adminTeamOrders": "{count, plural, =1{1 order} other{{count} orders}}",
+  "@adminTeamOrders": {
+    "description": "Orders attributed to one waiter",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+
+  "adminBusiestHoursTitle": "Busiest hours",
+  "@adminBusiestHoursTitle": {
+    "description": "Title of the day-x-time heatmap card"
+  },
+  "adminBusiestHoursError": "Couldn't load the hour data.",
+  "@adminBusiestHoursError": {
+    "description": "Error message inside the busiest-hours card"
+  },
+  "adminBusiestHoursTotal": "{count, plural, =1{1 order} other{{count} orders}}",
+  "@adminBusiestHoursTotal": {
+    "description": "Total order count heading on the heatmap card",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "adminBusiestCellTooltip": "{day} · {start}–{end} · {count, plural, =1{1 order} other{{count} orders}}",
+  "@adminBusiestCellTooltip": {
+    "description": "Tooltip / snackbar label for one heatmap cell showing its day, time bucket and order count",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+
+  "actionEdit": "Edit",
+  "@actionEdit": {
+    "description": "Generic edit action label"
+  },
+  "actionArchive": "Archive",
+  "@actionArchive": {
+    "description": "Generic archive action label"
+  },
+  "actionDelete": "Delete",
+  "@actionDelete": {
+    "description": "Generic delete action label"
+  },
+  "actionActions": "Actions",
+  "@actionActions": {
+    "description": "Overflow menu trigger label"
+  },
+
+  "inventoryTitle": "Inventory",
+  "@inventoryTitle": {
+    "description": "Admin inventory tab heading"
+  },
+  "inventorySubtitle": "Track raw ingredients and who consumes them.",
+  "@inventorySubtitle": {
+    "description": "Subtitle on the inventory tab"
+  },
+  "inventoryAddIngredient": "Add ingredient",
+  "@inventoryAddIngredient": {
+    "description": "Button that opens the new-ingredient form"
+  },
+  "inventoryStockMovementsLog": "Stock movements log",
+  "@inventoryStockMovementsLog": {
+    "description": "Button opening the stock movements ledger"
+  },
+  "inventoryError": "Couldn't load inventory.",
+  "@inventoryError": {
+    "description": "Error message when the ingredient list fails to load"
+  },
+  "inventoryEmpty": "No ingredients yet. Add one to start tracking stock.",
+  "@inventoryEmpty": {
+    "description": "Empty state when no ingredients exist"
+  },
+
+  "stockQuantityWithUnitLeft": "{amount} left",
+  "@stockQuantityWithUnitLeft": {
+    "description": "Amount of an ingredient still on hand, with its unit, e.g. '1.2 kg left'",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "stockBadgeOut": "Out",
+  "@stockBadgeOut": {
+    "description": "Badge text when an ingredient has no stock left"
+  },
+  "stockBadgeLow": "Low",
+  "@stockBadgeLow": {
+    "description": "Badge text when an ingredient is low on stock"
+  },
+
+  "restockDialogTitle": "Restock {name}",
+  "@restockDialogTitle": {
+    "description": "Title of the restock dialog",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "restockCurrentlyOnHand": "Currently {amount} on hand",
+  "@restockCurrentlyOnHand": {
+    "description": "Current stock shown in the restock dialog",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "restockQuantityReceived": "Quantity received",
+  "@restockQuantityReceived": {
+    "description": "Field label for the received quantity"
+  },
+  "restockStoredAs": "Stored as {amount} {unit}",
+  "@restockStoredAs": {
+    "description": "Helper explaining how a large-scale entry is stored",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "restockEnterPositiveQty": "Enter a positive quantity",
+  "@restockEnterPositiveQty": {
+    "description": "Validation message for a non-positive restock quantity"
+  },
+  "restockNoteOptional": "Note (optional)",
+  "@restockNoteOptional": {
+    "description": "Field label for the optional restock note"
+  },
+  "restockNoteHint": "e.g. Supplier name, PO #",
+  "@restockNoteHint": {
+    "description": "Hint text for the restock note"
+  },
+  "restockAction": "Restock",
+  "@restockAction": {
+    "description": "Confirm button on the restock dialog"
+  },
+  "restockProgress": "Restocking…",
+  "@restockProgress": {
+    "description": "Restock button label while saving"
+  },
+  "restockSnackbar": "{name} restocked (+{amount})",
+  "@restockSnackbar": {
+    "description": "Confirmation after a successful restock",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+
+  "ingredientAddTitle": "Add ingredient",
+  "@ingredientAddTitle": {
+    "description": "Heading of the ingredient form in create mode"
+  },
+  "ingredientEditTitle": "Edit ingredient",
+  "@ingredientEditTitle": {
+    "description": "Heading of the ingredient form in edit mode"
+  },
+  "ingredientName": "Ingredient name",
+  "@ingredientName": {
+    "description": "Field label for the ingredient name"
+  },
+  "ingredientNameHint": "e.g. Coffee beans, Milk, Cups",
+  "@ingredientNameHint": {
+    "description": "Hint text for the ingredient name"
+  },
+  "ingredientEnterName": "Enter a name",
+  "@ingredientEnterName": {
+    "description": "Validation message for an empty ingredient name"
+  },
+  "ingredientLowStockBelow": "Low-stock alert below",
+  "@ingredientLowStockBelow": {
+    "description": "Field label for the reorder threshold"
+  },
+  "ingredientAlertDesc": "Alerts when on hand drops to this level or below",
+  "@ingredientAlertDesc": {
+    "description": "Helper text explaining the reorder threshold"
+  },
+  "ingredientNonNegative": "Enter 0 or a positive number",
+  "@ingredientNonNegative": {
+    "description": "Validation message for a non-numeric or negative threshold"
+  },
+  "ingredientTrackedUnit": "Tracked unit",
+  "@ingredientTrackedUnit": {
+    "description": "Label above the ingredient unit picker"
+  },
+  "ingredientUnitWeight": "Weight (g)",
+  "@ingredientUnitWeight": {
+    "description": "Option label for the grams unit"
+  },
+  "ingredientUnitVolume": "Volume (ml)",
+  "@ingredientUnitVolume": {
+    "description": "Option label for the millilitres unit"
+  },
+  "ingredientUnitUnits": "Whole units",
+  "@ingredientUnitUnits": {
+    "description": "Option label for the discrete-units unit"
+  },
+  "ingredientUnitLockedNote": "The unit can't change once the ingredient has stock history.",
+  "@ingredientUnitLockedNote": {
+    "description": "Notice shown when the unit picker is disabled"
+  },
+  "ingredientSave": "Save ingredient",
+  "@ingredientSave": {
+    "description": "Submit button on the ingredient form"
+  },
+  "ingredientSaving": "Saving…",
+  "@ingredientSaving": {
+    "description": "Ingredient form button label while saving"
+  },
+  "ingredientAddedSnackbar": "{name} added to inventory",
+  "@ingredientAddedSnackbar": {
+    "description": "Confirmation after creating an ingredient",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "ingredientUpdatedSnackbar": "{name} updated",
+  "@ingredientUpdatedSnackbar": {
+    "description": "Confirmation after editing an ingredient",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
+  "movementsTitle": "Stock movements",
+  "@movementsTitle": {
+    "description": "Title of the stock movements ledger page"
+  },
+  "movementsSubtitle": "Every change to an ingredient's quantity, newest first.",
+  "@movementsSubtitle": {
+    "description": "Subtitle of the stock movements page"
+  },
+  "movementsError": "Couldn't load the stock movements.",
+  "@movementsError": {
+    "description": "Error message when the movement ledger fails to load"
+  },
+  "movementsEmpty": "No movements match these filters.",
+  "@movementsEmpty": {
+    "description": "Empty state when no movements match the filters"
+  },
+  "movementsFilters": "Filters",
+  "@movementsFilters": {
+    "description": "Heading of the filter card"
+  },
+  "movementsDateRange": "Date range",
+  "@movementsDateRange": {
+    "description": "Filter field label for the date window"
+  },
+  "movementsAllDates": "All dates",
+  "@movementsAllDates": {
+    "description": "Value shown when no date filter is applied"
+  },
+  "movementsClearDateFilter": "Clear date filter",
+  "@movementsClearDateFilter": {
+    "description": "Tooltip for the button that clears the date filter"
+  },
+  "movementsDatePickerHelp": "Filter movements by date",
+  "@movementsDatePickerHelp": {
+    "description": "Helper text for the date range picker"
+  },
+  "movementsIngredient": "Ingredient",
+  "@movementsIngredient": {
+    "description": "Filter field label for the ingredient"
+  },
+  "movementsAllIngredients": "All ingredients",
+  "@movementsAllIngredients": {
+    "description": "Dropdown option for no ingredient filter"
+  },
+  "movementsReason": "Reason",
+  "@movementsReason": {
+    "description": "Filter field label for the movement reason"
+  },
+  "movementsAllReasons": "All reasons",
+  "@movementsAllReasons": {
+    "description": "Dropdown option for no reason filter"
+  },
+  "movementsWhen": "When",
+  "@movementsWhen": {
+    "description": "Column header for the movement timestamp"
+  },
+  "movementsChange": "Change",
+  "@movementsChange": {
+    "description": "Column header for the quantity change"
+  },
+  "movementsRefNote": "Ref / note",
+  "@movementsRefNote": {
+    "description": "Column header for the order reference or note"
+  },
+  "movementsOrderRef": "Order #{orderId}",
+  "@movementsOrderRef": {
+    "description": "Cell text referencing the order a movement came from",
+    "placeholders": {
+      "orderId": {
+        "type": "int"
+      }
+    }
+  },
+  "movementsReasonSale": "Sale",
+  "@movementsReasonSale": {
+    "description": "Dropdown label for the sale movement reason"
+  },
+  "movementsReasonRefund": "Refund / restock",
+  "@movementsReasonRefund": {
+    "description": "Dropdown label for the refund-restock reason"
+  },
+  "movementsReasonRestock": "Restock",
+  "@movementsReasonRestock": {
+    "description": "Dropdown label for the restock reason"
+  },
+  "movementsReasonAdjustment": "Manual adjustment",
+  "@movementsReasonAdjustment": {
+    "description": "Dropdown label for the manual adjustment reason"
+  },
+  "movementsReasonWaste": "Waste",
+  "@movementsReasonWaste": {
+    "description": "Dropdown label for the waste reason"
+  },
+  "movementsPillRefund": "Refund",
+  "@movementsPillRefund": {
+    "description": "Compact pill label for the refund-restock reason"
+  },
+  "movementsPillAdjustment": "Adjustment",
+  "@movementsPillAdjustment": {
+    "description": "Compact pill label for the manual adjustment reason"
+  },
+
+  "recipeTitle": "What does it consume per serving?",
+  "@recipeTitle": {
+    "description": "Heading of the recipe editor in the product form"
+  },
+  "recipeSubtitle": "Bind the product to ingredients you stock — e.g. 1 cup → 12 g beans. This drives the low-stock alerts and how many cups you can still make.",
+  "@recipeSubtitle": {
+    "description": "Explanation text of the recipe editor"
+  },
+  "recipeBindIngredient": "Bind an ingredient in stock",
+  "@recipeBindIngredient": {
+    "description": "Field label for the ingredient binding dropdown"
+  },
+  "recipeSelectIngredient": "Select an ingredient…",
+  "@recipeSelectIngredient": {
+    "description": "Dropdown hint when ingredients remain to bind"
+  },
+  "recipeNoMoreIngredients": "No more ingredients left to add",
+  "@recipeNoMoreIngredients": {
+    "description": "Dropdown label/hint when every ingredient is already bound"
+  },
+  "recipePerUnitSold": "Per {unit} sold",
+  "@recipePerUnitSold": {
+    "description": "Quantity field label in a recipe row",
+    "placeholders": {
+      "unit": {
+        "type": "String"
+      }
+    }
+  },
+  "recipeRemoveBinding": "Remove binding",
+  "@recipeRemoveBinding": {
+    "description": "Tooltip for removing an ingredient binding"
+  },
+  "recipeYieldHint": "{bulk} → about {count, plural, =1{1 serving} other{{count} servings}}",
+  "@recipeYieldHint": {
+    "description": "Bulk-purchase yield estimate in a recipe row",
+    "placeholders": {
+      "bulk": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+
+  "menuCatalogTitle": "Catalog",
+  "@menuCatalogTitle": {
+    "description": "Admin menu & products tab heading"
+  },
+  "menuSubtitle": "Manage prices, stock and availability across the menu.",
+  "@menuSubtitle": {
+    "description": "Subtitle on the menu tab"
+  },
+  "menuAddProduct": "Add product",
+  "@menuAddProduct": {
+    "description": "Button that opens the new-product form"
+  },
+
+  "productTableError": "Couldn't load the catalog.",
+  "@productTableError": {
+    "description": "Error message when the product catalog fails to load"
+  },
+  "productTableEmpty": "No products yet — add your first one.",
+  "@productTableEmpty": {
+    "description": "Empty state when the catalog has no products"
+  },
+  "productUncategorised": "Uncategorised",
+  "@productUncategorised": {
+    "description": "Label shown when a product has no category"
+  },
+  "productStockSoldOut": "Sold out",
+  "@productStockSoldOut": {
+    "description": "Stock line when the product is not available for sale"
+  },
+  "productStockNotTracked": "Stock not tracked yet",
+  "@productStockNotTracked": {
+    "description": "Stock line when a product has no ingredient binding"
+  },
+  "productStockOutRestock": "Out of stock — restock",
+  "@productStockOutRestock": {
+    "description": "Stock line when a product's ingredients are exhausted"
+  },
+  "productStockLow": "Low · ~{count, plural, =1{1 left} other{{count} left}}",
+  "@productStockLow": {
+    "description": "Stock line when a product is low, e.g. 'Low · ~12 left'",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "productStockServingsLeft": "~{count, plural, =1{1 serving} other{{count} servings}} left",
+  "@productStockServingsLeft": {
+    "description": "Stock line with the number of servings still sellable",
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "productActionsTooltip": "Product actions",
+  "@productActionsTooltip": {
+    "description": "Tooltip for the product overflow menu"
+  },
+  "productDeleteTitle": "Delete {name}?",
+  "@productDeleteTitle": {
+    "description": "Title of the delete-product confirmation",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "productDeleteBody": "Removes it from the menu and stock tracking. Past orders keep their own snapshots and stay in the reports.",
+  "@productDeleteBody": {
+    "description": "Explanation in the delete-product confirmation"
+  },
+  "productDeletedSnackbar": "{name} deleted",
+  "@productDeletedSnackbar": {
+    "description": "Confirmation after deleting a product",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+
+  "productAddTitle": "Add product",
+  "@productAddTitle": {
+    "description": "Heading of the product form in create mode"
+  },
+  "productEditTitle": "Edit product",
+  "@productEditTitle": {
+    "description": "Heading of the product form in edit mode"
+  },
+  "productName": "Product name",
+  "@productName": {
+    "description": "Field label for the product name"
+  },
+  "productEnterName": "Enter a name",
+  "@productEnterName": {
+    "description": "Validation message for an empty product name"
+  },
+  "productPrice": "Price (DH)",
+  "@productPrice": {
+    "description": "Field label for the price in dirhams"
+  },
+  "productMustBePositive": "Must be positive",
+  "@productMustBePositive": {
+    "description": "Validation message for a non-positive price"
+  },
+  "productCategory": "Category",
+  "@productCategory": {
+    "description": "Field label for the category"
+  },
+  "productCategoryHint": "e.g. Coffee, Soft drinks",
+  "@productCategoryHint": {
+    "description": "Hint text for the category"
+  },
+  "productMenuPhoto": "Menu photo",
+  "@productMenuPhoto": {
+    "description": "Label above the product image picker"
+  },
+  "productImportFromGallery": "Import from gallery",
+  "@productImportFromGallery": {
+    "description": "Tooltip for the gallery upload tile"
+  },
+  "productAvailableOnMenu": "Available on the menu",
+  "@productAvailableOnMenu": {
+    "description": "Toggle label for product availability"
+  },
+  "productHideFromWaiters": "Hides the product from waiters when off",
+  "@productHideFromWaiters": {
+    "description": "Toggle subtitle explaining availability"
+  },
+  "productSaveChanges": "Save changes",
+  "@productSaveChanges": {
+    "description": "Submit button in the product form edit mode"
+  },
+  "productAddToMenu": "Add to menu",
+  "@productAddToMenu": {
+    "description": "Submit button in the product form create mode"
+  },
+  "productSaving": "Saving…",
+  "@productSaving": {
+    "description": "Product form button label while saving"
+  },
+  "productAddedSnackbar": "{name} added to the menu",
+  "@productAddedSnackbar": {
+    "description": "Confirmation after creating a product",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "productUpdatedSnackbar": "{name} updated",
+  "@productUpdatedSnackbar": {
+    "description": "Confirmation after editing a product",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "productGalleryError": "Couldn't open the gallery.",
+  "@productGalleryError": {
+    "description": "Error message when the system image picker fails"
+  },
+
+  "waiterNavOrders": "Orders",
+  "@waiterNavOrders": {
+    "description": "Waiter navigation destination label"
+  },
+  "waiterNavMenu": "Menu",
+  "@waiterNavMenu": {
+    "description": "Waiter navigation destination label"
+  },
+  "waiterNavSettings": "Settings",
+  "@waiterNavSettings": {
+    "description": "Waiter navigation destination label"
+  },
+  "shellMore": "More",
+  "@shellMore": {
+    "description": "Nav shell slot that folds extra destinations into a sheet on compact screens"
+  },
+
+  "menuTitle": "Menu",
+  "@menuTitle": {
+    "description": "Section header on the waiter menu page"
+  },
+  "menuError": "Couldn't load the menu.",
+  "@menuError": {
+    "description": "Error message when the waiter menu fails to load"
+  },
+  "menuEmpty": "No products on the menu yet.",
+  "@menuEmpty": {
+    "description": "Empty state when the catalog has no available products"
+  },
+
+  "ordersTitleWithItems": "Order #{number} · {count, plural, =1{1 item} other{{count} items}}",
+  "@ordersTitleWithItems": {
+    "description": "Orders tab header when it holds line items",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "ordersTitle": "Order #{number}",
+  "@ordersTitle": {
+    "description": "Orders tab header for a fresh (empty ticket) order",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "ordersCleared": "Order cleared",
+  "@ordersCleared": {
+    "description": "Snackbar shown after the cart is cleared"
+  },
+  "ordersUndo": "Undo",
+  "@ordersUndo": {
+    "description": "Snackbar action that restores a cleared cart"
+  },
+  "ordersEmpty": "No items yet",
+  "@ordersEmpty": {
+    "description": "Empty-state title when the cart is empty"
+  },
+  "ordersEmptyHint": "Tap products in Menu to add them here.",
+  "@ordersEmptyHint": {
+    "description": "Empty-state hint pointing waiters to the menu tab"
+  },
+  "ordersTotal": "Total",
+  "@ordersTotal": {
+    "description": "Label above the running order total"
+  },
+  "ordersCharge": "Charge {amount}",
+  "@ordersCharge": {
+    "description": "Button that settles the order, showing the amount",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "ordersClearOrder": "Clear order",
+  "@ordersClearOrder": {
+    "description": "Button that empties the cart without charging"
+  },
+  "ordersRemoveItem": "Remove item",
+  "@ordersRemoveItem": {
+    "description": "Tooltip on the remove-line action"
+  },
+
+  "settingsPreferences": "Preferences",
+  "@settingsPreferences": {
+    "description": "Section eyebrow label grouping the language + theme controls"
+  },
+  "settingsSession": "Session",
+  "@settingsSession": {
+    "description": "Section eyebrow label grouping account/session actions"
+  },
+  "settingsReceipts": "Receipts",
+  "@settingsReceipts": {
+    "description": "Section eyebrow label grouping receipt printing toggles"
+  },
+  "settingsSecurity": "Security",
+  "@settingsSecurity": {
+    "description": "Admin settings section eyebrow above the account card"
+  },
+  "settingsHardware": "Hardware",
+  "@settingsHardware": {
+    "description": "Admin settings section eyebrow above the printer card"
+  },
+  "settingsAccountProfile": "Account profile",
+  "@settingsAccountProfile": {
+    "description": "Waiter settings account section title"
+  },
+  "settingsAccountProfileSubtitle": "Manage your session and shift reports",
+  "@settingsAccountProfileSubtitle": {
+    "description": "Waiter settings account section subtitle"
+  },
+  "settingsOnShift": "On shift",
+  "@settingsOnShift": {
+    "description": "Live status label in the settings profile header"
+  },
+  "settingsGeneralTitle": "General",
+  "@settingsGeneralTitle": {
+    "description": "Title of the language + appearance settings section"
+  },
+  "settingsGeneralSubtitle": "Language and appearance",
+  "@settingsGeneralSubtitle": {
+    "description": "Subtitle of the language + appearance settings section"
+  },
+  "settingsLanguageTitle": "Language",
+  "@settingsLanguageTitle": {
+    "description": "Settings row label for the interface language"
+  },
+  "settingsLanguageSubtitle": "Interface language for this device",
+  "@settingsLanguageSubtitle": {
+    "description": "Settings row subtitle explaining the language picker"
+  },
+  "settingsChangePasswordTitle": "Change password",
+  "@settingsChangePasswordTitle": {
+    "description": "Settings row opening the change-PIN dialog"
+  },
+  "settingsChangePasswordSubtitle": "Update your login credentials",
+  "@settingsChangePasswordSubtitle": {
+    "description": "Settings row subtitle for the change-PIN action"
+  },
+  "settingsLogoutSubtitle": "End this session on the device",
+  "@settingsLogoutSubtitle": {
+    "description": "Settings row subtitle for logout"
+  },
+  "settingsPrintingTitle": "Printing",
+  "@settingsPrintingTitle": {
+    "description": "Waiter settings printing section title"
+  },
+  "settingsPrintingSubtitle": "Receipts printed with each order",
+  "@settingsPrintingSubtitle": {
+    "description": "Waiter settings printing section subtitle"
+  },
+  "settingsKitchenReceiptTitle": "Kitchen receipt",
+  "@settingsKitchenReceiptTitle": {
+    "description": "Toggle row for the kitchen receipt copy"
+  },
+  "settingsKitchenReceiptSubtitle": "Send a copy to the kitchen printer",
+  "@settingsKitchenReceiptSubtitle": {
+    "description": "Toggle row subtitle for the kitchen receipt"
+  },
+  "settingsClientReceiptTitle": "Client receipt",
+  "@settingsClientReceiptTitle": {
+    "description": "Toggle row for the client receipt copy"
+  },
+  "settingsClientReceiptSubtitle": "Hand the guest their printed copy",
+  "@settingsClientReceiptSubtitle": {
+    "description": "Toggle row subtitle for the client receipt"
+  },
+
+  "settingsThemeTitle": "Theme",
+  "@settingsThemeTitle": {
+    "description": "Settings row label for the theme control"
+  },
+  "settingsThemeSubtitle": "Match your light / dark preference",
+  "@settingsThemeSubtitle": {
+    "description": "Settings row subtitle explaining the theme control"
+  },
+  "settingsThemeSystem": "System",
+  "@settingsThemeSystem": {
+    "description": "Theme option that follows the operating system"
+  },
+  "settingsThemeLight": "Light",
+  "@settingsThemeLight": {
+    "description": "Theme option for the light scheme"
+  },
+  "settingsThemeDark": "Dark",
+  "@settingsThemeDark": {
+    "description": "Theme option for the dark scheme"
+  },
+
+  "settingsAccountTitle": "Account",
+  "@settingsAccountTitle": {
+    "description": "Admin settings account section title"
+  },
+  "settingsAccountSubtitle": "Your sign-in and session",
+  "@settingsAccountSubtitle": {
+    "description": "Admin settings account section subtitle"
+  },
+  "settingsSignedInAs": "Signed in as",
+  "@settingsSignedInAs": {
+    "description": "Label above the signed-in account name"
+  },
+  "settingsResetTitle": "Reset business data",
+  "@settingsResetTitle": {
+    "description": "Destructive settings action that wipes the business database"
+  },
+  "settingsResetSubtitle": "Delete everything and return to setup",
+  "@settingsResetSubtitle": {
+    "description": "Settings row subtitle for the destructive reset"
+  },
+  "settingsResetConfirmTitle": "Reset business data?",
+  "@settingsResetConfirmTitle": {
+    "description": "Title of the destructive reset confirmation"
+  },
+  "settingsResetConfirmBody": "This deletes the admin account and all business data (orders, staff, products) and returns you to the setup screen.",
+  "@settingsResetConfirmBody": {
+    "description": "Explanation in the destructive reset confirmation"
+  },
+  "settingsResetFieldLabel": "Type RESET to confirm",
+  "@settingsResetFieldLabel": {
+    "description": "Label of the confirmation field in the reset dialog"
+  },
+  "settingsResetFieldHelper": "This cannot be undone",
+  "@settingsResetFieldHelper": {
+    "description": "Helper under the reset confirmation field"
+  },
+  "settingsResetButton": "Reset",
+  "@settingsResetButton": {
+    "description": "Confirm button in the reset dialog"
+  },
+
+  "roleAdmin": "Administrator",
+  "@roleAdmin": {
+    "description": "Localized label for the admin role"
+  },
+  "roleWaiter": "Waiter",
+  "@roleWaiter": {
+    "description": "Localized label for the waiter role"
+  },
+  "roleStaffMember": "Staff member",
+  "@roleStaffMember": {
+    "description": "Alternative localized label for a non-admin account"
+  },
+
+  "printerTitle": "Printer",
+  "@printerTitle": {
+    "description": "Title of the printer settings section"
+  },
+  "printerSubtitle": "Which receipt printer this terminal uses",
+  "@printerSubtitle": {
+    "description": "Subtitle of the printer settings section"
+  },
+  "printerUsb": "USB",
+  "@printerUsb": {
+    "description": "Printer transport option: directly attached USB"
+  },
+  "printerNetwork": "Network",
+  "@printerNetwork": {
+    "description": "Printer transport option: TCP network printer"
+  },
+  "printerIpAddress": "IP address",
+  "@printerIpAddress": {
+    "description": "Field label for the network printer address"
+  },
+  "printerIpHint": "192.168.1.50",
+  "@printerIpHint": {
+    "description": "Example address shown in the IP field"
+  },
+  "printerPort": "Port",
+  "@printerPort": {
+    "description": "Field label for the printer port"
+  },
+  "printerPortHelper": "Raw ESC/POS port (default 9100, JetDirect)",
+  "@printerPortHelper": {
+    "description": "Helper text under the port field"
+  },
+  "printerSave": "Save",
+  "@printerSave": {
+    "description": "Button that persists the printer network address"
+  },
+  "printerInvalidPort": "Port must be a number between 1 and 65535",
+  "@printerInvalidPort": {
+    "description": "Validation error for an out-of-range port"
+  },
+  "printerSaved": "Printer settings saved",
+  "@printerSaved": {
+    "description": "Confirmation after saving printer settings"
+  },
+  "printerUsbInfo": "The USB printer is detected automatically. Switch to Network to set an address.",
+  "@printerUsbInfo": {
+    "description": "Explanation shown while the USB transport is selected"
+  },
+  "printerReceiptLanguageLabel": "Receipt language",
+  "@printerReceiptLanguageLabel": {
+    "description": "Label for the receipt-language dropdown in Printer settings"
+  },
+  "printerReceiptLanguageHelper": "The language printed receipts are in, independent of the app language. Defaults to French.",
+  "@printerReceiptLanguageHelper": {
+    "description": "Helper explaining the receipt language is separate from the UI language"
+  },
+
+  "changePasswordTitle": "Change password",
+  "@changePasswordTitle": {
+    "description": "Title of the change-PIN dialog"
+  },
+  "changePasswordCurrentPin": "Current PIN",
+  "@changePasswordCurrentPin": {
+    "description": "Label of the current-PIN field"
+  },
+  "changePasswordNewPin": "New PIN",
+  "@changePasswordNewPin": {
+    "description": "Label of the new-PIN field"
+  },
+  "changePasswordNewPinHint": "4 digits, keeps hashed at rest",
+  "@changePasswordNewPinHint": {
+    "description": "Helper text under the new-PIN field"
+  },
+  "changePasswordConfirmPin": "Confirm new PIN",
+  "@changePasswordConfirmPin": {
+    "description": "Label of the confirm-PIN field"
+  },
+  "changePasswordMismatch": "PINs do not match",
+  "@changePasswordMismatch": {
+    "description": "Validation error when the confirm PIN differs"
+  },
+  "changePasswordShow": "Show",
+  "@changePasswordShow": {
+    "description": "Eye-toggle button revealing the PIN fields"
+  },
+  "changePasswordHide": "Hide",
+  "@changePasswordHide": {
+    "description": "Eye-toggle button masking the PIN fields"
+  },
+  "changePasswordUpdating": "Updating…",
+  "@changePasswordUpdating": {
+    "description": "Change-PIN button label while saving"
+  },
+  "changePasswordUpdate": "Update",
+  "@changePasswordUpdate": {
+    "description": "Change-PIN confirm button"
+  },
+  "changePasswordNoSession": "No active session",
+  "@changePasswordNoSession": {
+    "description": "Error surfaced when the dialog finds no signed-in session"
+  },
+  "changePasswordWrongPin": "The current PIN doesn't match this account.",
+  "@changePasswordWrongPin": {
+    "description": "Error when the entered current PIN is wrong"
+  },
+  "changePasswordUpdated": "Password updated successfully",
+  "@changePasswordUpdated": {
+    "description": "Confirmation after a successful PIN change"
+  },
+  "changePasswordPinLength": "Use exactly {count} digits",
+  "@changePasswordPinLength": {
+    "description": "Validation error for a PIN with the wrong digit count",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "changePasswordPinTaken": "That PIN is already in use — pick a different one",
+  "@changePasswordPinTaken": {
+    "description": "Error when the new PIN already belongs to another account"
+  },
+
+  "settingsFooterCopyright": "© {year} BrewLine",
+  "@settingsFooterCopyright": {
+    "description": "Copyright line at the bottom of the settings pages",
+    "placeholders": {
+      "year": {
+        "type": "int"
+      }
+    }
+  },
+  "appInfoError": "Could not load app info",
+  "@appInfoError": {
+    "description": "Error message in the app info sheet"
+  },
+  "appInfoName": "Name",
+  "@appInfoName": {
+    "description": "App info row label"
+  },
+  "appInfoVersion": "Version",
+  "@appInfoVersion": {
+    "description": "App info row label"
+  },
+  "appInfoBuild": "Build",
+  "@appInfoBuild": {
+    "description": "App info row label"
+  },
+  "appInfoPackage": "Package",
+  "@appInfoPackage": {
+    "description": "App info row label"
+  },
+  "appInfoLicenses": "Open source licenses",
+  "@appInfoLicenses": {
+    "description": "Button opening the license page"
+  },
+
+  "availabilityOnMenu": "On menu",
+  "@availabilityOnMenu": {
+    "description": "Product availability label when available"
+  },
+  "availabilitySoldOut": "Sold out",
+  "@availabilitySoldOut": {
+    "description": "Product availability label when unavailable"
+  },
+
+  "dateFilterRange": "Date range",
+  "@dateFilterRange": {
+    "description": "Field label on the shared date window filter"
+  },
+  "dateFilterAllDates": "All dates",
+  "@dateFilterAllDates": {
+    "description": "Value shown when no date window is applied"
+  },
+  "dateFilterToday": "Today",
+  "@dateFilterToday": {
+    "description": "Shortcut button resetting the filter to today"
+  },
+  "dateFilterClearTooltip": "Show all dates",
+  "@dateFilterClearTooltip": {
+    "description": "Tooltip for clearing the date filter"
+  },
+
+  "filtersTitle": "Filters",
+  "@filtersTitle": {
+    "description": "Heading of a filter card"
+  },
+
+  "salesLogSubtitle": "Every product line sold, filterable by date, product or waiter.",
+  "@salesLogSubtitle": {
+    "description": "Subtitle under the sales log heading"
+  },
+  "salesLogError": "Couldn't load the sales log.",
+  "@salesLogError": {
+    "description": "Error message when the sales log fails to load"
+  },
+  "salesLogEmpty": "No sales match these filters.",
+  "@salesLogEmpty": {
+    "description": "Empty state when no sales match the filters"
+  },
+  "salesLogDatePickerHelp": "Filter sales by date",
+  "@salesLogDatePickerHelp": {
+    "description": "Helper text on the sales log date range picker"
+  },
+  "salesLogProductLabel": "Product",
+  "@salesLogProductLabel": {
+    "description": "Sales filter field label"
+  },
+  "salesLogAllProducts": "All products",
+  "@salesLogAllProducts": {
+    "description": "Dropdown option for no product filter"
+  },
+  "salesLogWaiterLabel": "Waiter",
+  "@salesLogWaiterLabel": {
+    "description": "Sales filter field label"
+  },
+  "salesLogColDate": "Date",
+  "@salesLogColDate": {
+    "description": "Sales table column header"
+  },
+  "salesLogColOrder": "Order #",
+  "@salesLogColOrder": {
+    "description": "Sales table column header"
+  },
+  "salesLogColProduct": "Product",
+  "@salesLogColProduct": {
+    "description": "Sales table column header"
+  },
+  "salesLogColQty": "Qty",
+  "@salesLogColQty": {
+    "description": "Sales table column header"
+  },
+  "salesLogColTotal": "Total",
+  "@salesLogColTotal": {
+    "description": "Sales table column header"
+  },
+  "salesLogTotal": "Total: ",
+  "@salesLogTotal": {
+    "description": "Label before the net total of the visible sales rows"
+  },
+  "salesLogRefundTooltip": "Refund this order",
+  "@salesLogRefundTooltip": {
+    "description": "Tooltip on the refund action per row"
+  },
+  "salesLogBadgeVoided": "Voided",
+  "@salesLogBadgeVoided": {
+    "description": "Badge on a voided sales row"
+  },
+  "salesLogBadgeRefunded": "Refunded",
+  "@salesLogBadgeRefunded": {
+    "description": "Badge on a partially refunded sales row"
+  },
+
+  "staffTitle": "Team",
+  "@staffTitle": {
+    "description": "Heading of the staff management page"
+  },
+  "staffAdd": "Add staff",
+  "@staffAdd": {
+    "description": "Button that opens the add-staff form"
+  },
+  "staffTableError": "Couldn't load the staff roster.",
+  "@staffTableError": {
+    "description": "Error message when the roster fails to load"
+  },
+  "staffTableEmpty": "No staff yet — add your first member.",
+  "@staffTableEmpty": {
+    "description": "Empty state when the roster has no members"
+  },
+  "staffActionsTooltip": "Staff actions",
+  "@staffActionsTooltip": {
+    "description": "Tooltip on the staff row overflow menu"
+  },
+  "staffDeactivate": "Deactivate",
+  "@staffDeactivate": {
+    "description": "Action that blocks an account from signing in"
+  },
+  "staffActivate": "Activate",
+  "@staffActivate": {
+    "description": "Action that re-enables a deactivated account"
+  },
+  "staffDeactivateTitle": "Deactivate {name}?",
+  "@staffDeactivateTitle": {
+    "description": "Title of the deactivate confirmation",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "staffDeactivateBody": "They can no longer sign in, but their sales history stays on record.",
+  "@staffDeactivateBody": {
+    "description": "Explanation in the deactivate confirmation"
+  },
+  "staffDeleteTitle": "Delete {name}?",
+  "@staffDeleteTitle": {
+    "description": "Title of the delete-staff confirmation",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "staffDeleteBody": "This removes the account permanently and detaches their sales from a named waiter. Prefer deactivating so history keeps its attribution.",
+  "@staffDeleteBody": {
+    "description": "Explanation in the delete-staff confirmation"
+  },
+  "staffDeletedSnackbar": "{name} deleted",
+  "@staffDeletedSnackbar": {
+    "description": "Confirmation after deleting a staff member",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "staffInactive": "Inactive",
+  "@staffInactive": {
+    "description": "Status badge for a deactivated member"
+  },
+  "staffActive": "Active",
+  "@staffActive": {
+    "description": "Status badge for an active member"
+  },
+  "staffColName": "Name",
+  "@staffColName": {
+    "description": "Staff table column header"
+  },
+  "staffColUsername": "Username",
+  "@staffColUsername": {
+    "description": "Staff table column header"
+  },
+  "staffColStatus": "Status",
+  "@staffColStatus": {
+    "description": "Staff table column header"
+  },
+  "staffSummaryActive": "{active} of {total} active",
+  "@staffSummaryActive": {
+    "description": "Pill counting active members over the roster size",
+    "placeholders": {
+      "active": {
+        "type": "num"
+      },
+      "total": {
+        "type": "num"
+      }
+    }
+  },
+  "staffSummaryEmpty": "Team is empty — add your first member",
+  "@staffSummaryEmpty": {
+    "description": "Summary line when the roster has no members"
+  },
+  "staffSummaryLoading": "Loading team…",
+  "@staffSummaryLoading": {
+    "description": "Summary line while the roster loads"
+  },
+
+  "staffFormAddTitle": "Add staff member",
+  "@staffFormAddTitle": {
+    "description": "Heading of the staff form in create mode"
+  },
+  "staffFormEditTitle": "Edit staff member",
+  "@staffFormEditTitle": {
+    "description": "Heading of the staff form in edit mode"
+  },
+  "staffFormName": "Display name",
+  "@staffFormName": {
+    "description": "Field label for the member's display name"
+  },
+  "staffFormNameHint": "Shown on shift and performance views",
+  "@staffFormNameHint": {
+    "description": "Helper text for the display name"
+  },
+  "staffFormNameRequired": "Enter a display name",
+  "@staffFormNameRequired": {
+    "description": "Validation message for an empty display name"
+  },
+  "staffFormUsername": "Username",
+  "@staffFormUsername": {
+    "description": "Field label for the login username"
+  },
+  "staffFormUsernameHint": "Used to sign in on the POS",
+  "@staffFormUsernameHint": {
+    "description": "Helper text for the username"
+  },
+  "staffFormUsernameRequired": "Enter a username",
+  "@staffFormUsernameRequired": {
+    "description": "Validation message for an empty username"
+  },
+  "staffFormUsernameTooShort": "At least 3 characters",
+  "@staffFormUsernameTooShort": {
+    "description": "Validation message for a too-short username"
+  },
+  "staffFormUsernameInvalid": "Letters, numbers and underscores only",
+  "@staffFormUsernameInvalid": {
+    "description": "Validation message for a username with unsupported characters"
+  },
+  "staffFormPin": "PIN",
+  "@staffFormPin": {
+    "description": "Field label for the PIN in create mode"
+  },
+  "staffFormNewPin": "New PIN (blank keeps current)",
+  "@staffFormNewPin": {
+    "description": "Field label for the optional PIN in edit mode"
+  },
+  "staffFormEditNote": "Account stays active. Deactivate instead to block sign-in.",
+  "@staffFormEditNote": {
+    "description": "Note in edit mode clarifying the PIN field"
+  },
+  "staffFormSaveChanges": "Save changes",
+  "@staffFormSaveChanges": {
+    "description": "Submit button in edit mode"
+  },
+  "staffFormAddMember": "Add member",
+  "@staffFormAddMember": {
+    "description": "Submit button in create mode"
+  },
+  "staffFormSaving": "Saving…",
+  "@staffFormSaving": {
+    "description": "Staff form button label while saving"
+  },
+  "staffFormAddedSnackbar": "{name} added to staff",
+  "@staffFormAddedSnackbar": {
+    "description": "Confirmation after creating a staff member",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "staffFormUpdatedSnackbar": "{name} updated",
+  "@staffFormUpdatedSnackbar": {
+    "description": "Confirmation after editing a staff member",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "staffFormErrorPinLength": "Use exactly {count} digits",
+  "@staffFormErrorPinLength": {
+    "description": "Staff form PIN field validation error",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "appStartupTitle": "brewline failed to start",
+  "@appStartupTitle": {
+    "description": "Header of the fatal-startup error screen"
+  },
+  "appStartupCopy": "Copy error",
+  "@appStartupCopy": {
+    "description": "Button copying the startup error to the clipboard"
+  },
+  "appStartupCopied": "Error copied",
+  "@appStartupCopied": {
+    "description": "Snackbar confirming the error was copied"
+  }
+}

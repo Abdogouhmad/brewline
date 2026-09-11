@@ -10,6 +10,7 @@ import 'package:brewline/core/repositories/staff_repository.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/utils/date_format.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
@@ -101,6 +102,7 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
   }
 
   Future<void> _pickRange() async {
+    final l10n = AppLocalizations.of(context)!;
     final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(2020),
@@ -110,7 +112,7 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
       // reopening the picker lands where the sales are instead of today's
       // month — "select old dates" without paging back month by month.
       currentDate: _range?.start ?? DateTime.now(),
-      helpText: 'Filter sales by date',
+      helpText: l10n.salesLogDatePickerHelp,
     );
     if (picked == null || !mounted) return;
     setState(() => _range = picked);
@@ -130,6 +132,7 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return RefreshIndicator(
       onRefresh: () => _load(reset: true),
@@ -148,14 +151,13 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     UiText(
-                      'Sales log',
+                      l10n.adminNavSalesLog,
                       type: UiTextType.headlineSmall,
                       fontWeight: FontWeight.w800,
                     ),
                     SizedBox(height: Space.xs),
                     UiText(
-                      'Every product line sold, filterable by date, '
-                      'product or waiter.',
+                      l10n.salesLogSubtitle,
                       type: UiTextType.bodyMedium,
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -168,11 +170,11 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
           _buildFilters(context),
           SizedBox(height: Space.lg),
           if (_error != null)
-            _message(context, 'Couldn\'t load the sales log.')
+            _message(context, l10n.salesLogError)
           else if (_loading && _entries.isEmpty)
             const _Loader()
           else if (_entries.isEmpty)
-            _message(context, 'No sales match these filters.')
+            _message(context, l10n.salesLogEmpty)
           else ...[
             _SalesTable(
               entries: _entries,
@@ -182,7 +184,7 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
               SizedBox(height: Space.lg),
               Center(
                 child: UiButton(
-                  'Load more',
+                  l10n.actionLoadMore,
                   icon: Icons.expand_more_rounded,
                   onPressed: _loading ? null : () => _load(),
                 ),
@@ -200,11 +202,12 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
 
   Widget _buildFilters(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final products = ref.watch(allProductsProvider);
     final staff = ref.watch(staffListProvider);
 
     return UiCard(
-      title: 'Filters',
+      title: l10n.filtersTitle,
       leading: Icon(Icons.filter_list_rounded, color: colorScheme.primary),
       compact: true,
       content: LayoutBuilder(
@@ -286,15 +289,16 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
   }
 
   Widget _buildProductFilter(List<Product>? products) {
+    final l10n = AppLocalizations.of(context)!;
     return DropdownButtonFormField<String?>(
       initialValue: _productId,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Product',
-        prefixIcon: Icon(Icons.local_cafe_outlined),
+      decoration: InputDecoration(
+        labelText: l10n.salesLogProductLabel,
+        prefixIcon: const Icon(Icons.local_cafe_outlined),
       ),
       items: [
-        const DropdownMenuItem(value: null, child: Text('All products')),
+        DropdownMenuItem(value: null, child: Text(l10n.salesLogAllProducts)),
         for (final p in products ?? [])
           DropdownMenuItem(value: p.id, child: Text(p.name)),
       ],
@@ -306,15 +310,16 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
   }
 
   Widget _buildWaiterFilter(List<StaffMember>? staff) {
+    final l10n = AppLocalizations.of(context)!;
     return DropdownButtonFormField<String?>(
       initialValue: _waiterUsername,
       isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Waiter',
-        prefixIcon: Icon(Icons.person_outline_rounded),
+      decoration: InputDecoration(
+        labelText: l10n.salesLogWaiterLabel,
+        prefixIcon: const Icon(Icons.person_outline_rounded),
       ),
       items: [
-        const DropdownMenuItem(value: null, child: Text('All waiters')),
+        DropdownMenuItem(value: null, child: Text(l10n.actionAllWaiters)),
         for (final s in staff ?? [])
           DropdownMenuItem(
             value: s.username,
@@ -353,6 +358,7 @@ class _SalesTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final totalNet = entries.fold<int>(0, (sum, e) => sum + e.netTotalCents);
 
     return Column(
@@ -368,14 +374,14 @@ class _SalesTable extends StatelessWidget {
                     border: Border.all(color: colorScheme.outline),
                     borderRadius: BorderRadius.circular(Rounded.md),
                   ),
-                  columns: const [
-                    DataColumn(label: Text('Date')),
-                    DataColumn(label: Text('Order #')),
-                    DataColumn(label: Text('Product')),
-                    DataColumn(label: Text('Qty')),
-                    DataColumn(label: Text('Waiter')),
-                    DataColumn(label: Text('Total')),
-                    DataColumn(label: Text('')),
+                  columns: [
+                    DataColumn(label: Text(l10n.salesLogColDate)),
+                    DataColumn(label: Text(l10n.salesLogColOrder)),
+                    DataColumn(label: Text(l10n.salesLogColProduct)),
+                    DataColumn(label: Text(l10n.salesLogColQty)),
+                    DataColumn(label: Text(l10n.salesLogWaiterLabel)),
+                    DataColumn(label: Text(l10n.salesLogColTotal)),
+                    const DataColumn(label: Text('')),
                   ],
                   rows: [
                     for (final e in entries)
@@ -400,7 +406,7 @@ class _SalesTable extends StatelessWidget {
                           DataCell(Text(formatPriceCents(e.netTotalCents))),
                           DataCell(
                             IconButton(
-                              tooltip: 'Refund this order',
+                              tooltip: l10n.salesLogRefundTooltip,
                               icon: const Icon(Icons.currency_exchange_rounded),
                               onPressed: () async {
                                 await showRefundActionSheet(
@@ -436,7 +442,7 @@ class _SalesTable extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               UiText(
-                'Total: ',
+                l10n.salesLogTotal,
                 type: UiTextType.bodyMedium,
                 fontWeight: FontWeight.w600,
               ),
@@ -471,14 +477,15 @@ class _RefundBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final (label, foreground, background) = switch (state) {
       SalesRefundState.voided => (
-        'Voided',
+        l10n.salesLogBadgeVoided,
         colorScheme.onErrorContainer,
         colorScheme.errorContainer,
       ),
       SalesRefundState.partial => (
-        'Refunded',
+        l10n.salesLogBadgeRefunded,
         colorScheme.onTertiaryContainer,
         colorScheme.tertiaryContainer,
       ),

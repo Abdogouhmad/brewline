@@ -6,6 +6,7 @@ import 'package:brewline/core/models/ingredient.dart';
 import 'package:brewline/core/models/ingredient_format.dart';
 import 'package:brewline/core/repositories/ingredient_repository.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -105,12 +106,13 @@ class _IngredientFormSheetState extends ConsumerState<_IngredientFormSheet> {
     ref.read(ingredientMutationProvider.notifier).bump();
 
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     Navigator.of(context).pop();
     showUiSnackBar(
       context,
       existing == null
-          ? '${_name.text.trim()} added to inventory'
-          : '${_name.text.trim()} updated',
+          ? l10n.ingredientAddedSnackbar(_name.text.trim())
+          : l10n.ingredientUpdatedSnackbar(_name.text.trim()),
       type: UiSnackBarType.success,
     );
   }
@@ -118,6 +120,7 @@ class _IngredientFormSheetState extends ConsumerState<_IngredientFormSheet> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Form(
       key: _formKey,
@@ -143,8 +146,8 @@ class _IngredientFormSheetState extends ConsumerState<_IngredientFormSheet> {
                   SizedBox(width: Space.md),
                   UiText(
                     widget.ingredient == null
-                        ? 'Add ingredient'
-                        : 'Edit ingredient',
+                        ? l10n.ingredientAddTitle
+                        : l10n.ingredientEditTitle,
                     type: UiTextType.titleLarge,
                     fontWeight: FontWeight.w700,
                   ),
@@ -154,13 +157,13 @@ class _IngredientFormSheetState extends ConsumerState<_IngredientFormSheet> {
               TextFormField(
                 controller: _name,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Ingredient name',
-                  hintText: 'e.g. Coffee beans, Milk, Cups',
-                  prefixIcon: Icon(Icons.eco_outlined),
+                decoration: InputDecoration(
+                  labelText: l10n.ingredientName,
+                  hintText: l10n.ingredientNameHint,
+                  prefixIcon: const Icon(Icons.eco_outlined),
                 ),
                 validator: (value) => (value == null || value.trim().isEmpty)
-                    ? 'Enter a name'
+                    ? l10n.ingredientEnterName
                     : null,
               ),
               SizedBox(height: Space.lg),
@@ -170,13 +173,16 @@ class _IngredientFormSheetState extends ConsumerState<_IngredientFormSheet> {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Low-stock alert below',
+                  labelText: l10n.ingredientLowStockBelow,
                   suffixText: _thresholdLarge
                       ? largeScaleLabel(_unit)
                       : _unit.label,
                   helperText: _thresholdLarge
-                      ? 'Stored as ${toBaseQuantity(value: 1, unit: _unit, large: true)} ${_unit.label}'
-                      : 'Alerts when on hand drops to this level or below',
+                      ? l10n.restockStoredAs(
+                          '${toBaseQuantity(value: 1, unit: _unit, large: true)}',
+                          _unit.label,
+                        )
+                      : l10n.ingredientAlertDesc,
                   prefixIcon: const Icon(Icons.notifications_active_outlined),
                 ),
                 validator: _nonNegative,
@@ -217,14 +223,14 @@ class _IngredientFormSheetState extends ConsumerState<_IngredientFormSheet> {
               if (widget.hasHistory) ...[
                 SizedBox(height: Space.xs),
                 UiText(
-                  'The unit can\'t change once the ingredient has stock history.',
+                  l10n.ingredientUnitLockedNote,
                   type: UiTextType.bodySmall,
                   color: colorScheme.onSurfaceVariant,
                 ),
               ],
               SizedBox(height: Space.xl),
               UiButton(
-                _saving ? 'Saving…' : 'Save ingredient',
+                _saving ? l10n.ingredientSaving : l10n.ingredientSave,
                 icon: Icons.check_rounded,
                 expand: true,
                 onPressed: _saving ? null : _submit,
@@ -240,7 +246,7 @@ class _IngredientFormSheetState extends ConsumerState<_IngredientFormSheet> {
     final text = (value ?? '').trim();
     if (text.isEmpty) return null;
     final parsed = double.tryParse(text);
-    if (parsed == null || parsed < 0) return 'Enter 0 or a positive number';
+    if (parsed == null || parsed < 0) return AppLocalizations.of(context)!.ingredientNonNegative;
     return null;
   }
 
@@ -267,13 +273,21 @@ class _UnitPicker extends StatelessWidget {
     this.onChanged,
   });
 
+  static String _unitLabel(IngredientUnit u, AppLocalizations l10n) =>
+      switch (u) {
+        IngredientUnit.grams => l10n.ingredientUnitWeight,
+        IngredientUnit.millilitres => l10n.ingredientUnitVolume,
+        IngredientUnit.units => l10n.ingredientUnitUnits,
+      };
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         UiText(
-          'Tracked unit',
+          l10n.ingredientTrackedUnit,
           type: UiTextType.titleSmall,
           fontWeight: FontWeight.w600,
         ),
@@ -284,7 +298,7 @@ class _UnitPicker extends StatelessWidget {
           children: [
             for (final u in IngredientUnit.values)
               ChoiceChip(
-                label: Text(_unitLabel(u)),
+                label: Text(_unitLabel(u, l10n)),
                 selected: unit == u,
                 onSelected: enabled ? (_) => onChanged?.call(u) : null,
               ),
@@ -293,10 +307,4 @@ class _UnitPicker extends StatelessWidget {
       ],
     );
   }
-
-  static String _unitLabel(IngredientUnit u) => switch (u) {
-    IngredientUnit.grams => 'Weight (g)',
-    IngredientUnit.millilitres => 'Volume (ml)',
-    IngredientUnit.units => 'Whole units',
-  };
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/admin/providers/dashboard_period.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 
 /// Today / Last 7 days / Last 30 days segmented control.
 ///
@@ -14,6 +15,7 @@ class PeriodSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final period = ref.watch(dashboardPeriodProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return SegmentedButton<DashboardPeriod>(
       selected: {period},
@@ -31,8 +33,18 @@ class PeriodSelector extends ConsumerWidget {
           ref.read(dashboardPeriodProvider.notifier).set(selection.first),
       segments: [
         for (final p in DashboardPeriod.values)
-          ButtonSegment(value: p, label: Text(p.label)),
+          ButtonSegment(value: p, label: Text(_periodLabel(l10n, p))),
       ],
     );
+  }
+
+  /// Localized label for a period. The enum's own `.label` stays English (it
+  /// is a data-layer constant); display copy is resolved here per-locale.
+  static String _periodLabel(AppLocalizations l10n, DashboardPeriod p) {
+    return switch (p) {
+      DashboardPeriod.today => l10n.adminDashboardPeriodToday,
+      DashboardPeriod.week => l10n.adminDashboardPeriodWeek,
+      DashboardPeriod.month => l10n.adminDashboardPeriodMonth,
+    };
   }
 }

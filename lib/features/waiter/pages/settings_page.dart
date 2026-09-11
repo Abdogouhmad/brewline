@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
+import 'package:brewline/core/localization/role_labels.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/admin/widgets/settings/update_section.dart';
@@ -14,45 +15,12 @@ import 'package:brewline/features/waiter/widgets/settings/cashout_button.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
 import 'package:brewline/features/waiter/widgets/settings/print_report_button.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_footer.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
 import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/settings/language_dropdown.dart';
 import 'package:brewline/shared/widgets/settings/theme_segmented_control.dart';
-
-/// All user-facing copy for the settings screen in one place so wording
-/// stays consistent and easy to localize later.
-class _Copy {
-  static const pageTitle = 'Settings';
-  static const onShift = 'On shift';
-
-  // General
-  static const generalTitle = 'General';
-  static const generalSubtitle = 'Language and appearance';
-  static const languageTile = 'Language';
-  static const languageHint = 'Interface language for this device';
-
-  // Account
-  static const accountTitle = 'Account profile';
-  static const accountSubtitle = 'Manage your session and shift reports';
-  static const changePasswordTile = 'Change password';
-  static const changePasswordHint = 'Update your login credentials';
-  static const logoutTile = 'Log out';
-  static const logoutHint = 'End this session on the device';
-  static const logoutConfirmTitle = 'Log out?';
-  static const logoutConfirmBody =
-      'You will need to sign in again to take orders.';
-  static const logoutConfirmAction = 'Log out';
-  static const logoutCancelledAction = 'Stay';
-
-  // Printing
-  static const printingTitle = 'Printing';
-  static const printingSubtitle = 'Receipts printed with each order';
-  static const kitchenReceiptTile = 'Kitchen receipt';
-  static const kitchenReceiptHint = 'Send a copy to the kitchen printer';
-  static const clientReceiptTile = 'Client receipt';
-  static const clientReceiptHint = 'Hand the guest their printed copy';
-}
 
 /// Static icon set for the settings screen.
 class _SettingsIcons {
@@ -94,6 +62,7 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final body = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
@@ -107,8 +76,8 @@ class SettingsPage extends ConsumerWidget {
             SizedBox(height: Space.x2l),
             _ResponsiveSections(
               breakpoint: _twoColumnBreakpoint,
-              general: _buildGeneralCard(ref),
-              printing: _buildPrintingCard(ref),
+              general: _buildGeneralCard(context, ref),
+              printing: _buildPrintingCard(context, ref),
               account: _buildAccountCard(context, ref),
               update: const UpdateSection(),
             ),
@@ -122,7 +91,7 @@ class SettingsPage extends ConsumerWidget {
     if (embedded) return body;
     return Scaffold(
       appBar: AppBar(
-        title: const UiText(_Copy.pageTitle, type: UiTextType.titleLarge),
+        title: UiText(l10n.waiterNavSettings, type: UiTextType.titleLarge),
       ),
       body: body,
     );
@@ -135,20 +104,21 @@ class SettingsPage extends ConsumerWidget {
   // Sections
   // ---------------------------------------------------------------------------
 
-  Widget _buildGeneralCard(WidgetRef ref) {
+  Widget _buildGeneralCard(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final language = ref.watch(languageControllerProvider);
     final themePref = ref.watch(themeControllerProvider);
 
     return SettingsSectionCard(
-      titleHeader: 'Preferences',
+      titleHeader: l10n.settingsPreferences,
       icon: _SettingsIcons.general,
-      title: _Copy.generalTitle,
-      subtitle: _Copy.generalSubtitle,
+      title: l10n.settingsGeneralTitle,
+      subtitle: l10n.settingsGeneralSubtitle,
       children: [
         SettingsTile(
           icon: _SettingsIcons.language,
-          title: _Copy.languageTile,
-          subtitle: _Copy.languageHint,
+          title: l10n.settingsLanguageTitle,
+          subtitle: l10n.settingsLanguageSubtitle,
           trailing: LanguageDropdown(
             value: language,
             onChanged: (value) => ref
@@ -166,25 +136,26 @@ class SettingsPage extends ConsumerWidget {
   }
 
   Widget _buildAccountCard(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     return SettingsSectionCard(
-      titleHeader: 'Session',
+      titleHeader: l10n.settingsSession,
       icon: _SettingsIcons.account,
-      title: _Copy.accountTitle,
-      subtitle: _Copy.accountSubtitle,
+      title: l10n.settingsAccountProfile,
+      subtitle: l10n.settingsAccountProfileSubtitle,
       accent: SettingsAccent.tertiary,
       children: [
         SettingsTile(
           icon: _SettingsIcons.password,
-          title: _Copy.changePasswordTile,
-          subtitle: _Copy.changePasswordHint,
+          title: l10n.settingsChangePasswordTitle,
+          subtitle: l10n.settingsChangePasswordSubtitle,
           onTap: () => showChangePasswordDialog(context),
         ),
         const CashoutButton(),
         const PrintReportButton(),
         SettingsTile(
           icon: _SettingsIcons.logout,
-          title: _Copy.logoutTile,
-          subtitle: _Copy.logoutHint,
+          title: l10n.logoutAction,
+          subtitle: l10n.settingsLogoutSubtitle,
           destructive: true,
           onTap: () => _confirmLogout(context, ref),
         ),
@@ -192,21 +163,22 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildPrintingCard(WidgetRef ref) {
+  Widget _buildPrintingCard(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final preferences = ref.watch(printingPreferencesProvider);
     final controller = ref.read(printingPreferencesProvider.notifier);
 
     return SettingsSectionCard(
-      titleHeader: 'Receipts',
+      titleHeader: l10n.settingsReceipts,
       icon: _SettingsIcons.printing,
-      title: _Copy.printingTitle,
-      subtitle: _Copy.printingSubtitle,
+      title: l10n.settingsPrintingTitle,
+      subtitle: l10n.settingsPrintingSubtitle,
       accent: SettingsAccent.secondary,
       children: [
         SettingsTile(
           icon: _SettingsIcons.kitchenReceipt,
-          title: _Copy.kitchenReceiptTile,
-          subtitle: _Copy.kitchenReceiptHint,
+          title: l10n.settingsKitchenReceiptTitle,
+          subtitle: l10n.settingsKitchenReceiptSubtitle,
           trailing: Switch(
             value: preferences.kitchenReceipt,
             onChanged: controller.setKitchenReceipt,
@@ -214,8 +186,8 @@ class SettingsPage extends ConsumerWidget {
         ),
         SettingsTile(
           icon: _SettingsIcons.clientReceipt,
-          title: _Copy.clientReceiptTile,
-          subtitle: _Copy.clientReceiptHint,
+          title: l10n.settingsClientReceiptTitle,
+          subtitle: l10n.settingsClientReceiptSubtitle,
           trailing: Switch(
             value: preferences.clientReceipt,
             onChanged: controller.setClientReceipt,
@@ -230,21 +202,16 @@ class SettingsPage extends ConsumerWidget {
   // ---------------------------------------------------------------------------
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const UiText(
-          _Copy.logoutConfirmTitle,
-          type: UiTextType.titleMedium,
-        ),
-        content: const UiText(
-          _Copy.logoutConfirmBody,
-          type: UiTextType.bodyMedium,
-        ),
+        title: UiText(l10n.logoutConfirmTitle, type: UiTextType.titleMedium),
+        content: UiText(l10n.logoutConfirmBody, type: UiTextType.bodyMedium),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text(_Copy.logoutCancelledAction),
+            child: Text(l10n.logoutCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -252,7 +219,7 @@ class SettingsPage extends ConsumerWidget {
               foregroundColor: Theme.of(dialogContext).colorScheme.onError,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(_Copy.logoutConfirmAction),
+            child: Text(l10n.logoutAction),
           ),
         ],
       ),
@@ -281,6 +248,7 @@ class _ProfileHeader extends ConsumerWidget {
     final user = ref.watch(currentUserProvider).value;
     if (user == null) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       decoration: BoxDecoration(
@@ -359,7 +327,7 @@ class _ProfileHeader extends ConsumerWidget {
                             ),
                             SizedBox(width: Space.lg),
                             UiText(
-                              _Copy.onShift,
+                              l10n.settingsOnShift,
                               type: UiTextType.bodySmall,
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -387,6 +355,7 @@ class _RoleBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final label = localizedRoleLabel(AppLocalizations.of(context)!, role);
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
@@ -395,7 +364,7 @@ class _RoleBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(Rounded.full),
       ),
       child: UiText(
-        role,
+        label,
         type: UiTextType.labelMedium,
         fontWeight: FontWeight.w700,
         color: colorScheme.onSecondaryContainer,

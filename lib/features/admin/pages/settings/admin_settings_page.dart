@@ -14,6 +14,7 @@ import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/waiter/widgets/settings/change_password_dialog.dart';
 import 'package:brewline/features/waiter/widgets/settings/settings_footer.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/settings/settings_section_card.dart';
 import 'package:brewline/shared/widgets/settings/settings_tile.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
@@ -177,15 +178,18 @@ class _ResetConfirmDialogState extends State<_ResetConfirmDialog> {
   @override
   Widget build(BuildContext context) {
     final canConfirm = _controller.text == _confirmation;
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: const UiText('Reset business data?', type: UiTextType.titleMedium),
+      title: UiText(
+        l10n.settingsResetConfirmTitle,
+        type: UiTextType.titleMedium,
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const UiText(
-            'This deletes the admin account and all business data (orders, '
-            'staff, products) and returns you to the setup screen.',
+          UiText(
+            l10n.settingsResetConfirmBody,
             type: UiTextType.bodyMedium,
           ),
           SizedBox(height: Space.lg),
@@ -193,10 +197,10 @@ class _ResetConfirmDialogState extends State<_ResetConfirmDialog> {
             controller: _controller,
             autofocus: true,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              labelText: 'Type RESET to confirm',
-              helperText: 'This cannot be undone',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: l10n.settingsResetFieldLabel,
+              helperText: l10n.settingsResetFieldHelper,
+              border: const OutlineInputBorder(),
             ),
           ),
         ],
@@ -204,10 +208,10 @@ class _ResetConfirmDialogState extends State<_ResetConfirmDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(l10n.actionCancel),
         ),
         UiButton(
-          'Reset',
+          l10n.settingsResetButton,
           variant: UiButtonVariant.destructive,
           onPressed: canConfirm ? () => Navigator.of(context).pop(true) : null,
         ),
@@ -224,17 +228,18 @@ class _GeneralCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final language = ref.watch(languageControllerProvider);
     final themePref = ref.watch(themeControllerProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return SettingsSectionCard(
-      titleHeader: "Preferences",
+      titleHeader: l10n.settingsPreferences,
       icon: Icons.tune_rounded,
-      title: 'General',
-      subtitle: 'Language and appearance',
+      title: l10n.settingsGeneralTitle,
+      subtitle: l10n.settingsGeneralSubtitle,
       children: [
         SettingsTile(
           icon: Icons.language_rounded,
-          title: 'Language',
-          subtitle: 'Interface language for this device',
+          title: l10n.settingsLanguageTitle,
+          subtitle: l10n.settingsLanguageSubtitle,
           trailing: LanguageDropdown(
             value: language,
             onChanged: (value) => ref
@@ -262,20 +267,21 @@ class _AccountCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final username = ref.watch(authProvider).value?.username ?? '…';
+    final l10n = AppLocalizations.of(context)!;
 
     return SettingsSectionCard(
-      titleHeader: 'Security',
+      titleHeader: l10n.settingsSecurity,
       icon: Icons.person_rounded,
-      title: 'Account',
-      subtitle: 'Your sign-in and session',
+      title: l10n.settingsAccountTitle,
+      subtitle: l10n.settingsAccountSubtitle,
       accent: SettingsAccent.tertiary,
       children: [
         SettingsTile(
           icon: Icons.badge_outlined,
-          title: 'Signed in as',
+          title: l10n.settingsSignedInAs,
           subtitle: username,
           trailing: UiText(
-            'Administrator',
+            l10n.roleAdmin,
             type: UiTextType.labelMedium,
             fontWeight: FontWeight.w700,
             color: Theme.of(context).colorScheme.tertiary,
@@ -283,21 +289,21 @@ class _AccountCard extends ConsumerWidget {
         ),
         SettingsTile(
           icon: Icons.lock_reset_rounded,
-          title: 'Change password',
-          subtitle: 'Update your login credentials',
+          title: l10n.settingsChangePasswordTitle,
+          subtitle: l10n.settingsChangePasswordSubtitle,
           onTap: () => showChangePasswordDialog(context),
         ),
         SettingsTile(
           icon: Icons.logout_rounded,
-          title: 'Log out',
-          subtitle: 'End this session on the device',
+          title: l10n.logoutAction,
+          subtitle: l10n.settingsLogoutSubtitle,
           destructive: true,
           onTap: () => confirmLogout(context, ref),
         ),
         SettingsTile(
           icon: Icons.delete_forever_rounded,
-          title: 'Reset business data',
-          subtitle: 'Delete everything and return to setup',
+          title: l10n.settingsResetTitle,
+          subtitle: l10n.settingsResetSubtitle,
           destructive: true,
           onTap: onReset,
         ),

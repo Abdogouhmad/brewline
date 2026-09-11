@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 
 /// Shared logout confirm: shows the dialog (so an accidental tap on a shared
 /// café device can't silently end a session), clears the session via
@@ -17,15 +18,16 @@ Future<void> confirmLogout(
   WidgetRef ref, {
   VoidCallback? onLoggedOut,
 }) async {
+  final l10n = AppLocalizations.of(context)!;
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('Log out?'),
-      content: const Text('You will need to sign in again to take orders.'),
+      title: Text(l10n.logoutConfirmTitle),
+      content: Text(l10n.logoutConfirmBody),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Cancel'),
+          child: Text(l10n.logoutCancel),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -33,7 +35,7 @@ Future<void> confirmLogout(
             foregroundColor: Theme.of(dialogContext).colorScheme.onError,
           ),
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Log out'),
+          child: Text(l10n.logoutAction),
         ),
       ],
     ),
@@ -60,7 +62,7 @@ class LogoutButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
-      tooltip: 'Log out',
+      tooltip: AppLocalizations.of(context)!.logoutTooltip,
       icon: const Icon(Icons.logout),
       onPressed: () => confirmLogout(context, ref, onLoggedOut: onLoggedOut),
     );
@@ -75,16 +77,17 @@ class LogoutListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Icon(Icons.logout_rounded, color: colorScheme.error),
       title: Text(
-        'Log out',
+        l10n.logoutAction,
         style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        'End this session on the device.',
+        l10n.logoutListSubtitle,
         style: TextStyle(color: colorScheme.error.withValues(alpha: 0.7)),
       ),
       trailing: Icon(Icons.chevron_right_rounded, color: colorScheme.error),

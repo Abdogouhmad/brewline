@@ -7,6 +7,7 @@ import 'package:brewline/core/models/ingredient_format.dart';
 import 'package:brewline/core/models/stock_movement.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_modal.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -77,10 +78,14 @@ class _RestockFormState extends ConsumerState<_RestockForm> {
     ref.read(ingredientMutationProvider.notifier).bump();
 
     if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
     Navigator.of(context).pop();
     showUiSnackBar(
       context,
-      '${widget.ingredient.name} restocked (+${formatStockQuantity(qty, _unit)})',
+      l10n.restockSnackbar(
+        widget.ingredient.name,
+        '+${formatStockQuantity(qty, _unit)}',
+      ),
       type: UiSnackBarType.success,
     );
   }
@@ -88,6 +93,7 @@ class _RestockFormState extends ConsumerState<_RestockForm> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final unit = _unit;
     final scaleSuffix = _large ? largeScaleLabel(unit) : unit.label;
 
@@ -110,7 +116,7 @@ class _RestockFormState extends ConsumerState<_RestockForm> {
                   SizedBox(width: Space.md),
                   Expanded(
                     child: UiText(
-                      'Restock ${widget.ingredient.name}',
+                      l10n.restockDialogTitle(widget.ingredient.name),
                       type: UiTextType.titleLarge,
                       fontWeight: FontWeight.w700,
                       maxLines: 2,
@@ -121,7 +127,9 @@ class _RestockFormState extends ConsumerState<_RestockForm> {
               ),
               SizedBox(height: Space.xs),
               UiText(
-                'Currently ${formatStockQuantity(widget.ingredient.currentStock, unit)} on hand',
+                l10n.restockCurrentlyOnHand(
+                  formatStockQuantity(widget.ingredient.currentStock, unit),
+                ),
                 type: UiTextType.bodyMedium,
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -133,17 +141,20 @@ class _RestockFormState extends ConsumerState<_RestockForm> {
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Quantity received',
+                  labelText: l10n.restockQuantityReceived,
                   suffixText: scaleSuffix,
                   helperText: _large
-                      ? 'Stored as ${toBaseQuantity(value: 1, unit: unit, large: true)} ${unit.label}'
+                      ? l10n.restockStoredAs(
+                          '${toBaseQuantity(value: 1, unit: unit, large: true)}',
+                          unit.label,
+                        )
                       : null,
                   prefixIcon: const Icon(Icons.add_circle_outline_rounded),
                 ),
                 validator: (value) {
                   final parsed = double.tryParse((value ?? '').trim());
                   if (parsed == null || parsed <= 0) {
-                    return 'Enter a positive quantity';
+                    return l10n.restockEnterPositiveQty;
                   }
                   return null;
                 },
@@ -168,15 +179,15 @@ class _RestockFormState extends ConsumerState<_RestockForm> {
               TextFormField(
                 controller: _note,
                 textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Note (optional)',
-                  hintText: 'e.g. Supplier name, PO #',
-                  prefixIcon: Icon(Icons.sticky_note_2_outlined),
+                decoration: InputDecoration(
+                  labelText: l10n.restockNoteOptional,
+                  hintText: l10n.restockNoteHint,
+                  prefixIcon: const Icon(Icons.sticky_note_2_outlined),
                 ),
               ),
               SizedBox(height: Space.xl),
               UiButton(
-                _saving ? 'Restocking…' : 'Restock',
+                _saving ? l10n.restockProgress : l10n.restockAction,
                 icon: Icons.check_rounded,
                 expand: true,
                 onPressed: _saving ? null : _submit,

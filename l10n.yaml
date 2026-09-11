@@ -1,0 +1,10 @@
+# Flutter gen-l10n configuration (https://docs.flutter.dev/ui/internationalization)
+#
+# English is the TEMPLATE: every new user-facing string is added to
+# app_en.arb first, then translated outward to the other .arb files. The
+# generator warns (and can be made to fail with `untranslated-messages-file`)
+# about keys present in the template but missing from a translation file, which
+# catches French strings lagging behind new English ones as the app grows.
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-localization-file: app_localizations.dart

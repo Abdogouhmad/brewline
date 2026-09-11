@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/core/services/app_info.dart';
-import 'package:brewline/core/updates/update_installer.dart' show UpdateCheckResult;
+import 'package:brewline/core/updates/update_installer.dart'
+    show UpdateCheckResult;
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/core/utils/date_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -50,7 +52,10 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const UiText('App update', type: UiTextType.titleLarge),
+        title: UiText(
+          AppLocalizations.of(context)!.updateTitle,
+          type: UiTextType.titleLarge,
+        ),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -77,9 +82,9 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
                         state.checkResult == UpdateCheckResult.checkFailed) ...[
                       _ErrorCard(
                         message: state.status == UpdateStatus.error
-                            ? state.error
-                            : 'Could not check for updates. Check the network '
-                                  'connection and try again.',
+                            ? _errorText(context, state)
+                            : AppLocalizations.of(context)!
+                                .updateCheckFailedMessage,
                       ),
                       SizedBox(height: Space.lg),
                     ],
@@ -116,6 +121,22 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
         ),
       ),
     );
+  }
+
+  /// Localized copy for a download/install failure. The provider stores an
+  /// [UpdateErrorCode] plus an optional diagnostic detail; the detail is
+  /// appended so the operator can relay it when reporting the fault.
+  static String _errorText(BuildContext context, UpdateState state) {
+    final l10n = AppLocalizations.of(context)!;
+    final detail = state.errorDetail;
+    return switch (state.error) {
+      UpdateErrorCode.noBuild => l10n.updateErrorNoBuild,
+      UpdateErrorCode.downloadFailed =>
+        l10n.updateErrorDownloadFailed(detail ?? ''),
+      UpdateErrorCode.integrity => l10n.updateErrorIntegrity(detail ?? ''),
+      UpdateErrorCode.install => l10n.updateErrorInstall(detail ?? ''),
+      null => l10n.updateErrorGeneric,
+    };
   }
 }
 
@@ -218,14 +239,15 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     final (Color color, String label) = checking
-        ? (colorScheme.primary, 'Checking for updates…')
+        ? (colorScheme.primary, l10n.updateCheckingPill)
         : failed
-        ? (colorScheme.error, 'Update check failed')
+        ? (colorScheme.error, l10n.updateCheckFailedPill)
         : update
-        ? (colorScheme.primary, 'New update available')
-        : (Colors.green.shade600, 'You are up to date');
+        ? (colorScheme.primary, l10n.updateAvailablePill)
+        : (Colors.green.shade600, l10n.updateUpToDatePill);
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.sm),
@@ -281,7 +303,7 @@ class _CheckingCard extends StatelessWidget {
         ),
         SizedBox(height: Space.lg),
         UiText(
-          'Contacting the update server…',
+          AppLocalizations.of(context)!.updateCheckingCard,
           type: UiTextType.bodyMedium,
           color: colorScheme.onSurfaceVariant,
           textAlign: TextAlign.center,
@@ -315,7 +337,7 @@ class _ErrorCard extends StatelessWidget {
           ),
           SizedBox(height: Space.md),
           UiText(
-            message ?? 'An error occurred while checking for updates.',
+            message ?? AppLocalizations.of(context)!.updateErrorGeneric,
             type: UiTextType.bodyMedium,
             color: colorScheme.onErrorContainer,
             textAlign: TextAlign.center,
@@ -335,42 +357,47 @@ class _VersionCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appInfo = ref.watch(appInfoProvider).value;
+    final l10n = AppLocalizations.of(context)!;
 
     final current = appInfo?.version ?? '…';
     final latest = _latestVersion(state);
     final size = _downloadSizeMB(state);
 
     return _Card(
-      title: 'Version details',
+      title: l10n.updateVersionDetails,
       icon: Icons.smartphone_rounded,
       children: [
-        _InfoRow(icon: Icons.layers_rounded, label: 'Current version', value: 'v$current'),
+        _InfoRow(
+          icon: Icons.layers_rounded,
+          label: l10n.updateCurrentVersion,
+          value: 'v$current',
+        ),
         _divider(context),
         _InfoRow(
           icon: Icons.new_releases_outlined,
-          label: 'Latest version',
-          value: latest == null ? 'Unknown' : 'v$latest',
+          label: l10n.updateLatestVersion,
+          value: latest == null ? l10n.updateUnknown : 'v$latest',
           highlight: state.hasUpdate,
         ),
         if (state.hasUpdate && size != null) ...[
           _divider(context),
           _InfoRow(
             icon: Icons.insert_drive_file_outlined,
-            label: 'Download size',
+            label: l10n.updateDownloadSize,
             value: size,
           ),
         ],
         _divider(context),
         _InfoRow(
           icon: Icons.schedule_rounded,
-          label: 'Last checked',
-          value: _lastCheckedLabel(context, ref),
+          label: l10n.updateLastChecked,
+          value: _lastCheckedLabel(context, ref, l10n),
         ),
         _divider(context),
         _InfoRow(
           icon: Icons.rule_rounded,
-          label: 'Last result',
-          value: _resultLabel(ref),
+          label: l10n.updateLastResult,
+          value: _resultLabel(context, ref, l10n),
           highlight: _lastResult(ref) == UpdateCheckResult.checkFailed,
         ),
       ],
@@ -378,9 +405,13 @@ class _VersionCard extends ConsumerWidget {
   }
 
   /// "Never" when no check has ever completed, else the formatted timestamp.
-  static String _lastCheckedLabel(BuildContext context, WidgetRef ref) {
+  static String _lastCheckedLabel(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
     final last = ref.watch(lastUpdateCheckProvider);
-    if (last == null) return 'Never';
+    if (last == null) return l10n.updateNever;
     return formatDateWithTime(last);
   }
 
@@ -389,13 +420,17 @@ class _VersionCard extends ConsumerWidget {
 
   /// Human label for the persisted outcome of the most recent check, so a
   /// failed background check is visible ("failed") instead of looking "new".
-  static String _resultLabel(WidgetRef ref) {
+  static String _resultLabel(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) {
     return switch (_lastResult(ref)) {
-      UpdateCheckResult.upToDate => 'Up to date',
-      UpdateCheckResult.updateAvailable => 'Update available',
-      UpdateCheckResult.updateMandatory => 'Update required',
-      UpdateCheckResult.checkFailed => 'Check failed',
-      null => 'Never checked',
+      UpdateCheckResult.upToDate => l10n.updateResultUpToDate,
+      UpdateCheckResult.updateAvailable => l10n.updateResultAvailable,
+      UpdateCheckResult.updateMandatory => l10n.updateResultMandatory,
+      UpdateCheckResult.checkFailed => l10n.updateResultFailed,
+      null => l10n.updateResultNeverChecked,
     };
   }
 
@@ -486,12 +521,12 @@ class _ChangelogCard extends StatelessWidget {
             .toList();
 
     return _Card(
-      title: "What's new",
+      title: AppLocalizations.of(context)!.updateWhatsNew,
       icon: Icons.new_releases_outlined,
       children: [
         if (lines.isEmpty)
           UiText(
-            'No release notes available for this release.',
+            AppLocalizations.of(context)!.updateNoReleaseNotes,
             type: UiTextType.bodyMedium,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             style: const TextStyle(fontStyle: FontStyle.italic),
@@ -629,17 +664,18 @@ class _DownloadCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final percent = ((progress * 100).clamp(0, 100)).toStringAsFixed(0);
 
     return _Card(
-      title: 'Downloading update…',
+      title: l10n.updateDownloadingCardTitle,
       icon: Icons.download_rounded,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             UiText(
-              'Download in progress',
+              l10n.updateDownloadInProgress,
               type: UiTextType.bodyMedium,
               color: colorScheme.onSurfaceVariant,
             ),
@@ -663,8 +699,7 @@ class _DownloadCard extends StatelessWidget {
         ),
         SizedBox(height: Space.md),
         UiText(
-          'The update is verified by checksum before it is installed. '
-          'Please do not close the app.',
+          l10n.updateDownloadingNote,
           type: UiTextType.bodySmall,
           color: colorScheme.onSurfaceVariant,
         ),
@@ -682,19 +717,20 @@ class _ReadyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: AppSizes.iconLg * 2),
         SizedBox(height: Space.md),
         UiText(
-          'Download complete. The app will close and relaunch to install.',
+          l10n.updateReadyBody,
           type: UiTextType.bodyMedium,
           color: colorScheme.onSurfaceVariant,
           textAlign: TextAlign.center,
         ),
         SizedBox(height: Space.xl),
         UiButton(
-          'Install now',
+          l10n.updateInstallNow,
           icon: Icons.install_desktop_rounded,
           expand: true,
           onPressed: onChangePressed,
@@ -721,10 +757,11 @@ class _Actions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     if (canUpdate) {
       return UiButton(
-        'Update now',
+        l10n.updateNow,
         icon: Icons.download_rounded,
         variant: UiButtonVariant.filled,
         expand: true,
@@ -734,7 +771,7 @@ class _Actions extends StatelessWidget {
 
     return Center(
       child: UiButton(
-        failed ? 'Try again' : 'Check for updates',
+        failed ? l10n.updateTryAgain : l10n.updateCheckNow,
         icon: Icons.refresh_rounded,
         variant: UiButtonVariant.outlined,
         foreground: colorScheme.primary,
@@ -752,6 +789,7 @@ class _AutoCheckToggle extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final autoCheck = ref.watch(autoCheckUpdatesProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.sm),
@@ -773,12 +811,12 @@ class _AutoCheckToggle extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 UiText(
-                  'Check automatically',
+                  l10n.updateAutoCheckTitle,
                   type: UiTextType.titleSmall,
                   fontWeight: FontWeight.w600,
                 ),
                 UiText(
-                  'Look for updates when the app starts',
+                  l10n.updateAutoCheckSubtitle,
                   type: UiTextType.bodySmall,
                   color: colorScheme.onSurfaceVariant,
                 ),

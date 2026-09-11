@@ -6,7 +6,7 @@ name: release
 #
 #   Linux   (x64)   built on ubuntu
 #   Android (APK)   built on ubuntu (universal fat APK + per-arch AAB)
-#   Windows (x64)   built on windows-latest
+#   Windows (x64)   built on windows-latest (portable zip + setup.exe installer)
 #
 # The in-app OTA updater fetches `releases/latest` from the GitHub API
 # (no static manifest JSON files are generated or committed).
@@ -116,6 +116,18 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
+      # Inno Setup 6 compiles the Windows installer (setup.exe) from the
+      # freshly built release bundle. It's installed silently so build.sh can
+      # find ISCC on the default install path. The portable zip stays in the
+      # release too — the in-app OTA updater downloads `brewline-windows-x64.zip`
+      # by name (see lib/core/updates/github_release.dart), so it must remain.
+      - name: Install Inno Setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          curl.exe -L -o "$env:TEMP\innosetup.exe" "https://jrsoftware.org/download.php/is.exe"
+          Start-Process -FilePath "$env:TEMP\innosetup.exe" -ArgumentList "/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES", "/SP-" -Wait
+
       # Builds each requested target. On Windows, verbose output is captured to
       # a log file so the underlying error (GitHub truncates collapsed output)
       # is preserved and echoed if the build fails.
@@ -184,6 +196,7 @@ jobs:
           cp build/app/outputs/bundle/release/*.aab dist/ 2>/dev/null || true
           cp build/linux/x64/release/*.tar.gz dist/ 2>/dev/null || true
           cp build/windows/x64/runner/*.zip dist/ 2>/dev/null || true
+          cp build/windows/x64/installer/*.exe dist/ 2>/dev/null || true
           echo "Staged files:"; ls -1 dist/
 
       - name: Upload build artifacts
@@ -248,7 +261,7 @@ jobs:
           # unmatched pattern expands to nothing (instead of being passed to gh
           # as a literal glob, which otherwise fails the run).
           shopt -s nullglob
-          artifacts=(artifacts/*.tar.gz artifacts/*.zip artifacts/*.apk artifacts/*.aab)
+          artifacts=(artifacts/*.tar.gz artifacts/*.zip artifacts/*.apk artifacts/*.aab artifacts/*.exe)
           if (( ${#artifacts[@]} == 0 )); then
             echo "::error::No build artifacts found under artifacts/"; exit 1
           fi

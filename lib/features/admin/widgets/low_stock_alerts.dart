@@ -5,6 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/product.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/features/admin/widgets/dashboard_card.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Products running low on stock with one-tap restock (+10 units).
@@ -19,19 +20,20 @@ class LowStockAlerts extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(lowStockProductsProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Low stock',
+      title: l10n.adminLowStockTitle,
       icon: Icons.inventory_2_outlined,
       child: products.when(
         loading: () => const Padding(
           padding: EdgeInsets.all(Space.xl),
           child: Center(child: CircularProgressIndicator()),
         ),
-        error: (_, _) => _message(context, 'Couldn\'t load stock levels.'),
+        error: (_, _) => _message(context, l10n.adminLowStockError),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, 'Stock levels look healthy — no alerts.');
+            return _message(context, l10n.adminLowStockHealthy);
           }
           return Column(
             children: [
@@ -77,6 +79,7 @@ class _LowStockTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final critical = product.stockQuantity == 0;
 
     return Padding(
@@ -112,7 +115,7 @@ class _LowStockTile extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
                 UiText(
-                  '${product.stockQuantity} left',
+                  l10n.adminStockQuantityLeft(product.stockQuantity),
                   type: UiTextType.bodySmall,
                   color: critical
                       ? colorScheme.error
@@ -125,7 +128,7 @@ class _LowStockTile extends StatelessWidget {
           TextButton(
             onPressed: onRestock,
             child: UiText(
-              '+ Restock',
+              l10n.adminRestockShort,
               type: UiTextType.labelLarge,
               color: colorScheme.primary,
               fontWeight: FontWeight.w700,

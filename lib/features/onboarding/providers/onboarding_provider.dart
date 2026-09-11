@@ -71,7 +71,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
       if (taken) {
         state = state.copyWith(
           isSubmitting: false,
-          pinTakenError: 'That PIN is already in use — pick a different one',
+          pinTakenError: OnboardingError.pinTaken,
         );
         return;
       }
@@ -91,7 +91,7 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
-        submitError: 'Setup failed. Please try again.',
+        submitError: OnboardingError.setupFailed,
       );
     }
   }

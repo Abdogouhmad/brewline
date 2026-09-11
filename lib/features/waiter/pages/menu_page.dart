@@ -6,6 +6,7 @@ import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/features/waiter/providers/order_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/product_image.dart';
@@ -27,6 +28,7 @@ class MenuPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(menuProductsProvider);
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(Space.lg),
@@ -36,7 +38,7 @@ class MenuPage extends ConsumerWidget {
           Padding(
             padding: EdgeInsets.only(left: Space.sm, bottom: Space.md),
             child: UiText(
-              'MENU',
+              l10n.menuTitle,
               type: UiTextType.labelLarge,
               color: colorScheme.primary,
               fontWeight: FontWeight.w700,
@@ -51,7 +53,7 @@ class MenuPage extends ConsumerWidget {
             error: (e, _) => Padding(
               padding: EdgeInsets.all(Space.xl),
               child: UiText(
-                'Couldn\'t load the menu.',
+                l10n.menuError,
                 type: UiTextType.bodyMedium,
                 color: colorScheme.error,
               ),
@@ -60,7 +62,7 @@ class MenuPage extends ConsumerWidget {
                 ? Padding(
                     padding: EdgeInsets.all(Space.xl),
                     child: UiText(
-                      'No products on the menu yet.',
+                      l10n.menuEmpty,
                       type: UiTextType.bodyMedium,
                       color: colorScheme.onSurfaceVariant,
                     ),

@@ -3,16 +3,25 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:brewline/core/models/order_record.dart';
 import 'package:brewline/core/printing/receipt_templates/pos_support.dart';
 import 'package:brewline/core/printing/receipt_templates/receipt_header.dart';
+import 'package:brewline/core/printing/receipt_templates/receipt_localization.dart';
 
 /// The 55mm ticket sent to the kitchen when an order is charged.
 ///
 /// Kept deliberately compact — the kitchen wants the *what/how many* at a
 /// glance, not the customer-facing branding — so it skips the shared
-/// [ReceiptHeader] and leads with the order identity.
+/// [ReceiptHeader] and leads with the order identity. Its few words follow the
+/// configured receipt language ([locale], default French per §6 Option A).
 class KitchenTicketTemplate {
   final OrderRecord order;
 
-  const KitchenTicketTemplate({required this.order});
+  /// Receipt language code ('en' | 'fr'); the printer service passes the
+  /// configured [ReceiptLanguage], defaulting to French.
+  final String locale;
+
+  const KitchenTicketTemplate({
+    required this.order,
+    this.locale = defaultReceiptLocale,
+  });
 
   /// Characters per line on a 55mm roll with font A.
   ///
@@ -24,6 +33,7 @@ class KitchenTicketTemplate {
   static const int lineWidth = 32;
 
   Future<List<int>> build() async {
+    final strings = receiptTextFor(locale);
     final generator = await newPosGenerator(
       paper: PaperSize.mm58,
       lineWidth: lineWidth,
@@ -35,11 +45,11 @@ class KitchenTicketTemplate {
       styles: const PosStyles(bold: true, align: PosAlign.center),
     );
     bytes += generator.text(
-      'ORDER ${_orderNumber()}',
+      strings.kitchenOrderNumber(_orderNumber()),
       styles: const PosStyles(bold: true, align: PosAlign.center),
     );
     bytes += generator.text(
-      posDateTime(order.createdAt),
+      posDateTimeIn(locale, order.createdAt),
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.hr();
@@ -53,7 +63,7 @@ class KitchenTicketTemplate {
 
     bytes += generator.hr();
     bytes += generator.text(
-      'TOTAL ${formatCentsPrice(order.totalCents)}',
+      strings.total(formatCentsPriceIn(locale, order.totalCents)),
       styles: const PosStyles(bold: true),
     );
     bytes += generator.feed(3);

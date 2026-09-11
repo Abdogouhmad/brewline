@@ -56,23 +56,54 @@ String posText(String text) {
 /// feature layer.
 const String kPosCurrencySymbol = 'DH ';
 
-/// Formats integer cents as `12.34` / `-12.34` (variance can be negative).
-String formatCents(int cents) {
+/// Formats integer cents as `12.34` / `-12.34` (variance can be negative),
+/// using `.` decimals (English receipts).
+String formatCents(int cents) => formatCentsIn('en', cents);
+
+/// `formatCents` for the receipts' fixed language — French uses a comma decimal
+/// separator (`350,00`). Grouping stays off on purpose: narrow no-break spaces
+/// (which intl would emit for thousands) can't be encoded by the printer's
+/// Latin-1 page, and the columns these fill are width-critical.
+String formatCentsIn(String locale, int cents) {
   final sign = cents < 0 ? '-' : '';
   final abs = cents.abs();
-  return '$sign${abs ~/ 100}.${(abs % 100).toString().padLeft(2, '0')}';
+  final whole = abs ~/ 100;
+  final frac = (abs % 100).toString().padLeft(2, '0');
+  final sep = locale == 'fr' ? ',' : '.';
+  return '$sign$whole$sep$frac';
 }
 
-/// Formats integer cents with the currency prefix, e.g. `DH 350.00`.
-String formatCentsPrice(int cents) => '$kPosCurrencySymbol${formatCents(cents)}';
+/// Formats integer cents with the currency symbol placed per [locale]:
+/// `DH 350.00` (English, symbol first) / `350,00 DH` (French, symbol last).
+String formatCentsPriceIn(String locale, int cents) {
+  final sign = cents < 0 ? '-' : '';
+  final amount = formatCentsIn(locale, cents.abs());
+  final symbol = kPosCurrencySymbol.trim();
+  if (locale == 'fr') {
+    return '$sign$amount $symbol';
+  }
+  return '$symbol $sign$amount';
+}
 
-/// Compact receipt timestamp: `30 Aug 2026 14:32`.
-String posDateTime(DateTime dt) {
-  const months = [
+/// English default (see [formatCentsPriceIn]).
+String formatCentsPrice(int cents) => formatCentsPriceIn('en', cents);
+
+/// English month abbreviations (`30 Aug 2026 14:32`).
+String posDateTime(DateTime dt) => posDateTimeIn('en', dt);
+
+/// `posDateTime` for the receipts' fixed language. French month names use the
+/// printer-safe Latin-1 forms (`5 sept. 2026 14:32`).
+String posDateTimeIn(String locale, DateTime dt) {
+  const monthsEn = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
+  const monthsFr = [
+    'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+  ];
+  final month = (locale == 'fr' ? monthsFr : monthsEn)[dt.month - 1];
   final hh = dt.hour.toString().padLeft(2, '0');
   final mm = dt.minute.toString().padLeft(2, '0');
-  return '${dt.day} ${months[dt.month - 1]} ${dt.year} $hh:$mm';
+  return '${dt.day} $month ${dt.year} $hh:$mm';
 }

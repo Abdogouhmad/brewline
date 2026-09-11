@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 class AppDestination {
@@ -147,9 +148,9 @@ class _AppShellState extends State<AppShell> {
               label: dests[i].label,
             ),
           if (folded)
-            const NavigationDestination(
-              icon: Icon(Icons.more_horiz_rounded),
-              label: 'More',
+            NavigationDestination(
+              icon: const Icon(Icons.more_horiz_rounded),
+              label: AppLocalizations.of(context)!.shellMore,
             ),
         ],
       ),

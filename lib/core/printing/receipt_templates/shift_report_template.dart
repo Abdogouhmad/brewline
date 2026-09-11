@@ -2,6 +2,7 @@ import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 import 'package:brewline/core/printing/receipt_templates/pos_support.dart';
 import 'package:brewline/core/printing/receipt_templates/receipt_header.dart';
+import 'package:brewline/core/printing/receipt_templates/receipt_localization.dart';
 
 /// Everything the shift report needs to print, computed **before** calling
 /// the template.
@@ -56,12 +57,20 @@ class ShiftReportData {
 class ShiftReportTemplate {
   final ShiftReportData data;
 
-  const ShiftReportTemplate({required this.data});
+  /// Receipt language code ('en' | 'fr'); the printer service passes the
+  /// configured [ReceiptLanguage], defaulting to French per §6 Option A.
+  final String locale;
+
+  const ShiftReportTemplate({
+    required this.data,
+    this.locale = defaultReceiptLocale,
+  });
 
   /// Characters per line on an 88mm roll (font A) — measure, don't guess.
   static const int lineWidth = 48;
 
   Future<List<int>> build() async {
+    final strings = receiptTextFor(locale);
     final generator = await newPosGenerator(
       paper: PaperSize.mm80,
       lineWidth: lineWidth,
@@ -70,21 +79,21 @@ class ShiftReportTemplate {
 
     // Same header block as the client receipt, per the spec: the shift report
     // opens with the same branding so the two customer-facing prints match.
-    bytes += await ReceiptHeader.append(generator);
+    bytes += await ReceiptHeader.append(generator, strings: strings);
 
-    // Interim prints open with an unmistakable banner. Plain ASCII on purpose:
-// the printer's Latin-1 page can't encode an em-dash (it'd print as `?`), and
-// this line exists to be *read* at a glance.
+    // Interim prints open with an unmistakable banner. Plain letters beyond the
+    // printer's Latin-1 page print as `?`, and this line exists to be *read* at
+    // a glance.
     if (!data.isFinal) {
       bytes += generator.text(
-        '*** PREVIEW - SHIFT NOT CLOSED ***',
+        strings.shiftBanner,
         styles: const PosStyles(bold: true, align: PosAlign.center),
       );
       bytes += generator.emptyLines(1);
     }
 
     bytes += generator.text(
-      'SHIFT REPORT',
+      strings.shiftTitle,
       styles: const PosStyles(bold: true, align: PosAlign.center),
     );
     bytes += generator.text(
@@ -95,25 +104,33 @@ class ShiftReportTemplate {
 
     bytes += generator.text(
       posText(
-        'Shift ${posDateTime(data.shiftStart)} to '
-        '${posDateTime(data.shiftEnd)}',
+        strings.shiftRange(
+          posDateTimeIn(locale, data.shiftStart),
+          posDateTimeIn(locale, data.shiftEnd),
+        ),
       ),
       maxCharsPerLine: lineWidth,
     );
-    bytes += generator.text('Orders made:   ${data.orderCount}');
-    bytes += generator.text('Total sales:   ${formatCentsPrice(data.totalSalesCents)}');
+    bytes += generator.text('${strings.ordersMade}${data.orderCount}');
+    bytes += generator.text(
+      '${strings.totalSales}${formatCentsPriceIn(locale, data.totalSalesCents)}',
+    );
     bytes += generator.hr();
 
     if (data.isFinal) {
       final counted = data.cashCountedCents ?? 0;
       final variance = data.cashVarianceCents ?? 0;
-      bytes += generator.text('Cash counted:  ${formatCentsPrice(counted)}');
-      bytes += generator.text('Cash variance: ${formatCentsPrice(variance)}');
+      bytes += generator.text(
+        '${strings.cashCounted}${formatCentsPriceIn(locale, counted)}',
+      );
+      bytes += generator.text(
+        '${strings.cashVariance}${formatCentsPriceIn(locale, variance)}',
+      );
       bytes += generator.hr();
     }
 
     bytes += generator.text(
-      'Printed ${posDateTime(DateTime.now())}',
+      strings.printed(posDateTimeIn(locale, DateTime.now())),
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.feed(3);

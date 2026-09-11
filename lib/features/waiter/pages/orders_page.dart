@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/waiter/providers/order_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_list.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
@@ -20,6 +21,7 @@ class OrdersPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final orderItems = ref.watch(orderControllerProvider);
     final total = ref.watch(orderTotalProvider);
     final order = ref.read(orderControllerProvider.notifier);
@@ -27,14 +29,8 @@ class OrdersPage extends ConsumerWidget {
     /// Charges the order — persists it to the journal, advances the ticket
     /// number and resets the cart. TODO: real payment flow.
     Future<void> charge() async {
-      final charged = ref.read(orderTotalProvider);
       await order.charge();
       if (!context.mounted) return;
-      showUiSnackBar(
-        context,
-        'Charged ${formatPriceCents(charged)}',
-        type: UiSnackBarType.success,
-      );
     }
 
     /// Empties the order without charging. Keeps a backup so the snackbar's
@@ -44,13 +40,20 @@ class OrdersPage extends ConsumerWidget {
       order.clear();
       showUiSnackBar(
         context,
-        'Order cleared',
+        l10n.ordersCleared,
         icon: Icons.delete_sweep_outlined,
         duration: const Duration(seconds: 4),
-        label: 'Undo',
+        label: l10n.ordersUndo,
         onLabelPressed: () => order.restore(backup),
       );
     }
+
+    // Localized ticket header — the provider stays code-based (§4), display
+    // copy is resolved here per locale.
+    final units = totalUnitsOf(orderItems);
+    final title = units > 1
+        ? l10n.ordersTitleWithItems(ref.watch(orderNumberProvider), units)
+        : l10n.ordersTitle(ref.watch(orderNumberProvider));
 
     return Column(
       children: [
@@ -61,7 +64,7 @@ class OrdersPage extends ConsumerWidget {
                   padding: EdgeInsets.all(Space.lg),
                   children: [
                     UiListSection(
-                      title: ref.watch(orderTitleProvider),
+                      title: title,
                       children: [
                         UiListGroup(
                           useCard: false,
@@ -73,7 +76,7 @@ class OrdersPage extends ConsumerWidget {
                                     : item.product.name,
                                 price: item.formattedTotal,
                                 actionIcon: Icons.delete_outline_rounded,
-                                actionTooltip: 'Remove item',
+                                actionTooltip: l10n.ordersRemoveItem,
                                 onActionPressed: () =>
                                     order.remove(item.product.id),
                               ),
@@ -95,8 +98,8 @@ class OrdersPage extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const UiText(
-                    'Total',
+                  UiText(
+                    l10n.ordersTotal,
                     type: UiTextType.titleMedium,
                     fontWeight: FontWeight.w700,
                   ),
@@ -110,13 +113,13 @@ class OrdersPage extends ConsumerWidget {
               ),
               SizedBox(height: Space.xl),
               UiButton(
-                'Charge ${formatPriceCents(total)}',
+                l10n.ordersCharge(formatPriceCents(total)),
                 expand: true,
                 onPressed: total <= 0 ? null : charge,
               ),
               SizedBox(height: Space.md),
               UiButton(
-                'Clear order',
+                l10n.ordersClearOrder,
                 variant: UiButtonVariant.outlined,
                 expand: true,
                 onPressed: orderItems.isEmpty ? null : clear,
@@ -136,6 +139,7 @@ class _EmptyOrderView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Center(
       child: Column(
@@ -148,13 +152,13 @@ class _EmptyOrderView extends StatelessWidget {
           ),
           SizedBox(height: Space.md),
           UiText(
-            'No items yet',
+            l10n.ordersEmpty,
             type: UiTextType.titleMedium,
             color: colorScheme.onSurfaceVariant,
           ),
           SizedBox(height: Space.sm),
           UiText(
-            'Tap products in Menu to add them here.',
+            l10n.ordersEmptyHint,
             type: UiTextType.bodySmall,
             color: colorScheme.onSurfaceVariant,
           ),

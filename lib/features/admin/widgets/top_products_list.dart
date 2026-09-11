@@ -5,6 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/features/admin/providers/top_products_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -17,17 +18,18 @@ class TopProductsList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final products = ref.watch(topProductsProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return DashboardCard(
-      title: 'Top products',
+      title: l10n.adminTopProductsTitle,
       icon: Icons.local_fire_department_outlined,
       trailing: null,
       child: products.when(
         loading: () => const _ComfyLoading(),
-        error: (_, _) => _message(context, 'Couldn\'t load top products.'),
+        error: (_, _) => _message(context, l10n.adminTopProductsError),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, 'No sales recorded in this period.');
+            return _message(context, l10n.adminTopProductsEmpty);
           }
           final maxQty = items.first.quantity;
           return Column(
@@ -74,6 +76,7 @@ class _ProductRank extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Padding(
       padding: EdgeInsets.only(bottom: Space.lg),
@@ -101,7 +104,7 @@ class _ProductRank extends StatelessWidget {
                 ),
               ),
               UiText(
-                '${sold.quantity} sold',
+                l10n.adminTopProductsSold(sold.quantity),
                 type: UiTextType.bodySmall,
                 color: colorScheme.onSurfaceVariant,
               ),

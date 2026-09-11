@@ -1,16 +1,23 @@
 import 'package:brewline/core/constants/app_sizes.dart';
 
+/// Machine-readable codes for the onboarding form's inline validation errors.
+///
+/// Stored on [OnboardingState] instead of raw English strings so the copy can
+/// be localized in the widget layer — code in the provider, display string in
+/// the UI (improve.md §4). Translate each code in `onboarding_form.dart`.
+enum OnboardingError { usernameInvalid, pinLength, pinMismatch, pinTaken, setupFailed }
+
 /// Mutable state for the onboarding form.
 class OnboardingState {
   final String username;
   final String pin;
   final String confirmPin;
-  final String? usernameError;
-  final String? pinError;
-  final String? confirmError;
-  final String? pinTakenError;
+  final OnboardingError? usernameError;
+  final OnboardingError? pinError;
+  final OnboardingError? confirmError;
+  final OnboardingError? pinTakenError;
   final bool isSubmitting;
-  final String? submitError;
+  final OnboardingError? submitError;
 
   const OnboardingState({
     this.username = '',
@@ -28,16 +35,16 @@ class OnboardingState {
     String? username,
     String? pin,
     String? confirmPin,
-    String? usernameError,
+    OnboardingError? usernameError,
     bool clearUsernameError = false,
-    String? pinError,
+    OnboardingError? pinError,
     bool clearPinError = false,
-    String? confirmError,
+    OnboardingError? confirmError,
     bool clearConfirmError = false,
-    String? pinTakenError,
+    OnboardingError? pinTakenError,
     bool clearPinTakenError = false,
     bool? isSubmitting,
-    String? submitError,
+    OnboardingError? submitError,
     bool clearSubmitError = false,
   }) => OnboardingState(
     username: username ?? this.username,
@@ -80,12 +87,12 @@ class OnboardingState {
     clearConfirmError: true,
     usernameError: username.isEmpty
         ? null
-        : (_isUsernameValid ? null : '3–24 characters, letters, numbers, or _'),
+        : (_isUsernameValid ? null : OnboardingError.usernameInvalid),
     pinError: pin.isEmpty
         ? null
-        : (_isPinValid ? null : 'PIN must be exactly $kAdminPinLength digits'),
+        : (_isPinValid ? null : OnboardingError.pinLength),
     confirmError: confirmPin.isEmpty
         ? null
-        : (_isConfirmValid ? null : "PINs don't match"),
+        : (_isConfirmValid ? null : OnboardingError.pinMismatch),
   );
 }

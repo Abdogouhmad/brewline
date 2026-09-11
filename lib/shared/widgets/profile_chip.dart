@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/localization/role_labels.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
+import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Profile pill bound to [currentUserProvider] (auth session + `staff` row).
@@ -70,7 +72,7 @@ class ProfileChip extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(Rounded.full),
                   ),
                   child: UiText(
-                    user.role,
+                    localizedRoleLabel(AppLocalizations.of(context)!, user.role),
                     type: UiTextType.labelSmall,
                     color: colorScheme.onSecondaryContainer,
                   ),

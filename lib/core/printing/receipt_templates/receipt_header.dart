@@ -1,6 +1,7 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 import 'pos_support.dart';
+import 'receipt_localization.dart';
 
 /// The café brand block shared by the client receipt and the shift report, so
 /// every customer-facing print starts with the same header.
@@ -11,16 +12,19 @@ class ReceiptHeader {
 
   static const String storeName = 'BrewLine Café';
 
-  /// Appends the brand block: bold centered store name, tagline and a full
-  /// rule. Kept in one place so a rebrand is a one-line change.
-  static Future<List<int>> append(Generator generator) async {
+  /// Appends the brand block: bold centered store name, localized tagline and
+  /// a full rule. Kept in one place so a rebrand is a one-line change.
+  static Future<List<int>> append(
+    Generator generator, {
+    ReceiptText strings = receiptTextFrench,
+  }) async {
     List<int> bytes = <int>[];
     bytes += generator.text(
       posText(storeName),
       styles: const PosStyles(bold: true, align: PosAlign.center),
     );
     bytes += generator.text(
-      'Coffee · Drinks · Pastries',
+      posText(strings.tagline),
       styles: const PosStyles(align: PosAlign.center),
     );
     bytes += generator.hr();
