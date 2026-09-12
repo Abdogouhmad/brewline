@@ -198,6 +198,116 @@
   "updateRequiredDownloadFailedNote": "Check your internet connection and try again.",
   "updateRequiredDownloadButton": "Download update",
 
+  "backupDataSectionTitle": "Data",
+  "@backupDataSectionTitle": {
+    "description": "Settings section title for backup & restore"
+  },
+  "backupSectionTitle": "Backup & restore",
+  "@backupSectionTitle": {
+    "description": "Settings card title for the backup & restore section"
+  },
+  "backupSectionSubtitle": "Protect your business data on this device",
+  "@backupSectionSubtitle": {
+    "description": "Settings card subtitle for the backup & restore section"
+  },
+  "backupDataSectionSubtitle": "Back up and restore your business data",
+  "@backupDataSectionSubtitle": {
+    "description": "Settings section subtitle for backup & restore"
+  },
+  "backupCreateButtonLabel": "Create backup",
+  "@backupCreateButtonLabel": {
+    "description": "Button label that creates a .brewline backup archive"
+  },
+  "backupLastBackupLabel": "{count, plural, =0{Never backed up} =1{Last backup: yesterday} other{Last backup: {count} days ago}}",
+  "@backupLastBackupLabel": {
+    "description": "Plural label showing when the last backup was taken",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupLastBackupToday": "Last backup: today",
+  "@backupLastBackupToday": {
+    "description": "Label shown when the last backup was taken earlier today"
+  },
+  "backupRestoreButtonLabel": "Restore from file",
+  "@backupRestoreButtonLabel": {
+    "description": "Button label that picks and restores a .brewline archive"
+  },
+  "backupRestoreConfirmTitle": "Restore backup?",
+  "@backupRestoreConfirmTitle": {
+    "description": "Title of the restore confirmation dialog"
+  },
+  "backupRestoreConfirmBody": "This will replace ALL current data with the contents of this backup. A safety snapshot of the current data is saved automatically before restoring.",
+  "@backupRestoreConfirmBody": {
+    "description": "Body text in the restore confirmation dialog explaining the destructive action"
+  },
+  "backupRestoreConfirmFieldLabel": "Enter your PIN to confirm",
+  "@backupRestoreConfirmFieldLabel": {
+    "description": "Label above the PIN entry field in the restore confirmation dialog"
+  },
+  "backupConfirmRestore": "Restore",
+  "@backupConfirmRestore": {
+    "description": "Destructive confirm button in the restore confirmation dialog"
+  },
+  "backupSchemaTooNewError": "This backup was made with a newer version of the app — update the app first, then restore.",
+  "@backupSchemaTooNewError": {
+    "description": "Error message when a backup's schema version is newer than the running app"
+  },
+  "backupSchemaOlderWarning": "This backup was made with an older version. The data will be automatically updated after restoring.",
+  "@backupSchemaOlderWarning": {
+    "description": "Info note when a backup is from an older schema (migrations will run on restore)"
+  },
+  "backupWrongPin": "Incorrect PIN",
+  "@backupWrongPin": {
+    "description": "Error shown when the admin enters the wrong PIN in the restore confirmation"
+  },
+  "backupRestoring": "Restoring…",
+  "@backupRestoring": {
+    "description": "Progress message while the restore operation is running"
+  },
+  "backupRestored": "Backup restored successfully",
+  "@backupRestored": {
+    "description": "Snackbar confirmation after a successful restore"
+  },
+  "backupFailed": "Restore failed",
+  "@backupFailed": {
+    "description": "Error message when the restore operation fails"
+  },
+  "backupDeviceLabelTitle": "Device label",
+  "@backupDeviceLabelTitle": {
+    "description": "Tile label for the device-label setting in the Data section"
+  },
+  "backupDeviceLabelSubtitle": "Optional name shown in backup manifests",
+  "@backupDeviceLabelSubtitle": {
+    "description": "Tile subtitle for the device-label setting"
+  },
+  "backupDeviceLabelHint": "e.g. Front Counter",
+  "@backupDeviceLabelHint": {
+    "description": "Placeholder hint shown in the device label edit dialog"
+  },
+  "backupDeviceLabelSave": "Save",
+  "@backupDeviceLabelSave": {
+    "description": "Save button in the device label edit dialog"
+  },
+  "backupCreateInProgress": "Creating backup…",
+  "@backupCreateInProgress": {
+    "description": "Progress message while the backup archive is being created"
+  },
+  "backupCreateSuccess": "Backup created",
+  "@backupCreateSuccess": {
+    "description": "Confirmation after a backup archive was successfully created"
+  },
+  "backupCreateError": "Failed to create backup",
+  "@backupCreateError": {
+    "description": "Error message when creating the backup archive fails"
+  },
+  "backupInvalidFileError": "This file is not a valid backup",
+  "@backupInvalidFileError": {
+    "description": "Error message when the selected file is not a valid .brewline archive"
+  },
+
   "adminCashoutLogTitle": "Cashout log",
   "adminCashoutLogSubtitle": "Every finalized shift close, filterable by date or waiter.",
   "adminCashoutLogError": "Couldn't load the cashout log.",

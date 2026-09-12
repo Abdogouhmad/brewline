@@ -356,6 +356,100 @@ class AppLocalizationsFr extends AppLocalizations {
   String get updateRequiredDownloadButton => 'Télécharger la mise à jour';
 
   @override
+  String get backupDataSectionTitle => 'Données';
+
+  @override
+  String get backupSectionTitle => 'Sauvegarde et restauration';
+
+  @override
+  String get backupSectionSubtitle => 'Protégez vos données sur cet appareil';
+
+  @override
+  String get backupDataSectionSubtitle =>
+      'Sauvegardez et restaurez vos données';
+
+  @override
+  String get backupCreateButtonLabel => 'Créer une sauvegarde';
+
+  @override
+  String backupLastBackupLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Dernière sauvegarde : il y a $count jours',
+      one: 'Dernière sauvegarde : hier',
+      zero: 'Jamais sauvegardé',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get backupLastBackupToday => 'Dernière sauvegarde : aujourd\'hui';
+
+  @override
+  String get backupRestoreButtonLabel => 'Restaurer depuis un fichier';
+
+  @override
+  String get backupRestoreConfirmTitle => 'Restaurer la sauvegarde ?';
+
+  @override
+  String get backupRestoreConfirmBody =>
+      'Cela remplacera TOUTES les données actuelles par le contenu de cette sauvegarde. Un instantané de sécurité des données actuelles est enregistré automatiquement avant la restauration.';
+
+  @override
+  String get backupRestoreConfirmFieldLabel =>
+      'Saisissez votre code PIN pour confirmer';
+
+  @override
+  String get backupConfirmRestore => 'Restaurer';
+
+  @override
+  String get backupSchemaTooNewError =>
+      'Cette sauvegarde a été créée avec une version plus récente de l\'application — mettez à jour l\'application d\'abord, puis restaurez.';
+
+  @override
+  String get backupSchemaOlderWarning =>
+      'Cette sauvegarde provient d\'une version plus ancienne. Les données seront automatiquement mises à jour après la restauration.';
+
+  @override
+  String get backupWrongPin => 'Code PIN incorrect';
+
+  @override
+  String get backupRestoring => 'Restauration…';
+
+  @override
+  String get backupRestored => 'Sauvegarde restaurée avec succès';
+
+  @override
+  String get backupFailed => 'Échec de la restauration';
+
+  @override
+  String get backupDeviceLabelTitle => 'Nom de l\'appareil';
+
+  @override
+  String get backupDeviceLabelSubtitle =>
+      'Nom facultatif affiché dans les sauvegardes';
+
+  @override
+  String get backupDeviceLabelHint => 'ex. Comptoir avant';
+
+  @override
+  String get backupDeviceLabelSave => 'Enregistrer';
+
+  @override
+  String get backupCreateInProgress => 'Création de la sauvegarde…';
+
+  @override
+  String get backupCreateSuccess => 'Sauvegarde créée';
+
+  @override
+  String get backupCreateError => 'Échec de la création de la sauvegarde';
+
+  @override
+  String get backupInvalidFileError =>
+      'Ce fichier n\'est pas une sauvegarde valide';
+
+  @override
   String get adminCashoutLogTitle => 'Journal des caisses';
 
   @override

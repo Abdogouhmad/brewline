@@ -30,6 +30,15 @@ const String kAdminPinHashKey = 'admin_pin_hash';
 /// hash so a leaked store can't be rainbow-tabled).
 const String kAdminPinSaltKey = 'admin_pin_salt';
 
+/// SharedPreferences key marking that one-time onboarding has been completed.
+///
+/// Lives next to the admin credential because the two together are what gate
+/// the login screen: the flag decides Login vs Onboarding, and the credential
+/// is what the login validates against. The backup/restore flow restores both
+/// together so a restored install lands on the login screen ready to sign in
+/// with the restored admin PIN.
+const String kOnboardingCompleteKey = 'onboarding_complete';
+
 /// The admin account's persisted identity: username + salted PIN hash.
 class AdminCredential {
   final String username;

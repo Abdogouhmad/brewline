@@ -704,6 +704,162 @@ abstract class AppLocalizations {
   /// **'Download update'**
   String get updateRequiredDownloadButton;
 
+  /// Settings section title for backup & restore
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get backupDataSectionTitle;
+
+  /// Settings card title for the backup & restore section
+  ///
+  /// In en, this message translates to:
+  /// **'Backup & restore'**
+  String get backupSectionTitle;
+
+  /// Settings card subtitle for the backup & restore section
+  ///
+  /// In en, this message translates to:
+  /// **'Protect your business data on this device'**
+  String get backupSectionSubtitle;
+
+  /// Settings section subtitle for backup & restore
+  ///
+  /// In en, this message translates to:
+  /// **'Back up and restore your business data'**
+  String get backupDataSectionSubtitle;
+
+  /// Button label that creates a .brewline backup archive
+  ///
+  /// In en, this message translates to:
+  /// **'Create backup'**
+  String get backupCreateButtonLabel;
+
+  /// Plural label showing when the last backup was taken
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Never backed up} =1{Last backup: yesterday} other{Last backup: {count} days ago}}'**
+  String backupLastBackupLabel(int count);
+
+  /// Label shown when the last backup was taken earlier today
+  ///
+  /// In en, this message translates to:
+  /// **'Last backup: today'**
+  String get backupLastBackupToday;
+
+  /// Button label that picks and restores a .brewline archive
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from file'**
+  String get backupRestoreButtonLabel;
+
+  /// Title of the restore confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Restore backup?'**
+  String get backupRestoreConfirmTitle;
+
+  /// Body text in the restore confirmation dialog explaining the destructive action
+  ///
+  /// In en, this message translates to:
+  /// **'This will replace ALL current data with the contents of this backup. A safety snapshot of the current data is saved automatically before restoring.'**
+  String get backupRestoreConfirmBody;
+
+  /// Label above the PIN entry field in the restore confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your PIN to confirm'**
+  String get backupRestoreConfirmFieldLabel;
+
+  /// Destructive confirm button in the restore confirmation dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get backupConfirmRestore;
+
+  /// Error message when a backup's schema version is newer than the running app
+  ///
+  /// In en, this message translates to:
+  /// **'This backup was made with a newer version of the app — update the app first, then restore.'**
+  String get backupSchemaTooNewError;
+
+  /// Info note when a backup is from an older schema (migrations will run on restore)
+  ///
+  /// In en, this message translates to:
+  /// **'This backup was made with an older version. The data will be automatically updated after restoring.'**
+  String get backupSchemaOlderWarning;
+
+  /// Error shown when the admin enters the wrong PIN in the restore confirmation
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect PIN'**
+  String get backupWrongPin;
+
+  /// Progress message while the restore operation is running
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring…'**
+  String get backupRestoring;
+
+  /// Snackbar confirmation after a successful restore
+  ///
+  /// In en, this message translates to:
+  /// **'Backup restored successfully'**
+  String get backupRestored;
+
+  /// Error message when the restore operation fails
+  ///
+  /// In en, this message translates to:
+  /// **'Restore failed'**
+  String get backupFailed;
+
+  /// Tile label for the device-label setting in the Data section
+  ///
+  /// In en, this message translates to:
+  /// **'Device label'**
+  String get backupDeviceLabelTitle;
+
+  /// Tile subtitle for the device-label setting
+  ///
+  /// In en, this message translates to:
+  /// **'Optional name shown in backup manifests'**
+  String get backupDeviceLabelSubtitle;
+
+  /// Placeholder hint shown in the device label edit dialog
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Front Counter'**
+  String get backupDeviceLabelHint;
+
+  /// Save button in the device label edit dialog
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get backupDeviceLabelSave;
+
+  /// Progress message while the backup archive is being created
+  ///
+  /// In en, this message translates to:
+  /// **'Creating backup…'**
+  String get backupCreateInProgress;
+
+  /// Confirmation after a backup archive was successfully created
+  ///
+  /// In en, this message translates to:
+  /// **'Backup created'**
+  String get backupCreateSuccess;
+
+  /// Error message when creating the backup archive fails
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to create backup'**
+  String get backupCreateError;
+
+  /// Error message when the selected file is not a valid .brewline archive
+  ///
+  /// In en, this message translates to:
+  /// **'This file is not a valid backup'**
+  String get backupInvalidFileError;
+
   /// No description provided for @adminCashoutLogTitle.
   ///
   /// In en, this message translates to:

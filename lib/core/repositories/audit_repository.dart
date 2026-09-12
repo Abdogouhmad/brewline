@@ -1,13 +1,13 @@
 /// Write/read access to the `audit_events` session log.
 ///
-/// One lean table, seven event types: `login`, `logout`, `cashout`,
-/// `report_print`, `password_changed`, `void`, `post_print_edit` (the CHECK
-/// constraint keeps typos out). Appended to by the auth flow, account
-/// updates, the final cashout, the interim shift-report print, and the refund
-/// system (void / post_print_edit fraud signals); read by the (future) admin
-/// audit view and fraud signals. Nothing else should touch the table — route
-/// every session/money event through [logEvent] so the stream stays
-/// consistent.
+/// One lean table, nine event types: `login`, `logout`, `cashout`,
+/// `report_print`, `password_changed`, `void`, `post_print_edit`,
+/// `backup_created`, `backup_restored` (the CHECK constraint keeps typos out).
+/// Appended to by the auth flow, account updates, the final cashout, the
+/// interim shift-report print, the refund system (void / post_print_edit fraud
+/// signals), and the backup/restore feature; read by the (future) admin audit
+/// view and fraud signals. Nothing else should touch the table — route every
+/// session/money event through [logEvent] so the stream stays consistent.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +30,8 @@ class AuditRepository {
     'password_changed',
     'void',
     'post_print_edit',
+    'backup_created',
+    'backup_restored',
   };
 
   /// Appends one row to the log.

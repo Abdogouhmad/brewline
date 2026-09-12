@@ -2,6 +2,28 @@
 
 All notable changes to Brewline, in plain language for everyday users.
 
+## [1.11.0] - 2026-09-11
+
+### Added
+
+- **Backup & restore** — protect your business data. A single admin-only "Data"
+  section in Settings can now pack your whole store (products, sales history,
+  recipes, stock, staff and reports) into one `.brewline` file you can move
+  anywhere, and restore it to this or another device. Restoring replaces the
+  device's data, and a safety snapshot of the current data is saved
+  automatically first so nothing is ever lost.
+- **Update notifications** — the app now shows a notification (Android tray /
+  Windows & Linux toast) the moment it finds a new version, so updates surface
+  even when you're not looking at Settings.
+
+### Fixed
+
+- **Restoring a backup never gets stuck** — on some devices the restore could
+  sit on "Restoring…" forever. It now completes and signs you out to the login
+  screen ready for the restored PIN, on Android, Windows and Linux. If anything
+  does go wrong mid-restore, your previous data is put back automatically
+  instead of the app getting stuck.
+
 ## [1.10.0] - 2026-09-10
 
 ### Added
@@ -162,7 +184,8 @@ All notable changes to Brewline, in plain language for everyday users.
 - **Login & onboarding** — first-run setup for the admin account, followed by
   a secure PIN login.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.10.0...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.11.0...HEAD
+[1.11.0]: https://github.com/Abdogouhmad/brewline/compare/1.10.0...1.11.0
 [1.10.0]: https://github.com/Abdogouhmad/brewline/compare/1.9.1...1.10.0
 [1.9.1]: https://github.com/Abdogouhmad/brewline/compare/1.9.0...1.9.1
 [1.9.0]: https://github.com/Abdogouhmad/brewline/compare/1.8.0...1.9.0

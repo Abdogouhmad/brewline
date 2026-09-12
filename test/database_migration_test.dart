@@ -98,7 +98,7 @@ void main() {
     final db2 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db2.close());
 
-    expect(await db2.getVersion(), 7);
+    expect(await db2.getVersion(), kDatabaseSchemaVersion);
     await db2.rawQuery('SELECT is_archived FROM products'); // column now exists
     await db2.rawQuery('SELECT order_number FROM orders'); // column now exists
     await db2.rawQuery('SELECT * FROM cashout_logs'); // table now exists
@@ -111,6 +111,7 @@ void main() {
     await db2.rawQuery('SELECT price_cents FROM products'); // v7 column now exists
     await db2.rawQuery('SELECT total_cents FROM orders'); // v7 column now exists
     await db2.rawQuery('SELECT unit_price_cents FROM order_items'); // v7 column now exists
+    await db2.rawQuery('SELECT * FROM audit_events WHERE event_type = \'backup_created\''); // v8 event type admitted
 
     // Existing rows were not touched by the upgrade.
     final products = ProductRepository(db2);
@@ -226,13 +227,15 @@ void main() {
     final db3 = await openAppDatabase(factory: databaseFactoryFfi, path: path);
     addTearDown(() => db3.close());
 
-    expect(await db3.getVersion(), 7);
+    expect(await db3.getVersion(), kDatabaseSchemaVersion);
     await db3.rawQuery('SELECT * FROM cashout_logs'); // table now exists
     await db3.rawQuery('SELECT * FROM order_refunds'); // v4 table now exists
     await db3.rawQuery('SELECT * FROM ingredients'); // v5 table now exists
     await db3.rawQuery('SELECT * FROM product_recipes'); // v5 table now exists
     await db3.rawQuery('SELECT * FROM stock_movements'); // v5 table now exists
     await db3.rawQuery('SELECT pin_salt FROM staff'); // v6 column now exists
+    // v8 widened CHECK admits backup event types.
+    await db3.rawQuery('SELECT * FROM audit_events WHERE event_type = \'backup_created\'');
 
     // Legacy staff rows were migrated with a NULL salt so they keep verifying
     // against the unsalted hash.

@@ -16,7 +16,8 @@
 ///   `order_number`, so the next number is one atomic `UPDATE` away instead
 ///   of a `MAX()` scan. The "small" way to keep numbers sequential.
 /// * `audit_events` — the session/cashout event log (login, logout, cashout,
-///   report_print, password_changed, void, post_print_edit).
+///   report_print, password_changed, void, post_print_edit,
+///   backup_created, backup_restored).
 /// * `cashout_logs` — one row per *finalized* shift close, snapshotting the
 ///   counted cash + variance that can't be derived from `orders` alone.
 /// * `ingredients` — raw stock items (beans, milk, cups…) with a live
@@ -39,6 +40,62 @@ import 'package:brewline/core/models/product.dart';
 
 /// On-disk filename of the SQLite database.
 const String kBrewlineDatabaseName = 'brewline.db';
+
+/// Current schema version. Bump this when a schema change lands and add the
+/// matching step to [kMigrations] — see the migration history below.
+const int kDatabaseSchemaVersion = 8;
+
+/// Mutable holder for the app's **single** live [Database] connection.
+///
+/// `main()` opens the database eagerly, attaches it here, and overrides
+/// [appDatabaseProvider] to expose `[AppDatabaseHandle.current]`. The backup/
+/// restore feature closes this handle, swaps the underlying file, re-opens a
+/// fresh connection (running any pending migrations) and attaches it again —
+/// so a restore replaces the live database without the app ever holding two
+/// connections, which is exactly what makes the Windows file-lock hazard real.
+class AppDatabaseHandle {
+  Database? _database;
+
+  /// The live connection. Throws if none is attached (e.g. mid-restore).
+  Database get current {
+    final db = _database;
+    if (db == null) {
+      throw StateError('AppDatabaseHandle has no open database');
+    }
+    return db;
+  }
+
+  bool get isOpen => _database != null;
+
+  void attach(Database db) => _database = db;
+
+  /// Releases every reference to the current connection.
+  ///
+  /// Must be called before swapping the on-disk database file — on Windows an
+  /// open SQLite handle locks the file, and overwriting it mid-open is a real
+  /// corruption risk rather than a catchable error.
+  Future<void> close() async {
+    final db = _database;
+    _database = null;
+    if (db != null) await db.close();
+  }
+
+  /// Closes the current connection and opens a fresh one at [path] (defaulting
+  /// to the standard app database location). If the database on disk is at an
+  /// older schema the normal [openAppDatabase] migration chain runs here.
+  Future<Database> reopen({DatabaseFactory? factory, String? path}) async {
+    await close();
+    final db = await openAppDatabase(factory: factory, path: path);
+    _database = db;
+    return db;
+  }
+}
+
+/// Access to the single [AppDatabaseHandle] wired up in `main()`. Overridden
+/// in tests/mains so restore can close + swap + re-open the one connection.
+final appDatabaseHandleProvider = Provider<AppDatabaseHandle>((ref) {
+  throw UnimplementedError('Must be overridden in main()');
+});
 
 /// Writable handle to the app database, opened once at startup.
 ///
@@ -72,7 +129,7 @@ Future<Database> openAppDatabase({
     options: OpenDatabaseOptions(
       // Bump this when a schema change lands and add the matching
       // step to [kMigrations]. See the migration history below.
-      version: 7,
+      version: kDatabaseSchemaVersion,
       // Foreign keys are enabled *after* the upgrade transaction completes
       // (onOpen), not in onConfigure. PRAGMA foreign_keys is a silent no-op
       // inside a transaction, and migration 7 rebuilds the FK parents
@@ -120,6 +177,11 @@ Future<Database> openAppDatabase({
 ///            representing DH. Runs with foreign keys off so the `orders`
 ///            parent rebuild can't trip its children's constraints; onOpen
 ///            re-enables them for the session. |
+/// | 8       | Backup & restore (§5 of the backup spec): `audit_events.event_type`
+///            CHECK widened with `backup_created` and `backup_restored` so the
+///            audit trail itself records when the data underneath it changed via
+///            restore. Same create→copy→drop→rename dance as v3/v4 — SQLite
+///            can't ALTER a CHECK constraint. |
 ///
 /// Keep this table up to date — it is the traceable record of every schema
 /// change for `openAppDatabase()` callers (migration tests, feature dev).
@@ -323,6 +385,25 @@ const Map<int, List<String>> kMigrations = {
     'DROP TABLE orders',
     'ALTER TABLE orders_new RENAME TO orders',
   ],
+  // 8 widens the audit CHECK to admit backup events (`backup_created` and
+  // `backup_restored`). Same create→copy→drop→rename dance as v3/v4 — SQLite
+  // cannot ALTER a CHECK constraint in place. Data is preserved.
+  8: [
+    'CREATE TABLE audit_events_new ('
+        'id INTEGER PRIMARY KEY AUTOINCREMENT,'
+        "event_type TEXT NOT NULL CHECK (event_type IN "
+        "('login', 'logout', 'cashout', 'report_print', 'password_changed', "
+        "'void', 'post_print_edit', 'backup_created', 'backup_restored')),"
+        'actor TEXT NOT NULL,'
+        'metadata TEXT,'
+        'created_at INTEGER NOT NULL'
+        ')',
+    'INSERT INTO audit_events_new (id, event_type, actor, metadata, '
+        'created_at) SELECT id, event_type, actor, metadata, created_at '
+        'FROM audit_events',
+    'DROP TABLE audit_events',
+    'ALTER TABLE audit_events_new RENAME TO audit_events',
+  ],
 };
 
 /// Every lookup the dashboards actually run, indexed so the fast paths in
@@ -454,7 +535,7 @@ Future<void> _createSchema(Database db) async {
   await db.execute('''
     CREATE TABLE audit_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event_type TEXT NOT NULL CHECK (event_type IN ('login', 'logout', 'cashout', 'report_print', 'password_changed', 'void', 'post_print_edit')),
+      event_type TEXT NOT NULL CHECK (event_type IN ('login', 'logout', 'cashout', 'report_print', 'password_changed', 'void', 'post_print_edit', 'backup_created', 'backup_restored')),
       actor TEXT NOT NULL,
       metadata TEXT,
       created_at INTEGER NOT NULL

@@ -2,6 +2,7 @@ import 'package:brewline/core/services/app_info.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
+import 'package:brewline/core/updates/update_notifications.dart';
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/core/updates/update_service.dart';
 import 'package:brewline/features/admin/widgets/settings/update_screen.dart';
@@ -50,12 +51,30 @@ class _FakeUpdateService extends UpdateService {
   }
 }
 
+/// Records every update notification fired instead of talking to the (absent)
+/// platform plugin, so the auto-check's notification path can be asserted.
+class _RecordingNotifications extends UpdateNotificationService {
+  final List<String> notifiedVersions = [];
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> notifyUpdate({
+    required String version,
+    required String releaseNotes,
+  }) async {
+    notifiedVersions.add(version);
+  }
+}
+
 /// Pumps [UpdateScreen] with mock storage and a stable app-info + service.
 Future<void> _pumpUpdateScreen(
   WidgetTester tester, {
   UpdateCheckResult result = UpdateCheckResult.upToDate,
   String releaseNotes = '',
   Map<String, Object> storedValues = const {},
+  _RecordingNotifications? notifications,
 }) async {
   SharedPreferences.setMockInitialValues(storedValues);
   final prefs = await SharedPreferences.getInstance();
@@ -68,6 +87,7 @@ Future<void> _pumpUpdateScreen(
         updateServiceProvider.overrideWithValue(
           _FakeUpdateService(result: result, releaseNotes: releaseNotes),
         ),
+        updateNotificationsProvider.overrideWithValue(notifications),
       ],
       child: const MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -123,5 +143,42 @@ void main() {
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     expect(tester.widget<Switch>(toggle).value, isTrue);
+  });
+
+  testWidgets('raises a local notification when an update is found', (tester) async {
+    final notifications = _RecordingNotifications();
+    await _pumpUpdateScreen(
+      tester,
+      result: UpdateCheckResult.updateAvailable,
+      releaseNotes: '### Fixed\n- Printer works again\n',
+      notifications: notifications,
+    );
+
+    expect(
+      notifications.notifiedVersions,
+      ['1.5.0'],
+      reason: 'the auto-check must notify exactly once for the new version',
+    );
+  });
+
+  testWidgets('does not re-notify for a version that was already announced',
+      (tester) async {
+    final notifications = _RecordingNotifications();
+    await _pumpUpdateScreen(
+      tester,
+      result: UpdateCheckResult.updateAvailable,
+      storedValues: {kLastUpdateNotifiedKey: '1.5.0'},
+      notifications: notifications,
+    );
+
+    expect(notifications.notifiedVersions, isEmpty,
+        reason: 'same version already notified on a previous launch');
+  });
+
+  testWidgets('raises no notification when already up to date', (tester) async {
+    final notifications = _RecordingNotifications();
+    await _pumpUpdateScreen(tester, notifications: notifications);
+
+    expect(notifications.notifiedVersions, isEmpty);
   });
 }

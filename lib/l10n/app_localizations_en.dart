@@ -350,6 +350,99 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateRequiredDownloadButton => 'Download update';
 
   @override
+  String get backupDataSectionTitle => 'Data';
+
+  @override
+  String get backupSectionTitle => 'Backup & restore';
+
+  @override
+  String get backupSectionSubtitle =>
+      'Protect your business data on this device';
+
+  @override
+  String get backupDataSectionSubtitle =>
+      'Back up and restore your business data';
+
+  @override
+  String get backupCreateButtonLabel => 'Create backup';
+
+  @override
+  String backupLastBackupLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Last backup: $count days ago',
+      one: 'Last backup: yesterday',
+      zero: 'Never backed up',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get backupLastBackupToday => 'Last backup: today';
+
+  @override
+  String get backupRestoreButtonLabel => 'Restore from file';
+
+  @override
+  String get backupRestoreConfirmTitle => 'Restore backup?';
+
+  @override
+  String get backupRestoreConfirmBody =>
+      'This will replace ALL current data with the contents of this backup. A safety snapshot of the current data is saved automatically before restoring.';
+
+  @override
+  String get backupRestoreConfirmFieldLabel => 'Enter your PIN to confirm';
+
+  @override
+  String get backupConfirmRestore => 'Restore';
+
+  @override
+  String get backupSchemaTooNewError =>
+      'This backup was made with a newer version of the app — update the app first, then restore.';
+
+  @override
+  String get backupSchemaOlderWarning =>
+      'This backup was made with an older version. The data will be automatically updated after restoring.';
+
+  @override
+  String get backupWrongPin => 'Incorrect PIN';
+
+  @override
+  String get backupRestoring => 'Restoring…';
+
+  @override
+  String get backupRestored => 'Backup restored successfully';
+
+  @override
+  String get backupFailed => 'Restore failed';
+
+  @override
+  String get backupDeviceLabelTitle => 'Device label';
+
+  @override
+  String get backupDeviceLabelSubtitle =>
+      'Optional name shown in backup manifests';
+
+  @override
+  String get backupDeviceLabelHint => 'e.g. Front Counter';
+
+  @override
+  String get backupDeviceLabelSave => 'Save';
+
+  @override
+  String get backupCreateInProgress => 'Creating backup…';
+
+  @override
+  String get backupCreateSuccess => 'Backup created';
+
+  @override
+  String get backupCreateError => 'Failed to create backup';
+
+  @override
+  String get backupInvalidFileError => 'This file is not a valid backup';
+
+  @override
   String get adminCashoutLogTitle => 'Cashout log';
 
   @override
