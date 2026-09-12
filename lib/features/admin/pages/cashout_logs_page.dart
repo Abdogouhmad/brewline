@@ -11,6 +11,7 @@ import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/date_filter_input.dart';
 
@@ -136,11 +137,17 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
           _buildFilters(context, l10n),
           SizedBox(height: Space.lg),
           if (_error != null)
-            _message(context, l10n.adminCashoutLogError)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: Space.lg),
+              child: UiErrorBanner(message: l10n.adminCashoutLogError),
+            )
           else if (_loading && _records.isEmpty)
-            const _Loader()
+            const UiLoader()
           else if (_records.isEmpty)
-            _message(context, l10n.adminCashoutLogEmpty)
+            UiEmptyState(
+              icon: Icons.payments_outlined,
+              message: l10n.adminCashoutLogEmpty,
+            )
           else ...[
             _CashoutTable(records: _records),
             if (_hasMore) ...[
@@ -196,10 +203,7 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
               prefixIcon: const Icon(Icons.person_outline_rounded),
             ),
             items: [
-              DropdownMenuItem(
-                value: null,
-                child: Text(l10n.actionAllWaiters),
-              ),
+              DropdownMenuItem(value: null, child: Text(l10n.actionAllWaiters)),
               for (final s in staff.value ?? [])
                 DropdownMenuItem(
                   value: s.username,
@@ -230,20 +234,6 @@ class _CashoutLogsPageState extends ConsumerState<CashoutLogsPage> {
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.x3l),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
       ),
     );
   }
@@ -321,16 +311,4 @@ class _CashoutTable extends StatelessWidget {
   }
 
   static String _dateTime(DateTime d) => formatDateWithTime(d);
-}
-
-class _Loader extends StatelessWidget {
-  const _Loader();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(Space.x3l),
-      child: Center(child: CircularProgressIndicator()),
-    );
-  }
 }

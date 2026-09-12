@@ -2,6 +2,31 @@
 
 All notable changes to Brewline, in plain language for everyday users.
 
+## [1.12.0] - 2026-09-12
+
+### Improved (design)
+
+- **One consistent look everywhere** — every screen (login, dashboard, menu,
+  stock, sales and settings) now shares the same colour scheme, spacing and
+  rounded corners pulled from your device theme, so nothing looks out of
+  place and the interface reads as a single design.
+- **Standard loading, empty and error panels** — lists throughout the app
+  (sales log, cashout log, stock, inventory, reports, low-stock alerts) now
+  show the same clear progress, "nothing here yet" and error messages.
+- **Consistent status badges** — stock low/out, refunds, shift status,
+  availability and update status all use the same badge style and live
+  indicator dots.
+- **Neater tables on desktop** — reports and staff tables now share a tidy
+  header, divider and row rhythm that match the rest of the app.
+
+### Improved (desktop & accessibility)
+
+- **Type your PIN from the keyboard** — on Windows and Linux you can now type
+  the PIN digits, use Backspace to erase and Enter to submit; the on-screen
+  keys also show a pointer cursor and press highlight.
+- Every icon button now explains itself with a tooltip, and icons use one
+  consistent style.
+
 ## [1.11.0] - 2026-09-11
 
 ### Added
@@ -184,7 +209,8 @@ All notable changes to Brewline, in plain language for everyday users.
 - **Login & onboarding** — first-run setup for the admin account, followed by
   a secure PIN login.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.11.0...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.12.0...HEAD
+[1.12.0]: https://github.com/Abdogouhmad/brewline/compare/1.11.0...1.12.0
 [1.11.0]: https://github.com/Abdogouhmad/brewline/compare/1.10.0...1.11.0
 [1.10.0]: https://github.com/Abdogouhmad/brewline/compare/1.9.1...1.10.0
 [1.9.1]: https://github.com/Abdogouhmad/brewline/compare/1.9.0...1.9.1

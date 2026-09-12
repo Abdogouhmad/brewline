@@ -5,11 +5,11 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/printing/receipt_printer_service.dart';
 import 'package:brewline/core/printing/receipt_templates/refund_receipt_template.dart';
 import 'package:brewline/core/repositories/refund_repository.dart';
-import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
+import 'package:brewline/shared/ui/ui_modal.dart';
 import 'package:brewline/shared/ui/ui_snack_bar.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -20,48 +20,18 @@ import 'order_refund_form.dart';
 /// rounded bottom sheet on compact/medium** (mobile & tablet), chosen live by
 /// [Breakpoints.of] — i.e. by the current screen *width*, not device type.
 ///
-/// This desktop-dialog / mobile-bottom-sheet split is deliberate responsive
-/// behaviour, not two divergent implementations: both shells render the exact
-/// same form content. After a successful refund the shell switches to a brief
-/// confirmation with an optional "Print refund receipt" action (§6 — printing
-/// is never automatic; the admin decides whether a paper copy is needed).
+/// Both shells render through the single shared [showUiAdaptiveModal], so the
+/// dialog/bottom-sheet split, 28dp corners, motion and drag-handle affordance
+/// come from one place (feat.md §4.1). After a successful refund the shell
+/// switches to a brief confirmation with an optional "Print refund receipt"
+/// action (§6 — printing is never automatic; the admin decides whether a paper
+/// copy is needed).
 Future<void> showRefundActionSheet(
   BuildContext context, {
   required int orderId,
 }) {
-  final screen = Breakpoints.of(context);
   final Widget flow = _RefundFlow(orderId: orderId);
-
-  if (screen == ScreenSize.expanded) {
-    return showDialog<void>(
-      context: context,
-      builder: (_) => Dialog(
-        clipBehavior: Clip.antiAlias,
-        insetPadding: const EdgeInsets.symmetric(
-          horizontal: Space.x2l,
-          vertical: Space.x2l,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Rounded.x2l),
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: SingleChildScrollView(child: flow),
-        ),
-      ),
-    );
-  }
-
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    showDragHandle: true,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(Rounded.x2l)),
-    ),
-    builder: (_) => FractionallySizedBox(heightFactor: 0.92, child: flow),
-  );
+  return showUiAdaptiveModal<void>(context, heightFactor: 0.92, content: flow);
 }
 
 /// Owns the refund state machine inside whichever shell hosts it: resolve the
@@ -172,8 +142,11 @@ class _RefundSuccessView extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.check_circle_rounded,
-              color: colorScheme.primary, size: 48),
+          Icon(
+            Icons.check_circle_rounded,
+            color: colorScheme.primary,
+            size: 48,
+          ),
           SizedBox(height: Space.lg),
           UiText(
             result.isFull ? l10n.refundSuccessVoided : l10n.refundSuccess,

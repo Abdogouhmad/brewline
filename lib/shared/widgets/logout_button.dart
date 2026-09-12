@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Shared logout confirm: shows the dialog (so an accidental tap on a shared
 /// café device can't silently end a session), clears the session via
@@ -63,7 +65,7 @@ class LogoutButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       tooltip: AppLocalizations.of(context)!.logoutTooltip,
-      icon: const Icon(Icons.logout),
+      icon: const Icon(Icons.logout_rounded),
       onPressed: () => confirmLogout(context, ref, onLoggedOut: onLoggedOut),
     );
   }
@@ -80,15 +82,21 @@ class LogoutListTile extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Icon(Icons.logout_rounded, color: colorScheme.error),
-      title: Text(
-        l10n.logoutAction,
-        style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.w600),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: Space.lg,
+        vertical: Space.xs,
       ),
-      subtitle: Text(
+      leading: Icon(Icons.logout_rounded, color: colorScheme.error),
+      title: UiText(
+        l10n.logoutAction,
+        type: UiTextType.bodyLarge,
+        color: colorScheme.error,
+        fontWeight: FontWeight.w600,
+      ),
+      subtitle: UiText(
         l10n.logoutListSubtitle,
-        style: TextStyle(color: colorScheme.error.withValues(alpha: 0.7)),
+        type: UiTextType.bodySmall,
+        color: colorScheme.error.withValues(alpha: 0.7),
       ),
       trailing: Icon(Icons.chevron_right_rounded, color: colorScheme.error),
       onTap: () => confirmLogout(context, ref),

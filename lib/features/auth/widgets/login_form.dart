@@ -5,6 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/features/auth/providers/login_form_provider.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/pin_keypad_field.dart';
 
 /// The login form: PIN-only entry with auto-submit on completion.
@@ -46,16 +47,18 @@ class LoginForm extends ConsumerWidget {
           // --- Error / throttle message ---
           if (state.isThrottled) ...[
             SizedBox(height: Space.sm),
-            Text(
+            UiText(
               l10n.loginLockedOut(state.cooldownRemaining),
-              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              type: UiTextType.bodySmall,
+              color: colorScheme.error,
               textAlign: TextAlign.center,
             ),
           ] else if (submitErrorText != null) ...[
             SizedBox(height: Space.sm),
-            Text(
+            UiText(
               submitErrorText,
-              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              type: UiTextType.bodySmall,
+              color: colorScheme.error,
               textAlign: TextAlign.center,
             ),
           ],
@@ -72,12 +75,7 @@ class LoginForm extends ConsumerWidget {
                 : null,
             style: FilledButton.styleFrom(
               minimumSize: Size.fromHeight(
-                responsiveValue(
-                  context,
-                  mobile: 52,
-                  tablet: 60,
-                  desktop: 64,
-                ),
+                responsiveValue(context, mobile: 52, tablet: 60, desktop: 64),
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(Rounded.xl),
@@ -92,16 +90,10 @@ class LoginForm extends ConsumerWidget {
                       color: colorScheme.onPrimary,
                     ),
                   )
-                : Text(
+                : UiText(
                     l10n.loginButton,
-                    style: TextStyle(
-                      fontSize: responsiveValue(
-                        context,
-                        mobile: 16,
-                        desktop: 18,
-                      ),
-                      fontWeight: FontWeight.w700,
-                    ),
+                    type: UiTextType.titleMedium,
+                    fontWeight: FontWeight.w700,
                   ),
           ),
         ],

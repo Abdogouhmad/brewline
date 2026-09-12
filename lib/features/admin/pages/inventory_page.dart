@@ -12,6 +12,7 @@ import 'package:brewline/features/admin/widgets/inventory_expandable_fab.dart';
 import 'package:brewline/features/admin/widgets/restock_dialog.dart';
 import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Admin "Inventory" tab: the ingredient catalog with live quantities.
@@ -92,14 +93,17 @@ class InventoryPage extends ConsumerWidget {
             SizedBox(height: Space.lg),
           ],
           ingredients.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(Space.x3l),
-              child: Center(child: CircularProgressIndicator()),
+            loading: () => const UiLoader(),
+            error: (_, _) => Padding(
+              padding: EdgeInsets.symmetric(vertical: Space.lg),
+              child: UiErrorBanner(message: l10n.inventoryError),
             ),
-            error: (_, _) => _message(context, l10n.inventoryError),
             data: (items) {
               if (items.isEmpty) {
-                return _message(context, l10n.inventoryEmpty);
+                return UiEmptyState(
+                  icon: Icons.inventory_2_outlined,
+                  message: l10n.inventoryEmpty,
+                );
               }
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,19 +135,4 @@ class InventoryPage extends ConsumerWidget {
       floatingActionButton: compact ? const InventoryExpandableFab() : null,
     );
   }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.x3l),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
 }
-

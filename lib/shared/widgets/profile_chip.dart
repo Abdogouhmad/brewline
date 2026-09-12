@@ -6,6 +6,7 @@ import 'package:brewline/core/localization/role_labels.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/features/auth/providers/current_user_provider.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/status_badge.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Profile pill bound to [currentUserProvider] (auth session + `staff` row).
@@ -62,20 +63,12 @@ class ProfileChip extends ConsumerWidget {
               ),
               if (!narrow) ...[
                 SizedBox(width: Space.xs),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: Space.sm,
-                    vertical: 2,
+                StatusBadge(
+                  label: localizedRoleLabel(
+                    AppLocalizations.of(context)!,
+                    user.role,
                   ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(Rounded.full),
-                  ),
-                  child: UiText(
-                    localizedRoleLabel(AppLocalizations.of(context)!, user.role),
-                    type: UiTextType.labelSmall,
-                    color: colorScheme.onSecondaryContainer,
-                  ),
+                  variant: StatusBadgeVariant.info,
                 ),
               ],
             ],

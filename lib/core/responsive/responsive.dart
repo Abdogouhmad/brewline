@@ -10,6 +10,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:brewline/core/constants/app_sizes.dart';
+
 import 'breakpoints.dart';
 
 enum DeviceType { mobile, tablet, desktop }
@@ -106,14 +108,14 @@ class ResponsiveGrid extends StatelessWidget {
   const ResponsiveGrid({
     super.key,
     required this.children,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(Space.lg),
     this.mainAxisExtent,
     this.childAspectRatio = 1.3,
     this.mobileColumns,
     this.tabletColumns,
     this.desktopColumns,
-    this.crossAxisSpacing = 16,
-    this.mainAxisSpacing = 16,
+    this.crossAxisSpacing = Space.lg,
+    this.mainAxisSpacing = Space.lg,
   });
 
   @override

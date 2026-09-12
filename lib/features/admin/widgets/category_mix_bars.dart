@@ -5,6 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/admin/providers/analytics_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -24,11 +25,17 @@ class CategoryMixBars extends ConsumerWidget {
       title: l10n.adminCategoryMixTitle,
       icon: Icons.pie_chart_outline_rounded,
       child: mix.when(
-        loading: () => const _PaddingLoader(),
-        error: (_, _) => _message(context, l10n.adminCategoryMixError),
+        loading: () => const UiLoader(),
+        error: (_, _) => UiEmptyState(
+          icon: Icons.error_outline_rounded,
+          message: l10n.adminCategoryMixError,
+        ),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, l10n.adminTopProductsEmpty);
+            return UiEmptyState(
+              icon: Icons.pie_chart_outline_rounded,
+              message: l10n.adminTopProductsEmpty,
+            );
           }
           final total = items.fold<double>(0, (s, c) => s + c.revenue);
           final top = items.first.revenue;
@@ -88,32 +95,6 @@ class CategoryMixBars extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.xl),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-}
-
-class _PaddingLoader extends StatelessWidget {
-  const _PaddingLoader();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(Space.xl),
-      child: Center(child: CircularProgressIndicator()),
     );
   }
 }

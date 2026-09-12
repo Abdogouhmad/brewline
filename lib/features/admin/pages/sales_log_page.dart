@@ -11,8 +11,10 @@ import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/utils/date_format.dart';
 import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/status_badge.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/date_filter_input.dart';
 import 'package:brewline/shared/widgets/refund_action_sheet.dart';
@@ -170,11 +172,17 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
           _buildFilters(context),
           SizedBox(height: Space.lg),
           if (_error != null)
-            _message(context, l10n.salesLogError)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: Space.lg),
+              child: UiErrorBanner(message: l10n.salesLogError),
+            )
           else if (_loading && _entries.isEmpty)
-            const _Loader()
+            const UiLoader()
           else if (_entries.isEmpty)
-            _message(context, l10n.salesLogEmpty)
+            UiEmptyState(
+              icon: Icons.receipt_long_rounded,
+              message: l10n.salesLogEmpty,
+            )
           else ...[
             _SalesTable(
               entries: _entries,
@@ -332,20 +340,6 @@ class _SalesLogPageState extends ConsumerState<SalesLogPage> {
       },
     );
   }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.x3l),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
 }
 
 /// Horizontally scrollable data table of [SalesEntry] rows.
@@ -476,46 +470,21 @@ class _RefundBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final (label, foreground, background) = switch (state) {
-      SalesRefundState.voided => (
-        l10n.salesLogBadgeVoided,
-        colorScheme.onErrorContainer,
-        colorScheme.errorContainer,
-      ),
-      SalesRefundState.partial => (
-        l10n.salesLogBadgeRefunded,
-        colorScheme.onTertiaryContainer,
-        colorScheme.tertiaryContainer,
-      ),
-      SalesRefundState.none => ('', colorScheme.onSurface, Colors.transparent),
+    final variant = switch (state) {
+      SalesRefundState.voided => StatusBadgeVariant.error,
+      SalesRefundState.partial => StatusBadgeVariant.warning,
+      SalesRefundState.none => null,
     };
+    if (variant == null) return const SizedBox.shrink();
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(Rounded.full),
-      ),
-      child: UiText(
-        label,
-        type: UiTextType.labelSmall,
-        fontWeight: FontWeight.w700,
-        color: foreground,
-      ),
-    );
-  }
-}
-
-class _Loader extends StatelessWidget {
-  const _Loader();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(Space.x3l),
-      child: Center(child: CircularProgressIndicator()),
+    return StatusBadge(
+      label: switch (state) {
+        SalesRefundState.voided => l10n.salesLogBadgeVoided,
+        SalesRefundState.partial => l10n.salesLogBadgeRefunded,
+        SalesRefundState.none => '',
+      },
+      variant: variant,
     );
   }
 }

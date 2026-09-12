@@ -10,6 +10,8 @@ import 'package:brewline/features/admin/providers/ingredient_servings_provider.d
 import 'package:brewline/features/admin/widgets/dashboard_card.dart';
 import 'package:brewline/features/admin/widgets/restock_dialog.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/status_badge.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// At-a-glance overview of **every** non-archived ingredient's on-hand stock,
@@ -34,21 +36,22 @@ class StockOverviewCard extends ConsumerWidget {
       title: l10n.adminStockOverviewTitle,
       icon: Icons.inventory_2_outlined,
       trailing: switch (ingredients) {
-        AsyncData(:final value) when value.isNotEmpty =>
-          _StatusPill(issues: value.where((i) => i.isLowStock).length),
+        AsyncData(:final value) when value.isNotEmpty => _StatusPill(
+          issues: value.where((i) => i.isLowStock).length,
+        ),
         _ => null,
       },
       child: ingredients.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(Space.xl),
-          child: Center(child: CircularProgressIndicator()),
+        loading: () => const UiLoader(),
+        error: (_, _) => UiEmptyState(
+          icon: Icons.error_outline_rounded,
+          message: l10n.adminLowStockError,
         ),
-        error: (_, _) => _message(context, l10n.adminLowStockError),
         data: (items) {
           if (items.isEmpty) {
-            return _message(
-              context,
-              l10n.adminStockOverviewEmpty,
+            return UiEmptyState(
+              icon: Icons.inventory_2_outlined,
+              message: l10n.adminStockOverviewEmpty,
             );
           }
 
@@ -68,10 +71,8 @@ class StockOverviewCard extends ConsumerWidget {
                     _StockTile(
                       ingredient: ingredient,
                       servingsLeft: servingsByIngredient[ingredient.id],
-                      onRestock: () => showRestockDialog(
-                        context,
-                        ingredient: ingredient,
-                      ),
+                      onRestock: () =>
+                          showRestockDialog(context, ingredient: ingredient),
                     ),
                 ],
               ),
@@ -81,26 +82,22 @@ class StockOverviewCard extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.xl),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
 }
 
 /// Out first, then low, then healthy; within a group the emptiest first.
 int _byAlertPriority(Ingredient a, Ingredient b) {
-  final (ra, rb) = (a.isOutOfStock ? 0 : a.isLowStock ? 1 : 2,
-      b.isOutOfStock ? 0 : b.isLowStock ? 1 : 2);
+  final (ra, rb) = (
+    a.isOutOfStock
+        ? 0
+        : a.isLowStock
+        ? 1
+        : 2,
+    b.isOutOfStock
+        ? 0
+        : b.isLowStock
+        ? 1
+        : 2,
+  );
   final byPriority = ra.compareTo(rb);
   if (byPriority != 0) return byPriority;
   return a.currentStock.compareTo(b.currentStock);
@@ -114,21 +111,11 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
-      decoration: BoxDecoration(
-        color: colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(Rounded.full),
-      ),
-      child: UiText(
-        l10n.adminStockRestockCount(issues),
-        type: UiTextType.labelSmall,
-        fontWeight: FontWeight.w700,
-        color: colorScheme.onTertiaryContainer,
-      ),
+    return StatusBadge(
+      label: l10n.adminStockRestockCount(issues),
+      variant: StatusBadgeVariant.warning,
     );
   }
 }
@@ -152,13 +139,22 @@ class _StockTile extends StatelessWidget {
     final low = ingredient.isLowStock;
 
     final (background, foreground, icon) = out
-        ? (colorScheme.errorContainer, colorScheme.onErrorContainer,
-            Icons.priority_high_rounded)
+        ? (
+            colorScheme.errorContainer,
+            colorScheme.onErrorContainer,
+            Icons.priority_high_rounded,
+          )
         : low
-            ? (colorScheme.tertiaryContainer, colorScheme.onTertiaryContainer,
-                Icons.warning_amber_rounded)
-            : (colorScheme.surfaceContainerHighest,
-                colorScheme.onSurfaceVariant, Icons.check_circle_outline);
+        ? (
+            colorScheme.tertiaryContainer,
+            colorScheme.onTertiaryContainer,
+            Icons.warning_amber_rounded,
+          )
+        : (
+            colorScheme.surfaceContainerHighest,
+            colorScheme.onSurfaceVariant,
+            Icons.check_circle_outline,
+          );
 
     final quantityLabel = l10n.adminStockQuantityLeftAmount(
       formatStockQuantity(ingredient.currentStock, ingredient.unit),
@@ -169,13 +165,13 @@ class _StockTile extends StatelessWidget {
     final statusNote = out
         ? l10n.adminStockBadgeOut
         : low
-            ? l10n.adminStockBadgeLow
-            : '';
+        ? l10n.adminStockBadgeLow
+        : '';
     final bodyColor = out
         ? colorScheme.error
         : low
-            ? colorScheme.tertiary
-            : colorScheme.onSurfaceVariant;
+        ? colorScheme.tertiary
+        : colorScheme.onSurfaceVariant;
 
     return Padding(
       padding: EdgeInsets.only(bottom: Space.md),
@@ -187,11 +183,7 @@ class _StockTile extends StatelessWidget {
               color: background,
               borderRadius: BorderRadius.circular(Rounded.md),
             ),
-            child: Icon(
-              icon,
-              size: AppSizes.iconSm,
-              color: foreground,
-            ),
+            child: Icon(icon, size: AppSizes.iconSm, color: foreground),
           ),
           SizedBox(width: Space.md),
           Expanded(

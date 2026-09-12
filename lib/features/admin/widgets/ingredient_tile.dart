@@ -4,6 +4,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/ingredient.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/status_badge.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// A card row for a single [ingredient] with restock/edit/archive actions.
@@ -175,26 +176,9 @@ class _StockBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final background = out
-        ? colorScheme.errorContainer
-        : colorScheme.tertiaryContainer;
-    final foreground = out
-        ? colorScheme.onErrorContainer
-        : colorScheme.onTertiaryContainer;
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Space.sm, vertical: 2),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(Rounded.full),
-      ),
-      child: UiText(
-        text,
-        type: UiTextType.labelSmall,
-        fontWeight: FontWeight.w700,
-        color: foreground,
-      ),
+    return StatusBadge(
+      label: text,
+      variant: out ? StatusBadgeVariant.error : StatusBadgeVariant.warning,
     );
   }
 }

@@ -227,9 +227,10 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
               ),
               if (_pinTakenError != null) ...[
                 SizedBox(height: Space.sm),
-                Text(
+                UiText(
                   _pinTakenError!,
-                  style: TextStyle(color: colorScheme.error, fontSize: 12),
+                  type: UiTextType.bodySmall,
+                  color: colorScheme.error,
                 ),
               ],
               SizedBox(height: Space.lg),
@@ -257,7 +258,11 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                         ? Icons.visibility_rounded
                         : Icons.visibility_off_rounded,
                   ),
-                  label: Text(_obscure ? l10n.changePasswordShow : l10n.changePasswordHide),
+                  label: Text(
+                    _obscure
+                        ? l10n.changePasswordShow
+                        : l10n.changePasswordHide,
+                  ),
                 ),
               ),
             ],
@@ -267,9 +272,10 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(
+          child: UiText(
             l10n.actionCancel,
-            style: TextStyle(color: colorScheme.onSurfaceVariant),
+            type: UiTextType.titleSmall,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
         UiButton(
@@ -284,9 +290,8 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
   String? _requiredPin(BuildContext context, String? value) {
     final text = value ?? '';
     if (text.length != kAdminPinLength) {
-      return AppLocalizations.of(context)!.changePasswordPinLength(
-        kAdminPinLength,
-      );
+      return AppLocalizations.of(context)!
+          .changePasswordPinLength(kAdminPinLength);
     }
     return null;
   }

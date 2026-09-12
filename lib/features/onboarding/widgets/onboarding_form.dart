@@ -5,6 +5,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_state.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/app_text_field.dart';
 import 'package:brewline/shared/widgets/pin_keypad_field.dart';
 
@@ -86,25 +87,28 @@ class _OnboardingFormState extends ConsumerState<OnboardingForm> {
           // Error text for whichever PIN step is active
           if (!pinComplete && pinErrorText != null) ...[
             SizedBox(height: Space.sm),
-            Text(
+            UiText(
               pinErrorText,
-              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              type: UiTextType.bodySmall,
+              color: colorScheme.error,
               textAlign: TextAlign.center,
             ),
           ],
           if (pinComplete && confirmErrorText != null) ...[
             SizedBox(height: Space.sm),
-            Text(
+            UiText(
               confirmErrorText,
-              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              type: UiTextType.bodySmall,
+              color: colorScheme.error,
               textAlign: TextAlign.center,
             ),
           ],
           if (pinTakenErrorText != null) ...[
             SizedBox(height: Space.sm),
-            Text(
+            UiText(
               pinTakenErrorText,
-              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              type: UiTextType.bodySmall,
+              color: colorScheme.error,
               textAlign: TextAlign.center,
             ),
           ],
@@ -130,16 +134,18 @@ class _OnboardingFormState extends ConsumerState<OnboardingForm> {
                       color: colorScheme.onPrimary,
                     ),
                   )
-                : Text(
+                : UiText(
                     l10n.onboardingFinishSetup,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    type: UiTextType.titleMedium,
+                    fontWeight: FontWeight.w700,
                   ),
           ),
           if (submitErrorText != null) ...[
             SizedBox(height: Space.md),
-            Text(
+            UiText(
               submitErrorText,
-              style: TextStyle(color: colorScheme.error, fontSize: 14),
+              type: UiTextType.bodyMedium,
+              color: colorScheme.error,
               textAlign: TextAlign.center,
             ),
           ],

@@ -8,6 +8,7 @@ import 'package:brewline/core/models/stock_movement.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
 import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Admin "Stock movements log": a filterable history of every stock change —
@@ -22,9 +23,9 @@ class StockMovementsPage extends ConsumerStatefulWidget {
   /// Pushes this log as a full-screen page (it's a deep-dive view on top of
   /// the Inventory tab).
   static Future<void> open(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const StockMovementsPage()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const StockMovementsPage()));
   }
 
   @override
@@ -115,14 +116,17 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
             _buildFilters(context),
             SizedBox(height: Space.lg),
             if (_error != null)
-              _message(context, l10n.movementsError)
-            else if (_loading && _rows.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(Space.x3l),
-                child: Center(child: CircularProgressIndicator()),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: Space.lg),
+                child: UiErrorBanner(message: l10n.movementsError),
               )
+            else if (_loading && _rows.isEmpty)
+              const UiLoader()
             else if (_rows.isEmpty)
-              _message(context, l10n.movementsEmpty)
+              UiEmptyState(
+                icon: Icons.swap_vert_rounded,
+                message: l10n.movementsEmpty,
+              )
             else
               _MovementsTable(rows: _rows),
           ],
@@ -158,7 +162,7 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
                 _range == null
                     ? l10n.movementsAllDates
                     : '${DateFormat.yMd(locale).format(_range!.start)} – '
-                        '${DateFormat.yMd(locale).format(_range!.end)}',
+                          '${DateFormat.yMd(locale).format(_range!.end)}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -189,10 +193,7 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
                 child: Text(l10n.movementsAllIngredients),
               ),
               for (final i in ingredients.value ?? <Ingredient>[])
-                DropdownMenuItem(
-                  value: i.id,
-                  child: Text(i.name),
-                ),
+                DropdownMenuItem(value: i.id, child: Text(i.name)),
             ],
             onChanged: (value) {
               setState(() => _ingredientId = value);
@@ -208,12 +209,12 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
               prefixIcon: const Icon(Icons.more_horiz_rounded),
             ),
             items: [
-              DropdownMenuItem(value: null, child: Text(l10n.movementsAllReasons)),
+              DropdownMenuItem(
+                value: null,
+                child: Text(l10n.movementsAllReasons),
+              ),
               for (final r in StockMovementReason.values)
-                DropdownMenuItem(
-                  value: r,
-                  child: Text(_reasonLabel(r, l10n)),
-                ),
+                DropdownMenuItem(value: r, child: Text(_reasonLabel(r, l10n))),
             ],
             onChanged: (value) {
               setState(() => _reason = value);
@@ -221,20 +222,6 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
             },
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.x3l),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
       ),
     );
   }
@@ -300,8 +287,7 @@ class _MovementsTable extends StatelessWidget {
 
   static String _refNote(BuildContext context, StockMovement row) {
     if (row.orderId != null) {
-      return AppLocalizations.of(context)!
-          .movementsOrderRef(row.orderId!);
+      return AppLocalizations.of(context)!.movementsOrderRef(row.orderId!);
     }
     return row.note?.isNotEmpty == true ? row.note! : '—';
   }

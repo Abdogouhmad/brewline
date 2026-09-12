@@ -90,7 +90,7 @@ class _InventoryExpandableFabState extends State<InventoryExpandableFab>
               child: FadeTransition(opacity: animation, child: child),
             ),
             child: Icon(
-              _open ? Icons.close_rounded : Icons.edit,
+              _open ? Icons.close_rounded : Icons.edit_rounded,
               key: ValueKey(_open),
             ),
           ),

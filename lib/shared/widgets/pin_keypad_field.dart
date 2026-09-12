@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/responsive.dart';
@@ -11,6 +12,11 @@ import 'package:brewline/core/responsive/responsive.dart';
 /// The keypad scales with the device: buttons, dots and gaps grow on tablet
 /// (≥ 600dp) and desktop (≥ 905dp) so the now-username-less login fills the
 /// available space with large, easy-to-tap keys instead of staying phone-sized.
+///
+/// Desktop (§5): the keypad autofocuses and is fully operable from the
+/// keyboard — top-row digits, numpad digits, Backspace/Delete to erase and
+/// Enter to submit. Keys show a click cursor, a pressed fill and exposed
+/// semantics (button + label) for screen readers.
 class PinKeypadField extends StatefulWidget {
   final int length;
   final ValueChanged<String>? onChanged;
@@ -181,11 +187,15 @@ class _PinKeypadFieldState extends State<PinKeypadField>
                     return _NumericKeypad(
                       onKeyTap: _onKeyTap,
                       onBackspace: _onBackspace,
+                      onSubmit: widget.enabled
+                          ? () => widget.onCompleted?.call(_currentPin)
+                          : null,
                       colorScheme: colorScheme,
                       buttonSize: buttonSize,
                       buttonHeight: buttonHeight,
                       rowGap: _rowGap,
                       keyPadding: keyPadding,
+                      enabled: widget.enabled,
                     );
                   },
                 ),
@@ -246,20 +256,24 @@ class _DotRow extends StatelessWidget {
 class _NumericKeypad extends StatelessWidget {
   final ValueChanged<String> onKeyTap;
   final VoidCallback onBackspace;
+  final VoidCallback? onSubmit;
   final ColorScheme colorScheme;
   final double buttonSize;
   final double buttonHeight;
   final double rowGap;
   final double keyPadding;
+  final bool enabled;
 
   const _NumericKeypad({
     required this.onKeyTap,
     required this.onBackspace,
+    this.onSubmit,
     required this.colorScheme,
     required this.buttonSize,
     required this.buttonHeight,
     required this.rowGap,
     required this.keyPadding,
+    this.enabled = true,
   });
 
   static const _keys = [
@@ -271,47 +285,116 @@ class _NumericKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: _keys.map((row) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: rowGap),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: row.map((key) {
-              if (key.isEmpty) {
-                // Blank key must carry the same horizontal padding as the
-                // buttons and backspace, so every column occupies an identical
-                // `buttonSize + 2*keyPadding` width and the columns line up
-                // vertically across all four rows (1–9 stay on the same
-                // vertical lines as 0 and ⌫ below).
-                return Padding(
-                  padding: EdgeInsets.symmetric(horizontal: keyPadding),
-                  child: SizedBox(width: buttonSize, height: buttonHeight),
-                );
-              }
-              if (key == '⌫') {
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (!enabled) return KeyEventResult.ignored;
+        if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+          return KeyEventResult.ignored;
+        }
+        final key = event.logicalKey;
+        // Digit keys (QWERTY row + numpad)
+        if (LogicalKeyboardKey.digit0.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad0.keyId == key.keyId) {
+          onKeyTap('0');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit1.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad1.keyId == key.keyId) {
+          onKeyTap('1');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit2.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad2.keyId == key.keyId) {
+          onKeyTap('2');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit3.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad3.keyId == key.keyId) {
+          onKeyTap('3');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit4.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad4.keyId == key.keyId) {
+          onKeyTap('4');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit5.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad5.keyId == key.keyId) {
+          onKeyTap('5');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit6.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad6.keyId == key.keyId) {
+          onKeyTap('6');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit7.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad7.keyId == key.keyId) {
+          onKeyTap('7');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit8.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad8.keyId == key.keyId) {
+          onKeyTap('8');
+          return KeyEventResult.handled;
+        }
+        if (LogicalKeyboardKey.digit9.keyId == key.keyId ||
+            LogicalKeyboardKey.numpad9.keyId == key.keyId) {
+          onKeyTap('9');
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.backspace ||
+            key == LogicalKeyboardKey.delete) {
+          onBackspace();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter) {
+          onSubmit?.call();
+          return onSubmit == null
+              ? KeyEventResult.ignored
+              : KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Column(
+        children: _keys.map((row) {
+          return Padding(
+            padding: EdgeInsets.only(bottom: rowGap),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: row.map((key) {
+                if (key.isEmpty) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: keyPadding),
+                    child: SizedBox(width: buttonSize, height: buttonHeight),
+                  );
+                }
+                if (key == '⌫') {
+                  return _KeypadButton(
+                    label: key,
+                    onTap: onBackspace,
+                    colorScheme: colorScheme,
+                    isBackspace: true,
+                    size: buttonSize,
+                    height: buttonHeight,
+                    padding: keyPadding,
+                  );
+                }
                 return _KeypadButton(
                   label: key,
-                  onTap: onBackspace,
+                  onTap: () => onKeyTap(key),
                   colorScheme: colorScheme,
-                  isBackspace: true,
                   size: buttonSize,
                   height: buttonHeight,
                   padding: keyPadding,
                 );
-              }
-              return _KeypadButton(
-                label: key,
-                onTap: () => onKeyTap(key),
-                colorScheme: colorScheme,
-                size: buttonSize,
-                height: buttonHeight,
-                padding: keyPadding,
-              );
-            }).toList(),
-          ),
-        );
-      }).toList(),
+              }).toList(),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -345,45 +428,54 @@ class _KeypadButtonState extends State<_KeypadButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: widget.padding),
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) {
-          setState(() => _isPressed = false);
-          widget.onTap();
-        },
-        onTapCancel: () => setState(() => _isPressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: widget.size,
-          height: widget.height,
-          decoration: BoxDecoration(
-            color: _isPressed
-                ? widget.colorScheme.primaryContainer
-                : widget.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(Rounded.xl),
-          ),
-          alignment: Alignment.center,
-          child: widget.isBackspace
-              ? Icon(
-                  Icons.backspace_outlined,
-                  color: widget.colorScheme.onSurface,
-                  size: responsiveValue(context, mobile: 22, desktop: 28),
-                )
-              : Text(
-                  widget.label,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: widget.colorScheme.onSurface,
-                    fontSize: responsiveValue(
-                      context,
-                      mobile: 18,
-                      tablet: 22,
-                      desktop: 24,
+    final label = widget.isBackspace ? 'Delete' : widget.label;
+    return Semantics(
+      button: true,
+      label: label,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: widget.padding),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTapDown: (_) => setState(() => _isPressed = true),
+            onTapUp: (_) {
+              setState(() => _isPressed = false);
+              widget.onTap();
+            },
+            onTapCancel: () => setState(() => _isPressed = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: widget.size,
+              height: widget.height,
+              decoration: BoxDecoration(
+                color: _isPressed
+                    ? widget.colorScheme.primaryContainer
+                    : widget.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(Rounded.xl),
+              ),
+              alignment: Alignment.center,
+              child: widget.isBackspace
+                  ? Icon(
+                      Icons.backspace_outlined,
+                      color: widget.colorScheme.onSurface,
+                      size: responsiveValue(context, mobile: 22, desktop: 28),
+                      semanticLabel: 'Delete last digit',
+                    )
+                  : Text(
+                      widget.label,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: widget.colorScheme.onSurface,
+                        fontSize: responsiveValue(
+                          context,
+                          mobile: 18,
+                          tablet: 22,
+                          desktop: 24,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+            ),
+          ),
         ),
       ),
     );
