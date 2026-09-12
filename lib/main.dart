@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brewline/core/app_restart.dart';
+import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
 import 'package:brewline/core/updates/update_notifications.dart';
@@ -82,11 +83,9 @@ Widget _buildApp({
       appDatabaseProvider.overrideWith((ref) async => handle.current),
       appDatabaseHandleProvider.overrideWithValue(handle),
       appRestartProvider.overrideWithValue(() async {
-        runApp(_buildApp(
-          prefs: prefs,
-          handle: handle,
-          notifications: notifications,
-        ));
+        runApp(
+          _buildApp(prefs: prefs, handle: handle, notifications: notifications),
+        );
       }),
       updateNotificationsProvider.overrideWithValue(notifications),
     ],
@@ -117,31 +116,34 @@ class _StartupErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: const Color(0xFF241B13),
+      backgroundColor: Color.lerp(kSeedColor, Colors.black, 0.6),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(Space.x2l),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  color: Colors.redAccent, size: 64),
-              const SizedBox(height: 24),
+              Icon(
+                Icons.error_outline_rounded,
+                color: Theme.of(context).colorScheme.errorContainer,
+                size: 64,
+              ),
+              const SizedBox(height: Space.xl),
               Text(
                 l10n.appStartupTitle,
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white,
-                  fontSize: 22,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: Space.md),
               Text(
                 error,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: Colors.white70),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: Space.xl),
               Builder(
                 builder: (ctx) => TextButton.icon(
                   onPressed: () {
@@ -153,8 +155,10 @@ class _StartupErrorView extends StatelessWidget {
                     );
                   },
                   icon: const Icon(Icons.copy, color: Colors.white70),
-                  label: Text(l10n.appStartupCopy,
-                      style: const TextStyle(color: Colors.white70)),
+                  label: Text(
+                    l10n.appStartupCopy,
+                    style: const TextStyle(color: Colors.white70),
+                  ),
                 ),
               ),
             ],
@@ -265,7 +269,9 @@ class _LaunchBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(color: Color(0xFF241B13));
+    return ColoredBox(
+      color: Color.lerp(kSeedColor, Colors.black, 0.6) ?? kSeedColor,
+    );
   }
 }
 

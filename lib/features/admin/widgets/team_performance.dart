@@ -6,6 +6,7 @@ import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/features/admin/providers/analytics_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -25,14 +26,17 @@ class TeamPerformance extends ConsumerWidget {
       title: l10n.adminTeamPerformanceTitle,
       icon: Icons.groups_outlined,
       child: waiters.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(Space.xl),
-          child: Center(child: CircularProgressIndicator()),
+        loading: () => const UiLoader(),
+        error: (_, _) => UiEmptyState(
+          icon: Icons.error_outline_rounded,
+          message: l10n.adminTeamPerformanceError,
         ),
-        error: (_, _) => _message(context, l10n.adminTeamPerformanceError),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, l10n.adminTeamPerformanceEmpty);
+            return UiEmptyState(
+              icon: Icons.groups_outlined,
+              message: l10n.adminTeamPerformanceEmpty,
+            );
           }
           final maxRevenue = items.first.revenue;
 
@@ -111,19 +115,5 @@ class TeamPerformance extends ConsumerWidget {
     final name = sale.username;
     if (name.isEmpty) return '?';
     return name.substring(0, 1).toUpperCase();
-  }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.xl),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
   }
 }

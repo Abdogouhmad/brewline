@@ -41,8 +41,12 @@ const List<AdminNavItem> kAdminNavItems = [
     label: 'Inventory',
     icon: Icons.inventory_2_outlined,
   ),
-  AdminNavItem(id: 'staff', label: 'Staff', icon: Icons.people_outline),
-  AdminNavItem(id: 'sales', label: 'Sales log', icon: Icons.receipt_long_outlined),
+  AdminNavItem(id: 'staff', label: 'Staff', icon: Icons.people_alt_outlined),
+  AdminNavItem(
+    id: 'sales',
+    label: 'Sales log',
+    icon: Icons.receipt_long_outlined,
+  ),
   AdminNavItem(
     id: 'cashout',
     label: 'Cashout log',

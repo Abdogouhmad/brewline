@@ -208,6 +208,9 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
                   counterText: '',
                   prefixIcon: const Icon(Icons.pin_rounded),
                   suffixIcon: IconButton(
+                    tooltip: _obscurePin
+                        ? l10n.changePasswordShow
+                        : l10n.changePasswordHide,
                     icon: Icon(
                       _obscurePin
                           ? Icons.visibility_rounded
@@ -227,24 +230,26 @@ class _StaffFormSheetState extends ConsumerState<_StaffFormSheet> {
               ),
               if (_pinTakenError != null) ...[
                 SizedBox(height: Space.sm),
-                Text(
+                UiText(
                   _pinTakenError!,
-                  style: TextStyle(color: colorScheme.error, fontSize: 12),
+                  type: UiTextType.bodySmall,
+                  color: colorScheme.error,
                 ),
               ],
               SizedBox(height: Space.sm),
               if (widget.isEditing)
-                Text(
+                UiText(
                   l10n.staffFormEditNote,
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  type: UiTextType.bodySmall,
+                  color: colorScheme.onSurfaceVariant,
                 ),
               SizedBox(height: Space.xl),
               UiButton(
                 _saving
                     ? l10n.staffFormSaving
                     : (widget.isEditing
-                        ? l10n.staffFormSaveChanges
-                        : l10n.staffFormAddMember),
+                          ? l10n.staffFormSaveChanges
+                          : l10n.staffFormAddMember),
                 icon: Icons.check_rounded,
                 variant: UiButtonVariant.filled,
                 expand: true,

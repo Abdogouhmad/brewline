@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/localization/role_labels.dart';
 import 'package:brewline/core/models/shift_status.dart';
-import 'package:brewline/core/models/user_role.dart';
 import 'package:brewline/features/admin/providers/shift_status_provider.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/status_badge.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -29,6 +29,7 @@ class ShiftStatusCard extends ConsumerWidget {
     final username = session?.username;
     final shifts = ref.watch(shiftStatusProvider);
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return DashboardCard(
       title: l10n.adminShiftStatusTitle,
@@ -36,14 +37,7 @@ class ShiftStatusCard extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: Colors.green.shade600,
-              shape: BoxShape.circle,
-            ),
-          ),
+          LiveDot(color: colorScheme.primary),
           SizedBox(width: Space.xs),
           UiText(
             l10n.adminShiftStatusOnShift,
@@ -90,7 +84,11 @@ class ShiftStatusCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (session != null) _roleBadge(context, session.role),
+              if (session != null)
+                StatusBadge(
+                  label: session.role.localizedLabel(l10n),
+                  variant: StatusBadgeVariant.info,
+                ),
             ],
           ),
           SizedBox(height: Space.lg),
@@ -143,23 +141,6 @@ class ShiftStatusCard extends ConsumerWidget {
     final second = digits.isNotEmpty ? digits[digits.length - 1] : '';
     return (first + second).toUpperCase();
   }
-
-  Widget _roleBadge(BuildContext context, Role role) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.xs),
-      decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(Rounded.full),
-      ),
-      child: UiText(
-        role.localizedLabel(AppLocalizations.of(context)!),
-        type: UiTextType.labelMedium,
-        fontWeight: FontWeight.w700,
-        color: colorScheme.onSecondaryContainer,
-      ),
-    );
-  }
 }
 
 /// One staff member's current shift summary: a live dot, the login time, and
@@ -176,35 +157,31 @@ class _StaffShiftRow extends StatelessWidget {
 
     final (dotColor, statusText, detail) = switch (shift.state) {
       ShiftState.active => (
-          Colors.green.shade600,
-          l10n.adminShiftStatusActive,
-          '${l10n.adminShiftLoggedInAt(_formatTime(context, shift.checkIn))}'
-              ' · ${_duration(context, shift.checkIn)}',
-        ),
+        Theme.of(context).colorScheme.primary,
+        l10n.adminShiftStatusActive,
+        '${l10n.adminShiftLoggedInAt(_formatTime(context, shift.checkIn))}'
+            ' · ${_duration(context, shift.checkIn)}',
+      ),
       ShiftState.idle => (
-          colorScheme.tertiary,
-          l10n.adminShiftStatusIdle,
-          l10n.adminShiftLoggedOutLastActive(
-            _formatTime(context, shift.checkIn),
-          ),
-        ),
+        colorScheme.tertiary,
+        l10n.adminShiftStatusIdle,
+        l10n.adminShiftLoggedOutLastActive(_formatTime(context, shift.checkIn)),
+      ),
       ShiftState.cashedOut => (
-          colorScheme.outlineVariant,
-          l10n.adminShiftStatusCashedOut,
-          shift.lastCashOut != null
-              ? l10n.adminShiftDetailCashedOut(
-                  _formatTime(context, shift.checkIn),
-                  _formatTime(context, shift.lastCashOut),
-                )
-              : l10n.adminShiftLoggedInAt(
-                  _formatTime(context, shift.checkIn),
-                ),
-        ),
+        colorScheme.outlineVariant,
+        l10n.adminShiftStatusCashedOut,
+        shift.lastCashOut != null
+            ? l10n.adminShiftDetailCashedOut(
+                _formatTime(context, shift.checkIn),
+                _formatTime(context, shift.lastCashOut),
+              )
+            : l10n.adminShiftLoggedInAt(_formatTime(context, shift.checkIn)),
+      ),
       ShiftState.never => (
-          colorScheme.outlineVariant,
-          l10n.adminShiftStatusNoShiftYet,
-          l10n.adminShiftStatusNeverLoggedIn,
-        ),
+        colorScheme.outlineVariant,
+        l10n.adminShiftStatusNoShiftYet,
+        l10n.adminShiftStatusNeverLoggedIn,
+      ),
     };
     final active = shift.state == ShiftState.active;
 
@@ -263,7 +240,7 @@ class _StaffShiftRow extends StatelessWidget {
                     type: UiTextType.labelSmall,
                     fontWeight: FontWeight.w600,
                     color: active
-                        ? Colors.green.shade700
+                        ? Theme.of(context).colorScheme.primary
                         : colorScheme.onSurfaceVariant,
                   ),
                 ],

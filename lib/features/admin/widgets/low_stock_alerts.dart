@@ -6,6 +6,7 @@ import 'package:brewline/core/models/product.dart';
 import 'package:brewline/core/repositories/product_repository.dart';
 import 'package:brewline/features/admin/widgets/dashboard_card.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// Products running low on stock with one-tap restock (+10 units).
@@ -26,14 +27,17 @@ class LowStockAlerts extends ConsumerWidget {
       title: l10n.adminLowStockTitle,
       icon: Icons.inventory_2_outlined,
       child: products.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(Space.xl),
-          child: Center(child: CircularProgressIndicator()),
+        loading: () => const UiLoader(),
+        error: (_, _) => UiEmptyState(
+          icon: Icons.error_outline_rounded,
+          message: l10n.adminLowStockError,
         ),
-        error: (_, _) => _message(context, l10n.adminLowStockError),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, l10n.adminLowStockHealthy);
+            return UiEmptyState(
+              icon: Icons.inventory_2_outlined,
+              message: l10n.adminLowStockHealthy,
+            );
           }
           return Column(
             children: [
@@ -53,20 +57,6 @@ class LowStockAlerts extends ConsumerWidget {
     await ref
         .read(productMutationProvider.notifier)
         .restock(product.id, _restockIncrement);
-  }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.xl),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:brewline/core/repositories/order_journal_repository.dart';
 import 'package:brewline/features/admin/providers/top_products_provider.dart';
 import 'package:brewline/core/utils/price_format.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_empty_state.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 import 'dashboard_card.dart';
@@ -23,13 +24,18 @@ class TopProductsList extends ConsumerWidget {
     return DashboardCard(
       title: l10n.adminTopProductsTitle,
       icon: Icons.local_fire_department_outlined,
-      trailing: null,
       child: products.when(
-        loading: () => const _ComfyLoading(),
-        error: (_, _) => _message(context, l10n.adminTopProductsError),
+        loading: () => const UiLoader(),
+        error: (_, _) => UiEmptyState(
+          icon: Icons.error_outline_rounded,
+          message: l10n.adminTopProductsError,
+        ),
         data: (items) {
           if (items.isEmpty) {
-            return _message(context, l10n.adminTopProductsEmpty);
+            return UiEmptyState(
+              icon: Icons.local_fire_department_outlined,
+              message: l10n.adminTopProductsEmpty,
+            );
           }
           final maxQty = items.first.quantity;
           return Column(
@@ -43,20 +49,6 @@ class TopProductsList extends ConsumerWidget {
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _message(BuildContext context, String text) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: Space.xl),
-      child: Center(
-        child: UiText(
-          text,
-          type: UiTextType.bodyMedium,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          textAlign: TextAlign.center,
-        ),
       ),
     );
   }
@@ -131,18 +123,6 @@ class _ProductRank extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ComfyLoading extends StatelessWidget {
-  const _ComfyLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(Space.xl),
-      child: Center(child: CircularProgressIndicator()),
     );
   }
 }

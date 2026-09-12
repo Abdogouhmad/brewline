@@ -9,6 +9,7 @@ import 'package:brewline/core/updates/update_installer.dart'
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/core/utils/date_format.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/status_badge.dart';
 import 'package:brewline/shared/ui/ui_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
@@ -61,7 +62,9 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: AppSizes.maxContentWidth),
+            constraints: const BoxConstraints(
+              maxWidth: AppSizes.maxContentWidth,
+            ),
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.fromLTRB(
@@ -84,7 +87,7 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
                         message: state.status == UpdateStatus.error
                             ? _errorText(context, state)
                             : AppLocalizations.of(context)!
-                                .updateCheckFailedMessage,
+                                  .updateCheckFailedMessage,
                       ),
                       SizedBox(height: Space.lg),
                     ],
@@ -103,7 +106,8 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
                         onChangePressed: () => notifier.downloadAndInstall(),
                       ),
                       _ => _Actions(
-                        canUpdate: state.hasUpdate &&
+                        canUpdate:
+                            state.hasUpdate &&
                             state.status != UpdateStatus.downloading &&
                             state.status != UpdateStatus.readyToInstall,
                         failed: state.status == UpdateStatus.error,
@@ -131,8 +135,9 @@ class _UpdateScreenState extends ConsumerState<UpdateScreen> {
     final detail = state.errorDetail;
     return switch (state.error) {
       UpdateErrorCode.noBuild => l10n.updateErrorNoBuild,
-      UpdateErrorCode.downloadFailed =>
-        l10n.updateErrorDownloadFailed(detail ?? ''),
+      UpdateErrorCode.downloadFailed => l10n.updateErrorDownloadFailed(
+        detail ?? '',
+      ),
       UpdateErrorCode.integrity => l10n.updateErrorIntegrity(detail ?? ''),
       UpdateErrorCode.install => l10n.updateErrorInstall(detail ?? ''),
       null => l10n.updateErrorGeneric,
@@ -150,11 +155,11 @@ class _StatusHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final failed = state.status == UpdateStatus.error ||
+    final failed =
+        state.status == UpdateStatus.error ||
         state.checkResult == UpdateCheckResult.checkFailed;
-    final update = state.hasUpdate &&
-        state.status != UpdateStatus.error &&
-        !failed;
+    final update =
+        state.hasUpdate && state.status != UpdateStatus.error && !failed;
     final checking = state.status == UpdateStatus.checking;
 
     final accent = failed
@@ -183,9 +188,16 @@ class _StatusHeader extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 Container(
-                  width: responsiveValue(context, mobile: 104.0, desktop: 120.0),
-                  height:
-                      responsiveValue(context, mobile: 104.0, desktop: 120.0),
+                  width: responsiveValue(
+                    context,
+                    mobile: 104.0,
+                    desktop: 120.0,
+                  ),
+                  height: responsiveValue(
+                    context,
+                    mobile: 104.0,
+                    desktop: 120.0,
+                  ),
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.4),
                     shape: BoxShape.circle,
@@ -215,11 +227,7 @@ class _StatusHeader extends StatelessWidget {
           ),
         ),
         SizedBox(height: Space.lg),
-        _StatusPill(
-          checking: checking,
-          update: update,
-          failed: failed,
-        ),
+        _StatusPill(checking: checking, update: update, failed: failed),
       ],
     );
   }
@@ -241,13 +249,29 @@ class _StatusPill extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    final (Color color, String label) = checking
-        ? (colorScheme.primary, l10n.updateCheckingPill)
+    final (color, variant, label) = checking
+        ? (
+            colorScheme.primary,
+            StatusBadgeVariant.accent,
+            l10n.updateCheckingPill,
+          )
         : failed
-        ? (colorScheme.error, l10n.updateCheckFailedPill)
+        ? (
+            colorScheme.error,
+            StatusBadgeVariant.error,
+            l10n.updateCheckFailedPill,
+          )
         : update
-        ? (colorScheme.primary, l10n.updateAvailablePill)
-        : (Colors.green.shade600, l10n.updateUpToDatePill);
+        ? (
+            colorScheme.primary,
+            StatusBadgeVariant.accent,
+            l10n.updateAvailablePill,
+          )
+        : (
+            colorScheme.primary,
+            StatusBadgeVariant.success,
+            l10n.updateUpToDatePill,
+          );
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.sm),
@@ -263,17 +287,10 @@ class _StatusPill extends StatelessWidget {
             SizedBox(
               width: 12,
               height: 12,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: color,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: color),
             )
           else
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
+            LiveDot(color: color, size: 10),
           SizedBox(width: Space.md),
           UiText(
             label,
@@ -476,7 +493,11 @@ class _InfoRow extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: Space.md),
       child: Row(
         children: [
-          Icon(icon, size: AppSizes.iconMd, color: colorScheme.onSurfaceVariant),
+          Icon(
+            icon,
+            size: AppSizes.iconMd,
+            color: colorScheme.onSurfaceVariant,
+          ),
           SizedBox(width: Space.lg),
           UiText(
             label,
@@ -513,12 +534,11 @@ class _ChangelogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lines =
-        notes
-            .split('\n')
-            .map((l) => l.trim())
-            .where((l) => l.isNotEmpty)
-            .toList();
+    final lines = notes
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
 
     return _Card(
       title: AppLocalizations.of(context)!.updateWhatsNew,
@@ -543,7 +563,10 @@ class _ChangelogCard extends StatelessWidget {
     final heading = _headingRe.firstMatch(line);
     if (heading != null) {
       return Padding(
-        padding: EdgeInsets.only(top: index == 0 ? 0 : Space.lg, bottom: Space.sm),
+        padding: EdgeInsets.only(
+          top: index == 0 ? 0 : Space.lg,
+          bottom: Space.sm,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -633,13 +656,15 @@ class _RichText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = (type.of(Theme.of(context).textTheme) ??
-            const TextStyle()).copyWith(color: color);
+    final base = (type.of(Theme.of(context).textTheme) ?? const TextStyle())
+        .copyWith(color: color);
 
     final spans = <TextSpan>[];
     int last = 0;
     for (final m in _ChangelogCard._boldRe.allMatches(text)) {
-      if (m.start > last) spans.add(TextSpan(text: text.substring(last, m.start)));
+      if (m.start > last) {
+        spans.add(TextSpan(text: text.substring(last, m.start)));
+      }
       spans.add(
         TextSpan(
           text: m.group(1),
@@ -720,7 +745,11 @@ class _ReadyCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
-        Icon(Icons.check_circle_rounded, color: colorScheme.primary, size: AppSizes.iconLg * 2),
+        Icon(
+          Icons.check_circle_rounded,
+          color: colorScheme.primary,
+          size: AppSizes.iconLg * 2,
+        ),
         SizedBox(height: Space.md),
         UiText(
           l10n.updateReadyBody,
@@ -870,7 +899,11 @@ class _Card extends StatelessWidget {
                   color: colorScheme.secondaryContainer,
                   borderRadius: BorderRadius.circular(Rounded.xl),
                 ),
-                child: Icon(icon, size: AppSizes.iconMd, color: colorScheme.onSecondaryContainer),
+                child: Icon(
+                  icon,
+                  size: AppSizes.iconMd,
+                  color: colorScheme.onSecondaryContainer,
+                ),
               ),
               SizedBox(width: Space.lg),
               UiText(

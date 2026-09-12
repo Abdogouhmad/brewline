@@ -190,7 +190,7 @@ void main() {
       expect(find.byType(WaiterHomePage), findsOneWidget);
 
       // Trigger logout from the app-bar action -> confirm dialog.
-      await tester.tap(find.byIcon(Icons.logout));
+      await tester.tap(find.byIcon(Icons.logout_rounded));
       await tester.pumpAndSettle();
       expect(find.text('Log out?'), findsOneWidget);
 
