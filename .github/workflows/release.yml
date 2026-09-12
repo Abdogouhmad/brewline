@@ -155,6 +155,23 @@ jobs:
             echo "::endgroup::"
           done
 
+      # DEBUG ONLY: reproduce the flutter assemble step directly so the real
+      # error (which MSBuild's custom-build handler swallows, yielding only
+      # MSB8066) is visible. Runs when a previous step failed on Windows.
+      - name: Debug assemble (Windows)
+        if: failure() && runner.os == 'Windows'
+        shell: bash
+        run: |
+          flutter assemble --no-version-check \
+            --output=build \
+            -dTargetPlatform=windows-x64 \
+            -dTrackWidgetCreation=false \
+            -dBuildMode=release \
+            -dTargetFile=lib/main.dart \
+            -dTreeShakeIcons=true \
+            -dDartObfuscation=false \
+            release_bundle_windows-x64_assets
+
       # Linux bundle: the whole build/linux/x64/release/bundle/ directory,
       # archived next to the upload glob (build/linux/x64/release/*.tar.gz).
       #
