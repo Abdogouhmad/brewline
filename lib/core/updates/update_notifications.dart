@@ -58,6 +58,14 @@ class UpdateNotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
+
+    // Keep the plugin's launch-details FFI path live. With no call site the
+    // Windows release build's AOT snapshotter crashed on the plugin's
+    // NativeLaunchDetails struct (flutter_local_notifications #2615, once
+    // tree-shaking dropped the method). This is also the cold-launch case: the
+    // OS opening the app by tapping an update toast delivers the details here,
+    // surfaced by the existing Settings → Update screen.
+    await _plugin.getNotificationAppLaunchDetails();
   }
 
   /// Shows the "new version available" notification.
