@@ -6,7 +6,6 @@ import 'package:brewline/core/security/password_hash.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/auth/login_page.dart';
 import 'package:brewline/features/auth/providers/login_form_provider.dart';
-import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/waiter/pages/waiter_home_page.dart';
 import 'package:brewline/features/admin/pages/admin_home_page.dart';
 import 'package:brewline/l10n/app_localizations.dart';

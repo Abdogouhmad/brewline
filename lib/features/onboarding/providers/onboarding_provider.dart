@@ -9,9 +9,6 @@ import 'package:brewline/core/theme/theme_controller.dart'
 
 import 'onboarding_state.dart';
 
-/// SharedPreferences key marking that one-time onboarding has been completed.
-const String kOnboardingCompleteKey = 'onboarding_complete';
-
 /// Whether onboarding has been completed (persisted).
 final onboardingCompleteProvider = Provider<bool>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);

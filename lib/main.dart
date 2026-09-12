@@ -7,10 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:sqflite/sqflite.dart';
-
+import 'package:brewline/core/app_restart.dart';
 import 'package:brewline/core/db/app_database.dart';
 import 'package:brewline/core/localization/locale_controller.dart';
+import 'package:brewline/core/updates/update_notifications.dart';
 import 'package:brewline/core/updates/update_provider.dart';
 import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/features/admin/widgets/settings/update_required_screen.dart';
@@ -29,10 +29,13 @@ Future<void> main() async {
   // instead of silently killing the process — especially important on Windows
   // where a bare crash gives the user no feedback at all.
   late final SharedPreferences prefs;
-  late final Database db;
+  late final AppDatabaseHandle handle;
   try {
     prefs = await SharedPreferences.getInstance();
-    db = await openAppDatabase();
+    // The app's single live connection lives in an [AppDatabaseHandle] so the
+    // backup/restore flow can close, swap and re-open it, then restart the
+    // tree below against the new connection.
+    handle = AppDatabaseHandle()..attach(await openAppDatabase());
     // Seed intl with the persisted language so money/date formatting is
     // locale-aware before the first frame (§5).
     await initializeIntlLocale(storedLanguage(prefs));
@@ -45,14 +48,49 @@ Future<void> main() async {
   // No dummy data is seeded at startup — the app starts completely empty
   // and the admin enters real products, ingredients and staff from zero.
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-        appDatabaseProvider.overrideWith((ref) async => db),
-      ],
-      child: const BrewlineApp(),
-    ),
+  // Local notifications for OTA update alerts. Deliberately best-effort: a
+  // broken notification plugin (unsupported desktop environment, no permission
+  // system) must never prevent the app from starting — it just disables the
+  // tray/toast nudge.
+  UpdateNotificationService? notifications;
+  try {
+    final service = UpdateNotificationService();
+    await service.initialize();
+    notifications = service;
+  } catch (_) {
+    notifications = null;
+  }
+
+  runApp(_buildApp(prefs: prefs, handle: handle, notifications: notifications));
+}
+
+/// Builds the app root with the shared [prefs], [handle] and (optional)
+/// [notifications] service wired into a fresh [ProviderScope].
+///
+/// Called again by the [appRestartProvider] callback after a restore: runApp
+/// replaces the existing tree, so every provider restarts against the
+/// (possibly restored) database — the portable equivalent of the desktop OTA
+/// updater's process relaunch.
+Widget _buildApp({
+  required SharedPreferences prefs,
+  required AppDatabaseHandle handle,
+  required UpdateNotificationService? notifications,
+}) {
+  return ProviderScope(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      appDatabaseProvider.overrideWith((ref) async => handle.current),
+      appDatabaseHandleProvider.overrideWithValue(handle),
+      appRestartProvider.overrideWithValue(() async {
+        runApp(_buildApp(
+          prefs: prefs,
+          handle: handle,
+          notifications: notifications,
+        ));
+      }),
+      updateNotificationsProvider.overrideWithValue(notifications),
+    ],
+    child: const BrewlineApp(),
   );
 }
 

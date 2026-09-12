@@ -24,6 +24,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // `flutter_local_notifications` uses java.time APIs that only exist on
+        // API 26+; core library desugaring rewrites them at build time so the
+        // app keeps running on the API 23 floor set below.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -83,4 +87,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Backs the core library desugaring above (java.time on API < 26).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

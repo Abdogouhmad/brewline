@@ -14,11 +14,16 @@ import 'package:brewline/core/theme/theme_controller.dart'
     show sharedPreferencesProvider;
 import 'package:brewline/core/updates/github_release.dart';
 import 'package:brewline/core/updates/update_installer.dart';
+import 'package:brewline/core/updates/update_notifications.dart';
 import 'package:brewline/core/updates/update_service.dart';
 
 /// SharedPreferences keys for the update settings.
 const String kAutoCheckUpdatesKey = 'auto_check_updates';
 const String kLastUpdateCheckKey = 'last_update_check_ms';
+
+/// SharedPreferences key holding the version of the update we already showed a
+/// notification for, so a new version isn't re-announced on every launch.
+const String kLastUpdateNotifiedKey = 'last_update_notified_version';
 
 /// Result of the most recent check (as `UpdateCheckResult.name`), so the admin
 /// can distinguish "never checked" from "check failed" in the UI.
@@ -242,6 +247,28 @@ class UpdateNotifier extends Notifier<UpdateState> {
     await ref
         .read(lastUpdateCheckProvider.notifier)
         .markChecked(outcome.result);
+    await _notifyIfNew(outcome);
+  }
+
+  /// Shown once per release: fires the local notification the first time this
+  /// device discovers [outcome]'s update. The in-app banner/section always
+  /// shows the update; the notification is the passive nudge for when the
+  /// admin isn't looking at the settings tab (e.g. on the login screen or
+  /// waiter dashboard). Fires for both optional and mandatory updates — the
+  /// mandatory take-over screen is layered on top regardless.
+  Future<void> _notifyIfNew(UpdateCheckOutcome outcome) async {
+    final notifications = ref.read(updateNotificationsProvider);
+    final release = outcome.release;
+    if (notifications == null || !outcome.hasUpdate || release == null) return;
+
+    final prefs = ref.read(sharedPreferencesProvider);
+    if (prefs.getString(kLastUpdateNotifiedKey) == release.version) return;
+
+    await notifications.notifyUpdate(
+      version: release.version,
+      releaseNotes: release.releaseNotes,
+    );
+    await prefs.setString(kLastUpdateNotifiedKey, release.version);
   }
 
   /// Downloads and installs the update for the current platform.

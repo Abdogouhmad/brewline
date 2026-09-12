@@ -8,6 +8,7 @@ import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/security/credential_store.dart';
 import 'package:brewline/core/theme/theme_controller.dart';
 import 'package:brewline/features/auth/providers/auth_provider.dart';
+import 'package:brewline/features/admin/widgets/settings/data_section.dart';
 import 'package:brewline/features/admin/widgets/settings/printer_settings_section.dart';
 import 'package:brewline/features/admin/widgets/settings/update_section.dart';
 import 'package:brewline/features/onboarding/pages/onboarding_page.dart';
@@ -26,10 +27,11 @@ import 'package:brewline/shared/widgets/logout_button.dart';
 /// Admin "Settings" tab.
 ///
 /// Redesigned around the same `SettingsSectionCard` vocabulary as the waiter
-/// page: a hero profile header showing the signed-in account, a **General**
-/// card (language + theme) and an **Account** card that shows the admin
-/// username and offers change PIN, logout and the destructive reset — wiping
-/// the business database and returning to onboarding.
+/// page: a **General** card (language + theme), a **Printer** card (receipt
+/// transport), an **Update** card (OTA), a **Data** card (off-device backup &
+/// restore), and an **Account** card that shows the admin username and offers
+/// change PIN, logout and the destructive reset — wiping the business database
+/// and returning to onboarding.
 class AdminSettingsPage extends ConsumerWidget {
   const AdminSettingsPage({super.key});
 
@@ -88,6 +90,10 @@ class AdminSettingsPage extends ConsumerWidget {
                           ),
                           SizedBox(
                             width: _halfWidth(constraints.maxWidth, gap),
+                            child: const DataSection(),
+                          ),
+                          SizedBox(
+                            width: _halfWidth(constraints.maxWidth, gap),
                             child: _AccountCard(
                               onReset: () => _confirmReset(context, ref),
                             ),
@@ -107,6 +113,8 @@ class AdminSettingsPage extends ConsumerWidget {
                         _AccountCard(
                           onReset: () => _confirmReset(context, ref),
                         ),
+                        SizedBox(height: Space.lg),
+                        const DataSection(),
                         SizedBox(height: Space.lg),
                         const UpdateSection(),
                       ],
@@ -188,10 +196,7 @@ class _ResetConfirmDialogState extends State<_ResetConfirmDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          UiText(
-            l10n.settingsResetConfirmBody,
-            type: UiTextType.bodyMedium,
-          ),
+          UiText(l10n.settingsResetConfirmBody, type: UiTextType.bodyMedium),
           SizedBox(height: Space.lg),
           TextField(
             controller: _controller,
