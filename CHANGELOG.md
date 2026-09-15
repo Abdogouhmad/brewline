@@ -2,6 +2,38 @@
 
 All notable changes to Brewline, in plain language for everyday users.
 
+## [1.13.0] - 2026-09-15
+
+### Improved (design)
+
+- **Full Material 3 component theming** — every button, card, dialog, sheet,
+  input field, navigation bar, chip, switch, snackbar and menu now has a
+  consistent, scheme-aware default style baked into the theme, so widgets look
+  correct without per-instance overrides.
+- **M3 expressive ripple** — all tappable surfaces now use the softer
+  `InkSparkle` gradient ripple instead of the flat Material ink splash.
+- **Smarter cards on hover** — tappable cards lift with a subtle branded shadow
+  and tint on hover (desktop), and compress slightly when pressed, making
+  interactive surfaces feel alive.
+- **Button press micro-interaction** — buttons sink 2% on press with a
+  fast 100 ms ease-out, giving tactile feedback without a separate tap effect.
+- **Consistent page transitions** — FadeForwards on Android, Windows and Linux;
+  smooth crossfade between screens replaces the abrupt default.
+- **Unified motion tokens** — new `AppMotion` constants (100 ms – 700 ms
+  durations, standard/emphasised/exit curves) replace scattered hardcoded
+  durations across shared widgets.
+
+### Improved (code quality)
+
+- **Zero hardcoded colours** — `Colors.green.shade600` on the waiter profile
+  and `Colors.black` shadows on staff cards now derive from the active
+  `ColorScheme`, so they follow dynamic colour and dark mode correctly.
+- **No raw `MediaQuery` width checks** — stock movements and dashboard KPI
+  cards now use the shared `Breakpoints` API, keeping responsive layout logic
+  in one place.
+- Revenue chart paint helpers enforce a required `color` parameter instead of
+  defaulting to `Colors.black`, preventing invisible text in dark mode.
+
 ## [1.12.0] - 2026-09-12
 
 ### Improved (design)
@@ -209,7 +241,8 @@ All notable changes to Brewline, in plain language for everyday users.
 - **Login & onboarding** — first-run setup for the admin account, followed by
   a secure PIN login.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.12.0...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.13.0...HEAD
+[1.13.0]: https://github.com/Abdogouhmad/brewline/compare/1.12.0...1.13.0
 [1.12.0]: https://github.com/Abdogouhmad/brewline/compare/1.11.0...1.12.0
 [1.11.0]: https://github.com/Abdogouhmad/brewline/compare/1.10.0...1.11.0
 [1.10.0]: https://github.com/Abdogouhmad/brewline/compare/1.9.1...1.10.0

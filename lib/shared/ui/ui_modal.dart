@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_sizes.dart';
+import '../../core/design/motion.dart';
 import '../../core/responsive/responsive.dart';
 
 /// Shows [content] as a **bottom sheet** on phones and tablets and as a centred
@@ -54,10 +55,10 @@ Future<T?> showUiAdaptiveModal<T>(
     // Smoother open/close: a touch slower going up (feels deliberate),
     // snappier coming back down (feels responsive on dismiss).
     sheetAnimationStyle: const AnimationStyle(
-      duration: Duration(milliseconds: 320),
-      reverseDuration: Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
+      duration: AppMotion.medium,
+      reverseDuration: AppMotion.short,
+      curve: AppMotion.standard,
+      reverseCurve: AppMotion.exit,
     ),
     builder: (_) =>
         FractionallySizedBox(heightFactor: heightFactor, child: content),

@@ -6,6 +6,7 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/models/ingredient.dart';
 import 'package:brewline/core/models/stock_movement.dart';
 import 'package:brewline/core/repositories/stock_movement_repository.dart';
+import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/ui/ui_card.dart';
 import 'package:brewline/shared/ui/ui_empty_state.dart';
@@ -101,7 +102,7 @@ class _StockMovementsPageState extends ConsumerState<StockMovementsPage> {
         onRefresh: _load,
         child: ListView(
           padding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.of(context).size.width < 600
+            horizontal: Breakpoints.of(context) == ScreenSize.compact
                 ? Space.lg
                 : Space.full,
             vertical: Space.lg,

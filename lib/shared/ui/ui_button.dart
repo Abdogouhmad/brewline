@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/design/motion.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 
 enum UiButtonVariant { filled, tonal, outlined, text, destructive }
 
-/// M3 button that scales padding, min size and text style by device type.
+/// M3 button that scales padding, min size and text style by device type, with
+/// an expressive press micro-interaction (the container "sinks" slightly).
 ///
 /// ```dart
 /// UiButton('Add to order', icon: Icons.add, onPressed: () {})
 /// ```
-class UiButton extends StatelessWidget {
+class UiButton extends StatefulWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onPressed;
@@ -31,6 +33,17 @@ class UiButton extends StatelessWidget {
     this.background,
     this.radius,
   });
+
+  @override
+  State<UiButton> createState() => _UiButtonState();
+}
+
+class _UiButtonState extends State<UiButton> {
+  bool _pressed = false;
+
+  void _onPressChange(bool pressed) {
+    if (pressed != _pressed) setState(() => _pressed = pressed);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,77 +76,106 @@ class UiButton extends StatelessWidget {
           fontWeight: FontWeight.w600,
         );
 
-    ButtonStyle base = switch (variant) {
+    ButtonStyle base = switch (widget.variant) {
       UiButtonVariant.filled => FilledButton.styleFrom(
-        foregroundColor: foreground,
-        backgroundColor: background,
+        foregroundColor: widget.foreground,
+        backgroundColor: widget.background,
         elevation: 0,
       ),
       UiButtonVariant.tonal => FilledButton.styleFrom(
-        foregroundColor: foreground ?? Theme.of(context).colorScheme.secondary,
+        foregroundColor:
+            widget.foreground ?? Theme.of(context).colorScheme.secondary,
         backgroundColor:
-            background ?? Theme.of(context).colorScheme.secondaryContainer,
+            widget.background ?? Theme.of(context).colorScheme.secondaryContainer,
         elevation: 0,
       ),
       UiButtonVariant.destructive => FilledButton.styleFrom(
-        foregroundColor: foreground ?? Theme.of(context).colorScheme.onError,
-        backgroundColor: background ?? Theme.of(context).colorScheme.error,
+        foregroundColor:
+            widget.foreground ?? Theme.of(context).colorScheme.onError,
+        backgroundColor: widget.background ?? Theme.of(context).colorScheme.error,
         elevation: 0,
       ),
       UiButtonVariant.outlined => OutlinedButton.styleFrom(
-        foregroundColor: foreground,
+        foregroundColor: widget.foreground,
       ),
-      UiButtonVariant.text => TextButton.styleFrom(foregroundColor: foreground),
+      UiButtonVariant.text => TextButton.styleFrom(
+        foregroundColor: widget.foreground,
+      ),
     };
 
     final style = base.copyWith(
       padding: WidgetStatePropertyAll(padding),
       minimumSize: WidgetStatePropertyAll(
-        Size(expand ? double.infinity : 0, minHeight),
+        Size(widget.expand ? double.infinity : 0, minHeight),
       ),
       textStyle: WidgetStatePropertyAll(textStyle),
       shape: WidgetStatePropertyAll(
         RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radius ?? Rounded.xl),
+          borderRadius: BorderRadius.circular(widget.radius ?? Rounded.xl),
         ),
       ),
     );
 
-    final button = switch (variant) {
-      UiButtonVariant.text when icon != null => TextButton.icon(
-        onPressed: onPressed,
+    final button = switch (widget.variant) {
+      UiButtonVariant.text when widget.icon != null => TextButton.icon(
+        onPressed: widget.onPressed,
         style: style,
-        icon: Icon(icon),
-        label: Text(label),
+        icon: Icon(widget.icon),
+        label: Text(widget.label),
       ),
       UiButtonVariant.text => TextButton(
-        onPressed: onPressed,
+        onPressed: widget.onPressed,
         style: style,
-        child: Text(label),
+        child: Text(widget.label),
       ),
-      UiButtonVariant.outlined when icon != null => OutlinedButton.icon(
-        onPressed: onPressed,
+      UiButtonVariant.outlined when widget.icon != null => OutlinedButton.icon(
+        onPressed: widget.onPressed,
         style: style,
-        icon: Icon(icon),
-        label: Text(label),
+        icon: Icon(widget.icon),
+        label: Text(widget.label),
       ),
       UiButtonVariant.outlined => OutlinedButton(
-        onPressed: onPressed,
+        onPressed: widget.onPressed,
         style: style,
-        child: Text(label),
+        child: Text(widget.label),
       ),
-      _ when icon != null => FilledButton.icon(
-        onPressed: onPressed,
+      _ when widget.icon != null => FilledButton.icon(
+        onPressed: widget.onPressed,
         style: style,
-        icon: Icon(icon),
-        label: Text(label),
+        icon: Icon(widget.icon),
+        label: Text(widget.label),
       ),
-      _ => FilledButton(onPressed: onPressed, style: style, child: Text(label)),
+      _ => FilledButton(
+        onPressed: widget.onPressed,
+        style: style,
+        child: Text(widget.label),
+      ),
     };
 
-    if (expand) {
-      return SizedBox(width: double.infinity, child: button);
+    final wrapped = Listener(
+      // Pointer-driven press tracking (safe across rebuilds — unlike a
+      // [WidgetStatesController], which fires listeners during the button's
+      // own build). Disabled buttons ignore presses entirely.
+      onPointerDown: widget.onPressed == null
+          ? null
+          : (_) => _onPressChange(true),
+      onPointerUp: widget.onPressed == null
+          ? null
+          : (_) => _onPressChange(false),
+      onPointerCancel: widget.onPressed == null
+          ? null
+          : (_) => _onPressChange(false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1.0,
+        duration: AppMotion.shortest,
+        curve: AppMotion.standard,
+        child: button,
+      ),
+    );
+
+    if (widget.expand) {
+      return SizedBox(width: double.infinity, child: wrapped);
     }
-    return button;
+    return wrapped;
   }
 }

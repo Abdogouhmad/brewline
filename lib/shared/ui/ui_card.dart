@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
+import 'package:brewline/core/design/motion.dart';
 import 'package:brewline/core/responsive/responsive.dart';
 
 import 'ui_text.dart';
@@ -8,6 +9,11 @@ import 'ui_text.dart';
 /// M3 expressive card with an optional image, title, subtitle, an arbitrary
 /// [content] body and an action row. Scales its paddings and image height per
 /// device type.
+///
+/// On desktop the card reacts expressively to the pointer: a soft branded
+/// shadow lifts it on hover and it scales down slightly while pressed —
+/// feedback that makes tappable surfaces feel alive without breaking the flat,
+/// outlined look.
 ///
 /// ```dart
 /// UiCard(
@@ -19,7 +25,7 @@ import 'ui_text.dart';
 ///   onTap: () {},
 /// )
 /// ```
-class UiCard extends StatelessWidget {
+class UiCard extends StatefulWidget {
   final Widget? image;
   final String title;
   final String? subtitle;
@@ -62,30 +68,49 @@ class UiCard extends StatelessWidget {
       : (compact ? Space.sm : Space.lg);
 
   @override
+  State<UiCard> createState() => _UiCardState();
+}
+
+class _UiCardState extends State<UiCard> {
+  bool _pressed = false;
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final raised = _pressed || _hovered;
+    final tappable = widget.onTap != null;
 
     final card = Card(
       clipBehavior: Clip.antiAlias,
-      elevation: 0,
-      color: background ?? colorScheme.surfaceContainerLow,
+      elevation: raised ? 2 : 0,
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.3),
+      color: widget.background ?? colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Rounded.x2l),
-        side: BorderSide(color: colorScheme.outlineVariant),
+        side: BorderSide(
+          color: _hovered
+              ? colorScheme.primary.withValues(alpha: 0.55)
+              : colorScheme.outlineVariant,
+        ),
       ),
       margin: EdgeInsets.zero,
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
+        onHighlightChanged: tappable
+            ? (value) => setState(() => _pressed = value)
+            : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (image != null) AspectRatio(aspectRatio: 16 / 9, child: image!),
+            if (widget.image != null)
+              AspectRatio(aspectRatio: 16 / 9, child: widget.image!),
             Padding(
               padding:
-                  padding ??
+                  widget.padding ??
                   EdgeInsets.all(
-                    compact
+                    widget.compact
                         ? Space.md
                         : responsiveValue(
                             context,
@@ -96,23 +121,27 @@ class UiCard extends StatelessWidget {
                   ),
               child: Row(
                 children: [
-                  if (leading != null) ...[leading!, SizedBox(width: Space.md)],
+                  if (widget.leading != null) ...[
+                    widget.leading!,
+                    SizedBox(width: Space.md),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         UiText(
-                          title,
+                          widget.title,
                           type: UiTextType.titleMedium,
                           fontWeight: FontWeight.w600,
-                          color: titleColor,
+                          color: widget.titleColor,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (subtitle != null && subtitle!.isNotEmpty) ...[
+                        if (widget.subtitle != null &&
+                            widget.subtitle!.isNotEmpty) ...[
                           SizedBox(height: Space.xs),
                           UiText(
-                            subtitle!,
+                            widget.subtitle!,
                             type: UiTextType.bodySmall,
                             color: colorScheme.onSurfaceVariant,
                             maxLines: 2,
@@ -125,30 +154,30 @@ class UiCard extends StatelessWidget {
                 ],
               ),
             ),
-            if (content != null)
+            if (widget.content != null)
               Padding(
                 padding: EdgeInsets.fromLTRB(
-                  compact ? Space.md : Space.lg,
+                  widget.compact ? Space.md : Space.lg,
                   Space.xs,
-                  compact ? Space.md : Space.lg,
-                  _contentBottom,
+                  widget.compact ? Space.md : Space.lg,
+                  widget._contentBottom,
                 ),
-                child: content,
+                child: widget.content,
               ),
-            if (actions.isNotEmpty)
+            if (widget.actions.isNotEmpty)
               Padding(
                 padding: EdgeInsets.fromLTRB(
-                  compact ? Space.md : Space.lg,
+                  widget.compact ? Space.md : Space.lg,
                   0,
-                  compact ? Space.md : Space.lg,
-                  compact ? Space.sm : Space.lg,
+                  widget.compact ? Space.md : Space.lg,
+                  widget.compact ? Space.sm : Space.lg,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    for (var i = 0; i < actions.length; i++) ...[
+                    for (var i = 0; i < widget.actions.length; i++) ...[
                       if (i > 0) SizedBox(width: Space.sm),
-                      actions[i],
+                      widget.actions[i],
                     ],
                   ],
                 ),
@@ -158,6 +187,20 @@ class UiCard extends StatelessWidget {
       ),
     );
 
-    return Semantics(button: onTap != null, child: card);
+    return Semantics(
+      button: tappable,
+      child: MouseRegion(
+        cursor: tappable ? SystemMouseCursors.click : MouseCursor.defer,
+        onEnter: tappable ? (_) => setState(() => _hovered = true) : null,
+        onExit: tappable ? (_) => setState(() => _hovered = false) : null,
+        // Subtle press compression — the expressive M3 "sink" micro-motion.
+        child: AnimatedScale(
+          scale: _pressed ? 0.985 : 1.0,
+          duration: AppMotion.short,
+          curve: AppMotion.standard,
+          child: card,
+        ),
+      ),
+    );
   }
 }

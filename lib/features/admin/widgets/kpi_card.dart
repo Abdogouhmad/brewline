@@ -123,11 +123,6 @@ class KpiCard extends StatelessWidget {
       ),
     );
   }
-
-  static double responsiveVSpace(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    return width >= 600 ? Space.lg : Space.md;
-  }
 }
 
 /// Compact up/down pill showing the fractional change vs the previous window.
