@@ -342,5 +342,24 @@ ThemeData _baseTheme(ColorScheme colorScheme) {
         letterSpacing: 0,
       ),
     ),
+    dividerTheme: DividerThemeData(
+      color: colorScheme.outlineVariant.withValues(alpha: 0.6),
+      thickness: 1,
+      space: 1,
+    ),
+    dataTableTheme: DataTableThemeData(
+      headingRowColor: WidgetStatePropertyAll(
+        colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      ),
+      dataRowMinHeight: 52,
+      dataRowMaxHeight: 64,
+      headingRowHeight: 56,
+      horizontalMargin: Space.lg,
+      headingTextStyle: textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w600,
+        color: colorScheme.onSurface,
+        letterSpacing: 0,
+      ),
+    ),
   );
 }
