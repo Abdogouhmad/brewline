@@ -152,7 +152,7 @@ class _LineChartPainter extends CustomPainter {
     Offset center, {
     required _Anchor anchor,
     required double canvasWidth,
-    Color color = Colors.black,
+    required Color color,
     double size = 11,
     bool bold = false,
   }) {

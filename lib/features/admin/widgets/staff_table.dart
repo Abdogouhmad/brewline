@@ -208,7 +208,7 @@ class _StaffCard extends ConsumerWidget {
 
     return Card(
       elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.4),
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.4),
       margin: EdgeInsets.zero,
       color: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
@@ -293,7 +293,7 @@ class _StaffDataTable extends ConsumerWidget {
 
     return Card(
       elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.4),
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.4),
       clipBehavior: Clip.antiAlias,
       color: colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(

@@ -292,7 +292,7 @@ class _ProfileHeader extends ConsumerWidget {
                           width: 14,
                           height: 14,
                           decoration: BoxDecoration(
-                            color: Colors.green.shade600,
+                            color: colorScheme.primary,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: colorScheme.surfaceContainerLow,
