@@ -22,21 +22,15 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The visual frame (flat fill, outline border, radius, zero margin) comes
+    // from the app-wide `cardTheme` — this widget only tunes the padding and
+    // header layout.
     final colorScheme = Theme.of(context).colorScheme;
-    // Dashboard cards shrink slightly on phones/tablets alongside the KPI
-    // cards and the responsive font, keeping content from wrapping.
     final padding = Breakpoints.of(context) == ScreenSize.compact
         ? EdgeInsets.all(Space.md)
         : EdgeInsets.all(Space.lg);
 
     return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Rounded.x2l),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
       child: Padding(
         padding: padding,
         child: Column(

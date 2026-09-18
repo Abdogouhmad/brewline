@@ -24,6 +24,7 @@ class OrdersPage extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final orderItems = ref.watch(orderControllerProvider);
     final total = ref.watch(orderTotalProvider);
+    final orderNumber = ref.watch(orderNumberProvider);
     final order = ref.read(orderControllerProvider.notifier);
 
     /// Charges the order — persists it to the journal, advances the ticket
@@ -31,6 +32,11 @@ class OrdersPage extends ConsumerWidget {
     Future<void> charge() async {
       await order.charge();
       if (!context.mounted) return;
+      showUiSnackBar(
+        context,
+        l10n.ordersCharged(orderNumber),
+        type: UiSnackBarType.success,
+      );
     }
 
     /// Empties the order without charging. Keeps a backup so the snackbar's
@@ -52,8 +58,8 @@ class OrdersPage extends ConsumerWidget {
     // copy is resolved here per locale.
     final units = totalUnitsOf(orderItems);
     final title = units > 1
-        ? l10n.ordersTitleWithItems(ref.watch(orderNumberProvider), units)
-        : l10n.ordersTitle(ref.watch(orderNumberProvider));
+        ? l10n.ordersTitleWithItems(orderNumber, units)
+        : l10n.ordersTitle(orderNumber);
 
     return Column(
       children: [
@@ -61,7 +67,7 @@ class OrdersPage extends ConsumerWidget {
           child: orderItems.isEmpty
               ? const _EmptyOrderView()
               : ListView(
-                  padding: EdgeInsets.all(Space.lg),
+                  padding: const EdgeInsets.all(Space.lg),
                   children: [
                     UiListSection(
                       title: title,
@@ -91,7 +97,7 @@ class OrdersPage extends ConsumerWidget {
         // Summary + actions pinned to the bottom.
         const Divider(height: 1, thickness: 0.5),
         Padding(
-          padding: EdgeInsets.all(Space.lg),
+          padding: const EdgeInsets.all(Space.lg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -111,13 +117,13 @@ class OrdersPage extends ConsumerWidget {
                   ),
                 ],
               ),
-              SizedBox(height: Space.xl),
+              const SizedBox(height: Space.xl),
               UiButton(
                 l10n.ordersCharge(formatPriceCents(total)),
                 expand: true,
                 onPressed: total <= 0 ? null : charge,
               ),
-              SizedBox(height: Space.md),
+              const SizedBox(height: Space.md),
               UiButton(
                 l10n.ordersClearOrder,
                 variant: UiButtonVariant.outlined,

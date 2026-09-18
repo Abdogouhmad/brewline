@@ -33,15 +33,11 @@ class IngredientTile extends StatelessWidget {
     final compact = Breakpoints.of(context) == ScreenSize.compact;
 
     return Card(
-      elevation: 0,
-      margin: EdgeInsets.only(bottom: Space.md),
-      color: colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Rounded.x2l),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
+      // The flat frame (fill, outline, radius) comes from the app-wide
+      // `cardTheme`; only the list gutters are tuned here.
+      margin: const EdgeInsets.only(bottom: Space.md),
       child: Padding(
-        padding: EdgeInsets.all(Space.lg),
+        padding: const EdgeInsets.all(Space.lg),
         child: Row(
           children: [
             Container(

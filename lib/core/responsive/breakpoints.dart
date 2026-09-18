@@ -27,6 +27,11 @@ class Breakpoints {
   static const double medium = 600;
   static const double expanded = 905;
 
+  /// Content-level breakpoint where two-column admin layouts (a full-width
+  /// section beside a side rail) earn their width: only reached on genuinely
+  /// wide windows, above the drawer-tier [expanded].
+  static const double twoColumnLayout = 1100;
+
   /// Buckets [context]'s current width.
   static ScreenSize of(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;

@@ -73,7 +73,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           children: [
             const _ProfileHeader(),
-            SizedBox(height: Space.x2l),
+            const SizedBox(height: Space.x2l),
             _ResponsiveSections(
               breakpoint: _twoColumnBreakpoint,
               general: _buildGeneralCard(context, ref),
@@ -81,7 +81,7 @@ class SettingsPage extends ConsumerWidget {
               account: _buildAccountCard(context, ref),
               update: const UpdateSection(),
             ),
-            SizedBox(height: Space.x2l),
+            const SizedBox(height: Space.x2l),
             const SettingsFooter(),
           ],
         ),
@@ -239,17 +239,35 @@ class SettingsPage extends ConsumerWidget {
 
 /// Hero card at the top of Settings: large initials avatar, user name,
 /// role badge and a live "on shift" status dot. Bound to the signed-in
-/// session via [currentUserProvider]; hidden until it resolves.
+/// session via [currentUserProvider].
 class _ProfileHeader extends ConsumerWidget {
   const _ProfileHeader();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider).value;
-    if (user == null) return const SizedBox.shrink();
-    final colorScheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
+    final userAsync = ref.watch(currentUserProvider);
 
+    return userAsync.when(
+      // Reserve the card height while the session resolves so the hero
+      // doesn't pop in (and collapse) on every refresh.
+      loading: () => const _ProfileCard(body: SizedBox(height: 120)),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (user) => user == null
+          ? const SizedBox.shrink()
+          : _ProfileCard(body: _ProfileBody(user: user)),
+    );
+  }
+}
+
+/// The framed shell used by the profile hero: accent stripe + rounded card.
+class _ProfileCard extends StatelessWidget {
+  final Widget body;
+
+  const _ProfileCard({required this.body});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
@@ -264,83 +282,95 @@ class _ProfileHeader extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              height: 3,
-              decoration: BoxDecoration(color: colorScheme.primary),
-            ),
-            Padding(
-              padding: EdgeInsets.all(Space.xl),
-              child: Row(
-                children: [
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: colorScheme.primaryContainer,
-                        foregroundColor: colorScheme.onPrimaryContainer,
-                        child: UiText(
-                          user.initials,
-                          type: UiTextType.titleLarge,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      // Live shift indicator pinned to the avatar corner.
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: colorScheme.surfaceContainerLow,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: Space.lg),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        UiText(
-                          user.name,
-                          type: UiTextType.headlineSmall,
-                          fontWeight: FontWeight.w800,
-                        ),
-                        SizedBox(height: Space.sm),
-                        Wrap(
-                          spacing: Space.md,
-                          runSpacing: Space.xs,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            _RoleBadge(role: user.role),
-                            Icon(
-                              Icons.schedule_rounded,
-                              size: AppSizes.iconSm + 2,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            SizedBox(width: Space.lg),
-                            UiText(
-                              l10n.settingsOnShift,
-                              type: UiTextType.bodySmall,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Container(height: 3, decoration: BoxDecoration(color: colorScheme.primary)),
+            body,
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The identity block inside the profile card: avatar, name, role + shift.
+class _ProfileBody extends StatelessWidget {
+  final UserProfile user;
+
+  const _ProfileBody({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    return Padding(
+      padding: const EdgeInsets.all(Space.xl),
+      child: Row(
+        children: [
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: colorScheme.primaryContainer,
+                foregroundColor: colorScheme.onPrimaryContainer,
+                child: UiText(
+                  user.initials,
+                  type: UiTextType.titleLarge,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              // Live shift indicator pinned to the avatar corner.
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: colorScheme.surfaceContainerLow,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: Space.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                UiText(
+                  user.name,
+                  type: UiTextType.headlineSmall,
+                  fontWeight: FontWeight.w800,
+                ),
+                const SizedBox(height: Space.sm),
+                Wrap(
+                  spacing: Space.md,
+                  runSpacing: Space.xs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _RoleBadge(role: user.role),
+                    Icon(
+                      Icons.schedule_rounded,
+                      size: AppSizes.iconSm + 2,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: Space.lg),
+                    UiText(
+                      l10n.settingsOnShift,
+                      type: UiTextType.bodySmall,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -5,6 +5,8 @@ import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_provider.dart';
 import 'package:brewline/features/onboarding/providers/onboarding_state.dart';
 import 'package:brewline/l10n/app_localizations.dart';
+import 'package:brewline/shared/ui/ui_inline_error.dart';
+import 'package:brewline/shared/ui/ui_submit_button.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 import 'package:brewline/shared/widgets/app_text_field.dart';
 import 'package:brewline/shared/widgets/pin_keypad_field.dart';
@@ -34,7 +36,6 @@ class _OnboardingFormState extends ConsumerState<OnboardingForm> {
   Widget build(BuildContext context) {
     final state = ref.watch(onboardingProvider);
     final notifier = ref.read(onboardingProvider.notifier);
-    final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final pinErrorText = _errorText(l10n, state.pinError);
     final confirmErrorText = _errorText(l10n, state.confirmError);
@@ -45,7 +46,7 @@ class _OnboardingFormState extends ConsumerState<OnboardingForm> {
     final usernameErrorText = _errorText(l10n, state.usernameError);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.all(Space.x2l),
+      padding: const EdgeInsets.all(Space.x2l),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -60,7 +61,7 @@ class _OnboardingFormState extends ConsumerState<OnboardingForm> {
             autofillHints: const [AutofillHints.username],
             onChanged: notifier.setUsername,
           ),
-          SizedBox(height: Space.xl),
+          const SizedBox(height: Space.xl),
 
           // --- Single PIN slot: swaps between "set" and "confirm" ---
           AnimatedSwitcher(
@@ -73,82 +74,37 @@ class _OnboardingFormState extends ConsumerState<OnboardingForm> {
                     label: l10n.onboardingConfirmPin,
                     hasError: state.confirmError != null,
                     onChanged: notifier.setConfirmPin,
-                    onCompleted: (_) {},
                   )
                 : _PinSection(
                     key: const ValueKey('pin'),
                     label: l10n.onboardingSetPin,
                     hasError: state.pinError != null,
                     onChanged: notifier.setPin,
-                    onCompleted: (_) {},
                   ),
           ),
 
           // Error text for whichever PIN step is active
-          if (!pinComplete && pinErrorText != null) ...[
-            SizedBox(height: Space.sm),
-            UiText(
-              pinErrorText,
-              type: UiTextType.bodySmall,
-              color: colorScheme.error,
-              textAlign: TextAlign.center,
-            ),
-          ],
-          if (pinComplete && confirmErrorText != null) ...[
-            SizedBox(height: Space.sm),
-            UiText(
-              confirmErrorText,
-              type: UiTextType.bodySmall,
-              color: colorScheme.error,
-              textAlign: TextAlign.center,
-            ),
-          ],
-          if (pinTakenErrorText != null) ...[
-            SizedBox(height: Space.sm),
-            UiText(
-              pinTakenErrorText,
-              type: UiTextType.bodySmall,
-              color: colorScheme.error,
-              textAlign: TextAlign.center,
-            ),
-          ],
-          SizedBox(height: Space.xl),
+          if (!pinComplete && pinErrorText != null)
+            UiInlineError(pinErrorText),
+          if (pinComplete && confirmErrorText != null)
+            UiInlineError(confirmErrorText),
+          if (pinTakenErrorText != null) UiInlineError(pinTakenErrorText),
+          const SizedBox(height: Space.xl),
 
           // --- Submit ---
-          FilledButton(
+          UiSubmitButton(
+            l10n.onboardingFinishSetup,
+            loading: state.isSubmitting,
             onPressed: state.isValid && !state.isSubmitting
                 ? () => notifier.submit()
                 : null,
-            style: FilledButton.styleFrom(
-              minimumSize: Size.fromHeight(52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(Rounded.xl),
-              ),
-            ),
-            child: state.isSubmitting
-                ? SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colorScheme.onPrimary,
-                    ),
-                  )
-                : UiText(
-                    l10n.onboardingFinishSetup,
-                    type: UiTextType.titleMedium,
-                    fontWeight: FontWeight.w700,
-                  ),
           ),
-          if (submitErrorText != null) ...[
-            SizedBox(height: Space.md),
-            UiText(
+          if (submitErrorText != null)
+            UiInlineError(
               submitErrorText,
               type: UiTextType.bodyMedium,
-              color: colorScheme.error,
-              textAlign: TextAlign.center,
+              paddingTop: Space.md,
             ),
-          ],
         ],
       ),
     );
@@ -173,14 +129,12 @@ class _PinSection extends StatelessWidget {
   final String label;
   final bool hasError;
   final ValueChanged<String> onChanged;
-  final ValueChanged<String> onCompleted;
 
   const _PinSection({
     super.key,
     required this.label,
     required this.hasError,
     required this.onChanged,
-    required this.onCompleted,
   });
 
   @override
@@ -190,7 +144,6 @@ class _PinSection extends StatelessWidget {
       length: kAdminPinLength,
       hasError: hasError,
       onChanged: onChanged,
-      onCompleted: onCompleted,
     );
   }
 }

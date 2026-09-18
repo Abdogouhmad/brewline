@@ -1296,6 +1296,15 @@
   "@ordersCleared": {
     "description": "Snackbar shown after the cart is cleared"
   },
+  "ordersCharged": "Order #{number} charged",
+  "@ordersCharged": {
+    "description": "Success snackbar after an order is charged",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "ordersUndo": "Undo",
   "@ordersUndo": {
     "description": "Snackbar action that restores a cleared cart"

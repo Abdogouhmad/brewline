@@ -3,13 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:brewline/core/constants/app_sizes.dart';
 import 'package:brewline/core/responsive/breakpoints.dart';
 import 'package:brewline/core/responsive/responsive_text.dart';
-import 'package:brewline/features/admin/providers/dashboard_period.dart';
 import 'package:brewline/shared/ui/ui_text.dart';
 
 /// One headline stat on the admin dashboard.
 ///
 /// Pairs a colour-tinted icon with a big value and a delta chip comparing
-/// against the previous equal-length window ([deltaPercent]).
+/// against the previous equal-length window ([delta]).
 class KpiCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -35,21 +34,15 @@ class KpiCard extends StatelessWidget {
 
     // Cards slim 15–20% on phones/tablets (smaller padding + tighter icon
     // row) so four headline stats fit without wrapping; desktop keeps the
-    // original generous padding.
+    // original generous padding. The visual frame itself comes from the
+    // app-wide `cardTheme`.
     final padding = switch (size) {
-      ScreenSize.expanded => EdgeInsets.all(Space.lg),
-      ScreenSize.medium => EdgeInsets.all(Space.lg - 2),
-      ScreenSize.compact => EdgeInsets.all(Space.md),
+      ScreenSize.expanded => const EdgeInsets.all(Space.lg),
+      ScreenSize.medium => const EdgeInsets.all(Space.lg - 2),
+      ScreenSize.compact => const EdgeInsets.all(Space.md),
     };
 
     return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: colorScheme.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Rounded.x2l),
-        side: BorderSide(color: colorScheme.outlineVariant),
-      ),
       child: Padding(
         padding: padding,
         child: LayoutBuilder(
@@ -157,8 +150,8 @@ class _DeltaChip extends StatelessWidget {
     };
 
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? Space.sm : Space.sm,
+      padding: const EdgeInsets.symmetric(
+        horizontal: Space.sm,
         vertical: Space.xs,
       ),
       decoration: BoxDecoration(

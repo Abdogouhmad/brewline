@@ -34,8 +34,6 @@ class AdminDashboardPage extends ConsumerWidget {
 
   const AdminDashboardPage({super.key, required this.onNavigate});
 
-  static const double _twoColumnBreakpoint = 1100;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
@@ -45,11 +43,11 @@ class AdminDashboardPage extends ConsumerWidget {
       ),
       children: [
         const DashboardHeader(),
-        SizedBox(height: Space.lg),
+        const SizedBox(height: Space.lg),
         const _KpiGrid(),
-        SizedBox(height: Space.lg),
+        const SizedBox(height: Space.lg),
         _RevenueAndRail(onNavigate: onNavigate),
-        SizedBox(height: Space.lg),
+        const SizedBox(height: Space.lg),
         const _SecondaryRow(),
       ],
     );
@@ -70,10 +68,8 @@ class _RevenueAndRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >= AdminDashboardPage._twoColumnBreakpoint;
+        final wide = constraints.maxWidth >= Breakpoints.twoColumnLayout;
         const revenue = _RevenueSection();
-        const shift = ShiftStatusCard();
 
         // Rail never dips below 320dp so quick action labels stay readable.
         final railWidth = wide
@@ -83,18 +79,6 @@ class _RevenueAndRail extends StatelessWidget {
             ? constraints.maxWidth - railWidth - Space.lg
             : constraints.maxWidth;
 
-        Widget rail() => SizedBox(
-          width: railWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              shift,
-              SizedBox(height: Space.lg),
-              QuickActionsRow(onNavigate: onNavigate),
-            ],
-          ),
-        );
-
         // Stack the revenue chart above the rail on phones/tablets; place
         // them side by side only when there is enough width.
         if (!wide) {
@@ -102,8 +86,8 @@ class _RevenueAndRail extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               revenue,
-              SizedBox(height: Space.lg),
-              rail(),
+              const SizedBox(height: Space.lg),
+              _rail(onNavigate: onNavigate, width: railWidth),
             ],
           );
         }
@@ -112,11 +96,29 @@ class _RevenueAndRail extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(width: revenueWidth, child: revenue),
-            SizedBox(width: Space.lg),
-            rail(),
+            const SizedBox(width: Space.lg),
+            _rail(onNavigate: onNavigate, width: railWidth),
           ],
         );
       },
+    );
+  }
+
+  /// Shift status + quick actions, capped at [width] so labels stay readable.
+  Widget _rail({
+    required ValueChanged<int> onNavigate,
+    required double width,
+  }) {
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const ShiftStatusCard(),
+          const SizedBox(height: Space.lg),
+          QuickActionsRow(onNavigate: onNavigate),
+        ],
+      ),
     );
   }
 }
@@ -129,8 +131,7 @@ class _SecondaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide =
-            constraints.maxWidth >= AdminDashboardPage._twoColumnBreakpoint;
+        final wide = constraints.maxWidth >= Breakpoints.twoColumnLayout;
         final columnWidth = wide
             ? (constraints.maxWidth - Space.lg) / 2
             : constraints.maxWidth;

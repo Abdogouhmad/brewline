@@ -11,6 +11,7 @@ import 'package:brewline/features/admin/pages/menu_products_page.dart';
 import 'package:brewline/features/admin/pages/reports_page.dart';
 import 'package:brewline/features/admin/pages/sales_log_page.dart';
 import 'package:brewline/features/admin/pages/staff_management_page.dart';
+import 'package:brewline/features/admin/providers/admin_nav_provider.dart';
 import 'package:brewline/l10n/app_localizations.dart';
 import 'package:brewline/shared/widgets/app_shell.dart';
 import 'package:brewline/shared/widgets/nav_user_footer.dart';
@@ -21,54 +22,48 @@ import 'package:brewline/shared/widgets/nav_user_footer.dart';
 /// Destination chrome (labels, icons, order) is owned by [kAdminNavItems] —
 /// the "More" fold, rail and drawer all read it — while the pages themselves
 /// are wired here by destination id. The Inventory destination carries a live
-/// low-stock count badge on its nav item.
-class AdminHomePage extends ConsumerStatefulWidget {
+/// low-stock count badge on its nav item. The selected tab lives in
+/// [adminNavIndexProvider] so quick actions in the pages can switch tabs.
+class AdminHomePage extends ConsumerWidget {
   const AdminHomePage({super.key});
 
   @override
-  ConsumerState<AdminHomePage> createState() => _AdminHomePageState();
-}
-
-class _AdminHomePageState extends ConsumerState<AdminHomePage> {
-  /// Shared with [AppShell] so dashboard quick actions can switch tabs and
-  /// the selected nav destination stays in sync.
-  final ValueNotifier<int> _tabIndex = ValueNotifier(0);
-
-  @override
-  void dispose() {
-    _tabIndex.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final lowStock = ref.watch(lowStockIngredientsProvider);
     final lowStockCount = lowStock.value?.length ?? 0;
+    final tabIndex = ref.watch(adminNavIndexProvider);
 
-    final pagesById = <String, Widget>{
-      'dashboard': AdminDashboardPage(onNavigate: onNavigateTo),
-      'reports': const ReportsPage(),
-      'menu': const MenuProductsPage(),
-      'inventory': const InventoryPage(),
-      'staff': const StaffManagementPage(),
-      'sales': const SalesLogPage(),
-      'cashout': const CashoutLogsPage(),
-      'settings': const AdminSettingsPage(),
-    };
+    void onNavigateTo(int index) => tabIndex.value = index;
 
     return AppShell(
-      indexController: _tabIndex,
+      indexController: tabIndex,
       drawerFooter: const NavUserFooter(),
       destinations: [
         for (final item in kAdminNavItems)
           AppDestination(
             _navLabel(context, item),
             item.icon,
-            page: pagesById[item.id],
+            page: _pageFor(item, onNavigateTo),
             badgeCount: item.id == 'inventory' ? lowStockCount : null,
           ),
       ],
     );
+  }
+
+  /// Maps a nav destination id to its page. Only the dashboard needs the
+  /// [onNavigate] jump callback; every other page is a `const` screen.
+  static Widget _pageFor(AdminNavItem item, ValueChanged<int> onNavigate) {
+    return switch (item.id) {
+      'dashboard' => AdminDashboardPage(onNavigate: onNavigate),
+      'reports' => const ReportsPage(),
+      'menu' => const MenuProductsPage(),
+      'inventory' => const InventoryPage(),
+      'staff' => const StaffManagementPage(),
+      'sales' => const SalesLogPage(),
+      'cashout' => const CashoutLogsPage(),
+      'settings' => const AdminSettingsPage(),
+      _ => const SizedBox.shrink(),
+    };
   }
 
   /// Localized label for an admin nav destination. The [kAdminNavItems]
@@ -88,6 +83,4 @@ class _AdminHomePageState extends ConsumerState<AdminHomePage> {
       _ => item.label,
     };
   }
-
-  void onNavigateTo(int index) => _tabIndex.value = index;
 }

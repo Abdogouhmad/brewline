@@ -1285,6 +1285,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ordersCleared => 'Order cleared';
 
   @override
+  String ordersCharged(int number) {
+    return 'Order #$number charged';
+  }
+
+  @override
   String get ordersUndo => 'Undo';
 
   @override

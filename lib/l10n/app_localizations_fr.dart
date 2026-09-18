@@ -1307,6 +1307,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get ordersCleared => 'Commande effacée';
 
   @override
+  String ordersCharged(int number) {
+    return 'Commande n° $number encaissée';
+  }
+
+  @override
   String get ordersUndo => 'Annuler';
 
   @override

@@ -2,6 +2,42 @@
 
 All notable changes to Brewline, in plain language for everyday users.
 
+## [1.14.0] - 2026-09-18
+
+### Improved (design)
+
+- **More consistent page headers** — Inventory and Menu now share the same
+  title/subtitle header as the rest of the admin pages, so the layout no
+  longer jumps between tabs on phones.
+- **Cards look the same everywhere** — KPI, dashboard and ingredient cards now
+  draw their frame from one shared style, so corners, borders and spacing are
+  uniform.
+- **Filters keep their place** — the current order number on the waiter board
+  no longer re-fetches on every rebuilt list, so the screen stays smooth while
+  orders come and go.
+- **Clearer charge confirmation** — after charging an order, a small success
+  message confirms the total, alongside the printed receipt.
+- **Cleaner bottom navigation** — on phones the tab bar is now icon-only (the
+  screen title names the active tab), and several loading/placeholder states
+  are properly themed.
+
+### Fixed
+
+- **No more flicker in Settings** — the profile card keeps a stable size while
+  your details load instead of shifting the page.
+- **Cash-out dialog cleanup** — the cash-count field is now disposed correctly,
+  preventing a small memory leak each time the dialog is closed.
+- **Quieter archive action** — ingredient archiving is handled by a dedicated
+  provider instead of rebuilding the whole page.
+
+### Under the hood
+
+- Long inventory lists are now built lazily as you scroll, so a large ingredient
+  catalog stays responsive.
+- Removed dead order code (`orderTitleProvider`, the unused order-number
+  controller) and simplified the PIN keypad, chart rail and dashboard layout
+  breakpoints.
+
 ## [1.13.0] - 2026-09-15
 
 ### Improved (design)
@@ -241,7 +277,8 @@ All notable changes to Brewline, in plain language for everyday users.
 - **Login & onboarding** — first-run setup for the admin account, followed by
   a secure PIN login.
 
-[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.13.0...HEAD
+[Unreleased]: https://github.com/Abdogouhmad/brewline/compare/1.14.0...HEAD
+[1.14.0]: https://github.com/Abdogouhmad/brewline/compare/1.13.0...1.14.0
 [1.13.0]: https://github.com/Abdogouhmad/brewline/compare/1.12.0...1.13.0
 [1.12.0]: https://github.com/Abdogouhmad/brewline/compare/1.11.0...1.12.0
 [1.11.0]: https://github.com/Abdogouhmad/brewline/compare/1.10.0...1.11.0

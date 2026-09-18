@@ -210,12 +210,12 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
   Future<int?> _askCashCounted(
     BuildContext context, {
     required int expectedCents,
-  }) {
+  }) async {
     final l10n = AppLocalizations.of(context)!;
     final controller = TextEditingController(text: _centsToDh(expectedCents));
     final formKey = GlobalKey<FormState>();
 
-    return showDialog<int>(
+    final result = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Row(
@@ -259,7 +259,7 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
                   }
                 },
               ),
-              SizedBox(height: Space.md),
+              const SizedBox(height: Space.md),
               UiText(
                 l10n.walletCashoutExpected(_centsToDh(expectedCents)),
                 type: UiTextType.bodySmall,
@@ -284,6 +284,11 @@ class _CashoutButtonState extends ConsumerState<CashoutButton> {
         ],
       ),
     );
+
+    // Cancel the pending subscription — this dialog can open repeatedly
+    // across shifts, so the controller must not leak.
+    controller.dispose();
+    return result;
   }
 
   static int _dhToCents(String value) =>

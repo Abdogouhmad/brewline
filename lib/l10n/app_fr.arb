@@ -393,6 +393,7 @@
   "ordersTitleWithItems": "Commande n° {number} · {count, plural, =1{1 article} other{{count} articles}}",
   "ordersTitle": "Commande n° {number}",
   "ordersCleared": "Commande effacée",
+  "ordersCharged": "Commande n° {number} encaissée",
   "ordersUndo": "Annuler",
   "ordersEmpty": "Aucun article",
   "ordersEmptyHint": "Touchez des produits dans Menu pour les ajouter ici.",

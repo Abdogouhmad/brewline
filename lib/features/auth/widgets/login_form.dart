@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:brewline/core/constants/app_sizes.dart';
-import 'package:brewline/core/responsive/responsive.dart';
 import 'package:brewline/features/auth/providers/login_form_provider.dart';
 import 'package:brewline/l10n/app_localizations.dart';
-import 'package:brewline/shared/ui/ui_text.dart';
+import 'package:brewline/shared/ui/ui_inline_error.dart';
+import 'package:brewline/shared/ui/ui_submit_button.dart';
 import 'package:brewline/shared/widgets/pin_keypad_field.dart';
 
 /// The login form: PIN-only entry with auto-submit on completion.
@@ -20,7 +20,6 @@ class LoginForm extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(loginFormProvider);
     final notifier = ref.read(loginFormProvider.notifier);
-    final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final submitErrorText = switch (state.submitError) {
       null => null,
@@ -28,7 +27,7 @@ class LoginForm extends ConsumerWidget {
     };
 
     return SingleChildScrollView(
-      padding: EdgeInsets.all(Space.x2l),
+      padding: const EdgeInsets.all(Space.x2l),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -45,56 +44,23 @@ class LoginForm extends ConsumerWidget {
           ),
 
           // --- Error / throttle message ---
-          if (state.isThrottled) ...[
-            SizedBox(height: Space.sm),
-            UiText(
-              l10n.loginLockedOut(state.cooldownRemaining),
-              type: UiTextType.bodySmall,
-              color: colorScheme.error,
-              textAlign: TextAlign.center,
-            ),
-          ] else if (submitErrorText != null) ...[
-            SizedBox(height: Space.sm),
-            UiText(
-              submitErrorText,
-              type: UiTextType.bodySmall,
-              color: colorScheme.error,
-              textAlign: TextAlign.center,
-            ),
-          ],
+          if (state.isThrottled)
+            UiInlineError(l10n.loginLockedOut(state.cooldownRemaining))
+          else if (submitErrorText != null)
+            UiInlineError(submitErrorText),
 
-          SizedBox(height: Space.xl),
+          const SizedBox(height: Space.xl),
 
           // --- Submit (manual fallback — auto-submit fires on completion) ---
-          FilledButton(
+          UiSubmitButton(
+            l10n.loginButton,
+            loading: state.isSubmitting,
             onPressed: state.canSubmit
                 ? () {
                     FocusManager.instance.primaryFocus?.unfocus();
                     notifier.submit();
                   }
                 : null,
-            style: FilledButton.styleFrom(
-              minimumSize: Size.fromHeight(
-                responsiveValue(context, mobile: 52, tablet: 60, desktop: 64),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(Rounded.xl),
-              ),
-            ),
-            child: state.isSubmitting
-                ? SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colorScheme.onPrimary,
-                    ),
-                  )
-                : UiText(
-                    l10n.loginButton,
-                    type: UiTextType.titleMedium,
-                    fontWeight: FontWeight.w700,
-                  ),
           ),
         ],
       ),

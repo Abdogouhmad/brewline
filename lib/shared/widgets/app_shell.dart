@@ -133,6 +133,8 @@ class _AppShellState extends State<AppShell> {
       ),
       body: _bodyOf(index),
       bottomNavigationBar: NavigationBar(
+        // Icon-only compact bar (labels live in the app bar title).
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         selectedIndex: selected,
         onDestinationSelected: (i) {
           if (folded && i == _moreSlot) {
@@ -315,8 +317,12 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _placeholder(int index) =>
-      Center(child: Text(widget.destinations[index].label));
+  Widget _placeholder(int index) => Center(
+    child: UiText(
+      widget.destinations[index].label,
+      type: UiTextType.titleMedium,
+    ),
+  );
 }
 
 /// Single sidebar destination: tinted pill on the active tab + dimmed label.

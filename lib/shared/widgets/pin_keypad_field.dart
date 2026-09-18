@@ -283,6 +283,32 @@ class _NumericKeypad extends StatelessWidget {
     ['', '0', '⌫'],
   ];
 
+  /// Main-row + numpad digit keys mapped to the digit string they type.
+  ///
+  /// `final` (not `const`) because [LogicalKeyboardKey] overrides `==`.
+  static final Map<LogicalKeyboardKey, String> _digitKeys = {
+    LogicalKeyboardKey.digit0: '0',
+    LogicalKeyboardKey.numpad0: '0',
+    LogicalKeyboardKey.digit1: '1',
+    LogicalKeyboardKey.numpad1: '1',
+    LogicalKeyboardKey.digit2: '2',
+    LogicalKeyboardKey.numpad2: '2',
+    LogicalKeyboardKey.digit3: '3',
+    LogicalKeyboardKey.numpad3: '3',
+    LogicalKeyboardKey.digit4: '4',
+    LogicalKeyboardKey.numpad4: '4',
+    LogicalKeyboardKey.digit5: '5',
+    LogicalKeyboardKey.numpad5: '5',
+    LogicalKeyboardKey.digit6: '6',
+    LogicalKeyboardKey.numpad6: '6',
+    LogicalKeyboardKey.digit7: '7',
+    LogicalKeyboardKey.numpad7: '7',
+    LogicalKeyboardKey.digit8: '8',
+    LogicalKeyboardKey.numpad8: '8',
+    LogicalKeyboardKey.digit9: '9',
+    LogicalKeyboardKey.numpad9: '9',
+  };
+
   @override
   Widget build(BuildContext context) {
     return Focus(
@@ -292,65 +318,19 @@ class _NumericKeypad extends StatelessWidget {
         if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
           return KeyEventResult.ignored;
         }
-        final key = event.logicalKey;
-        // Digit keys (QWERTY row + numpad)
-        if (LogicalKeyboardKey.digit0.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad0.keyId == key.keyId) {
-          onKeyTap('0');
+        // Digit keys (QWERTY row + numpad).
+        final digit = _digitKeys[event.logicalKey];
+        if (digit != null) {
+          onKeyTap(digit);
           return KeyEventResult.handled;
         }
-        if (LogicalKeyboardKey.digit1.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad1.keyId == key.keyId) {
-          onKeyTap('1');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit2.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad2.keyId == key.keyId) {
-          onKeyTap('2');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit3.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad3.keyId == key.keyId) {
-          onKeyTap('3');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit4.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad4.keyId == key.keyId) {
-          onKeyTap('4');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit5.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad5.keyId == key.keyId) {
-          onKeyTap('5');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit6.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad6.keyId == key.keyId) {
-          onKeyTap('6');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit7.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad7.keyId == key.keyId) {
-          onKeyTap('7');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit8.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad8.keyId == key.keyId) {
-          onKeyTap('8');
-          return KeyEventResult.handled;
-        }
-        if (LogicalKeyboardKey.digit9.keyId == key.keyId ||
-            LogicalKeyboardKey.numpad9.keyId == key.keyId) {
-          onKeyTap('9');
-          return KeyEventResult.handled;
-        }
-        if (key == LogicalKeyboardKey.backspace ||
-            key == LogicalKeyboardKey.delete) {
+        if (event.logicalKey == LogicalKeyboardKey.backspace ||
+            event.logicalKey == LogicalKeyboardKey.delete) {
           onBackspace();
           return KeyEventResult.handled;
         }
-        if (key == LogicalKeyboardKey.enter ||
-            key == LogicalKeyboardKey.numpadEnter) {
+        if (event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
           onSubmit?.call();
           return onSubmit == null
               ? KeyEventResult.ignored

@@ -185,13 +185,6 @@ final orderTotalProvider = Provider<int>(
   (ref) => totalPriceOf(ref.watch(orderControllerProvider)),
 );
 
-/// Header title of the Orders tab, e.g. `Order #12 · 3 items`.
-final orderTitleProvider = Provider<String>((ref) {
-  final number = ref.watch(orderNumberProvider);
-  final units = totalUnitsOf(ref.watch(orderControllerProvider));
-  return units > 1 ? 'Order #$number · $units items' : 'Order #$number';
-});
-
 /// Ticket number of the current order, shown as "Order #N".
 ///
 /// Synced to `MAX(orders.id) + 1` after each charge so the on-screen number
@@ -202,9 +195,6 @@ class OrderNumberController extends Notifier<int> {
 
   @override
   int build() => initialOrderNumber;
-
-  /// Moves to the next ticket number after a charge.
-  void advance() => state++;
 
   /// Replaces the counter, e.g. with a freshly computed journal ticket.
   void set(int value) => state = value;

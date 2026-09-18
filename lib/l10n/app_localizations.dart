@@ -2233,6 +2233,12 @@ abstract class AppLocalizations {
   /// **'Order cleared'**
   String get ordersCleared;
 
+  /// Success snackbar after an order is charged
+  ///
+  /// In en, this message translates to:
+  /// **'Order #{number} charged'**
+  String ordersCharged(int number);
+
   /// Snackbar action that restores a cleared cart
   ///
   /// In en, this message translates to:

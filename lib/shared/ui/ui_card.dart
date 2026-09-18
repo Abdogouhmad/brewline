@@ -123,7 +123,7 @@ class _UiCardState extends State<UiCard> {
                 children: [
                   if (widget.leading != null) ...[
                     widget.leading!,
-                    SizedBox(width: Space.md),
+                    const SizedBox(width: Space.md),
                   ],
                   Expanded(
                     child: Column(
@@ -139,7 +139,7 @@ class _UiCardState extends State<UiCard> {
                         ),
                         if (widget.subtitle != null &&
                             widget.subtitle!.isNotEmpty) ...[
-                          SizedBox(height: Space.xs),
+                          const SizedBox(height: Space.xs),
                           UiText(
                             widget.subtitle!,
                             type: UiTextType.bodySmall,
@@ -176,7 +176,7 @@ class _UiCardState extends State<UiCard> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     for (var i = 0; i < widget.actions.length; i++) ...[
-                      if (i > 0) SizedBox(width: Space.sm),
+                      if (i > 0) const SizedBox(width: Space.sm),
                       widget.actions[i],
                     ],
                   ],
